@@ -4,10 +4,11 @@ import { link } from "../lib/paths";
 
 interface Props {
   title?: string;
-  current: "library" | "boards" | "wire" | "detective" | "bench" | "flames";
+  description?: string;
+  current: "library" | "boards" | "wire" | "detective" | "bench" | "flames" | "errors";
 }
 
-const { title, current } = Astro.props;
+const { title, description = "ESP32 project library and Web Serial workbench.", current } = Astro.props;
 const pageTitle = title ? `${title} | ESP32 Bench` : "ESP32 Bench";
 ---
 
@@ -16,7 +17,7 @@ const pageTitle = title ? `${title} | ESP32 Bench` : "ESP32 Bench";
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="ESP32 project library and Web Serial workbench." />
+    <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href={link("/favicon.svg")} />
     <title>{pageTitle}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />

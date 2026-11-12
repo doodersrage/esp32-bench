@@ -1,6 +1,8 @@
 // Serial monitor for the bench page. Runs in the browser only.
 import { PROJECTS, boardsOf, forBoard } from "../data/projects";
 import { explainLine, explainLog } from "../lib/crash";
+import { errorSlugForKey } from "../data/errors";
+import { link } from "../lib/paths";
 import { feedPlotter, initPlotter, resetPlotter } from "./plotter";
 import { feedRadar, initRadar, resetRadar } from "./radar";
 import { markSeen } from "./progress";
@@ -353,10 +355,19 @@ function init() {
   $("crashgo").addEventListener("click", () => {
     const found = explainLog($<HTMLTextAreaElement>("crashlog").value);
     const out = $("crashout");
+    const entries = found.length > 0 ? found : [{ key: "", text: "Nothing recognised. Paste the lines around the reset or the Guru Meditation message." }];
     out.replaceChildren(
-      ...(found.length > 0 ? found.map((e) => e.text) : ["Nothing recognised. Paste the lines around the reset or the Guru Meditation message."]).map((text) => {
+      ...entries.map(({ key, text }) => {
         const li = document.createElement("li");
         li.textContent = text;
+        // Link to the error reference page when there is one.
+        const slug = key ? errorSlugForKey(key) : undefined;
+        if (slug) {
+          const a = document.createElement("a");
+          a.href = link(`/errors/${slug}/`);
+          a.textContent = "More about this error";
+          li.append(" ", a);
+        }
         return li;
       }),
     );
