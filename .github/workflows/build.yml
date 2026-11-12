@@ -57,9 +57,16 @@ jobs:
             echo "::error title=astro build failed::$msg"
           fi
 
+      - name: Test the wiring diagrams and kit cards against every project
+        run: |
+          DUMP_WIRING=1 DUMP_KIT=1 npx astro build > /dev/null
+          node --experimental-strip-types tests/wiring-diagram.test.ts
+          node --experimental-strip-types tests/kit.test.ts
+
       - name: Test the site's libraries
         run: |
           node --experimental-strip-types tests/share.test.ts
+          node --experimental-strip-types tests/previews.test.ts
           node scripts/test-tools.mjs
           node --experimental-strip-types scripts/test-search.mjs
 

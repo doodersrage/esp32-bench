@@ -14,6 +14,21 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-11",
+    date: "2026-11-12",
+    title: "Version 0.11: see it, build it, try it",
+    summary:
+      "Every project now has a wiring diagram with a step-by-step build mode and a picture of what you'll need, and fifteen projects can be tried in the browser before you build them.",
+    items: [
+      "Wiring diagrams for every project and board, drawn from the wiring table, with power and ground rails and inline resistors.",
+      "Build it step by step: one wire at a time, with the pad lit on the pinout and your progress saved.",
+      "Try it in your browser: play OLED Pong, Simon, the reaction timer and Morse, watch the NeoPixel fire, roll the dice and more.",
+      "What you'll need: a card with every part drawn, resistor colour bands included.",
+      "Wiring tables now list every ground and power connection as its own row.",
+    ],
+    link: "/projects/simon/",
+  },
+  {
     id: "v0-10",
     date: "2026-11-12",
     title: "Version 0.10: garage projects and community builds",
