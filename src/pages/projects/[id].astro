@@ -9,6 +9,8 @@ import { boardById } from "../../data/boards";
 import { link } from "../../lib/paths";
 import { PROBEHARBOR, SITE, reportUrl } from "../../lib/site";
 import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
+import { kitFor } from "../../lib/kit";
+import { PAGE_PALETTE, kitIconSvg } from "../../lib/kit-icons";
 
 export function getStaticPaths() {
   return PROJECTS.map((p) => ({ params: { id: p.id }, props: { p } }));
@@ -27,6 +29,12 @@ const panels = boards.map((board) => ({
 }));
 const needsLibraries = p.libs.some((l) => !/built in/.test(l));
 const hasBuyLinks = p.parts.some((x) => x[2]);
+// "What you'll need": the kit card image and an icon per parts row.
+const kit = kitFor(p.parts);
+const kitAlt = `Parts for ${p.name}: ${kit
+  .map((k) => `${k.alternative ? "or " : `${k.qty} `}${k.label}${k.optional ? " (optional)" : ""}`)
+  .join(", ")}.`;
+const kitSrc = link(`/og/kits/${p.id}.png`);
 const buildReportUrl = reportUrl("build", { project: p.id });
 const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
 const boardNames = boards.map((b) => b.name).join(", ");
@@ -167,6 +175,9 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     <div class="cols even">
       <div>
         <h2 class="h3 mb">Parts</h2>
+        <a class="kitcard" href={kitSrc} title="Open the parts card at full size">
+          <img src={kitSrc} width="1200" height="630" loading="lazy" decoding="async" alt={kitAlt} />
+        </a>
         <div class="tablebox">
           <table>
             <thead class="sr">
@@ -177,10 +188,15 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
               </tr>
             </thead>
             <tbody>
-              {p.parts.map(([qty, what, href]) => (
+              {p.parts.map(([qty, what, href], i) => (
                 <tr>
                   <td class="q">{qty}×</td>
-                  <td>{what}</td>
+                  <td>
+                    <div class="partname">
+                      <span class="kicon" set:html={kitIconSvg(kit[i], PAGE_PALETTE, 28)} />
+                      <span>{what}</span>
+                    </div>
+                  </td>
                   <td class="m">{href && <a href={href} rel={shopRel(href)} target="_blank">Buy at {shopVendor(href)}</a>}</td>
                 </tr>
               ))}
@@ -271,6 +287,11 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
 </Base>
 
 <style>
+  .kitcard { display: block; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #f2f5f1; }
+  .kitcard img { display: block; width: 100%; height: auto; }
+  .partname { display: flex; gap: 10px; align-items: center; }
+  .kicon { flex: none; display: inline-flex; width: 28px; height: 28px; color: var(--ink); }
+  .kicon :global(svg) { width: 28px; height: 28px; }
   .phcredit { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--ok); font-size: 0.92rem; max-width: 75ch; }
   .phcredit a { color: var(--accent); }
 </style>

@@ -5,6 +5,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
+import { kitSummary, type KitItem } from "./kit";
+import { kitIconSvg } from "./kit-icons";
 
 export const OG_WIDTH = 1200;
 export const OG_HEIGHT = 630;
@@ -34,6 +36,8 @@ function loadFonts() {
     { name: "Saira Condensed", data: fontFile("saira-condensed", "saira-condensed-latin-700-normal.woff"), weight: 700, style: "normal" },
     { name: "IBM Plex Sans", data: fontFile("ibm-plex-sans", "ibm-plex-sans-latin-400-normal.woff"), weight: 400, style: "normal" },
     { name: "IBM Plex Sans", data: fontFile("ibm-plex-sans", "ibm-plex-sans-latin-600-normal.woff"), weight: 600, style: "normal" },
+    // Greek subset for Ω in resistor values on the kit cards.
+    { name: "IBM Plex Sans Greek", data: fontFile("ibm-plex-sans", "ibm-plex-sans-greek-600-normal.woff"), weight: 600, style: "normal" },
     { name: "IBM Plex Mono", data: fontFile("ibm-plex-mono", "ibm-plex-mono-latin-500-normal.woff"), weight: 500, style: "normal" },
   ];
   return fonts;
@@ -252,4 +256,96 @@ export function errorCard(o: { title: string; match: string; group: string }): P
 /** Tool: name and one line. */
 export function toolCard(o: { name: string; sum: string; meta: Tag[] }): Promise<Response> {
   return png(card("Tool", [title(o.name), line(o.sum)], tags(o.meta)));
+}
+
+/** Grid shape for n kit tiles: few large tiles, or up to six across. */
+export function kitGrid(n: number): { cols: number; rows: number } {
+  const cols = n <= 4 ? Math.max(n, 1) : n <= 6 ? 3 : n <= 8 ? 4 : n <= 10 ? 5 : 6;
+  return { cols, rows: Math.ceil(n / cols) };
+}
+
+/** "What you'll need": every part as an icon tile with its quantity and a short name. */
+export function kitCard(o: { name: string; items: KitItem[] }): Promise<Response> {
+  const { required, optional } = kitSummary(o.items);
+  const n = o.items.length;
+  const { cols, rows } = kitGrid(n);
+  const GAP = 14;
+  const TITLE_H = 46;
+  const COUNT_H = 28;
+  const ROW_GAP = 12;
+  const GRID_H = INNER_H - 76 - TITLE_H - COUNT_H - 3 * ROW_GAP; // below the header, title and count line
+  // Fill the width, except a short single row, where tiles would get too wide.
+  const fullW = Math.floor((INNER_W - GAP * (cols - 1)) / cols);
+  const tileW = rows === 1 && n < 4 ? Math.min(300, fullW) : fullW;
+  const tileH = Math.min(rows === 1 ? 300 : 999, Math.floor((GRID_H - GAP * (rows - 1)) / rows));
+  const big = rows === 1;
+  const iconSize = big ? 116 : rows === 2 ? 52 : 44;
+  const labelSize = big ? 27 : cols >= 5 ? 19 : 21;
+  const PAD = 10;
+  const BORDER = 2;
+
+  const badge = (text: string, color: string) =>
+    el("div", { fontFamily: "IBM Plex Mono", fontSize: big ? 20 : 16, color, border: `2px solid ${color}`, borderRadius: 4, padding: "1px 6px", textTransform: "uppercase", letterSpacing: 1 }, text);
+
+  const tile = (item: KitItem): Node =>
+    el(
+      "div",
+      {
+        width: tileW - 2 * (PAD + BORDER),
+        height: tileH - 2 * (PAD + BORDER),
+        padding: PAD,
+        border: `${BORDER}px solid ${item.optional ? C.line : C.ink}`,
+        borderRadius: 8,
+        background: item.optional ? C.paper : C.panel,
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: big ? "space-between" : "flex-start",
+        gap: big ? 12 : 5,
+        overflow: "hidden",
+      },
+      el(
+        "div",
+        { width: tileW - 2 * (PAD + BORDER), justifyContent: "space-between", alignItems: "center", height: big ? 30 : 24 },
+        el("div", { fontFamily: "IBM Plex Mono", fontSize: big ? 26 : 21, color: C.accent }, item.alternative ? "" : `${item.qty}×`),
+        item.alternative ? badge("or", C.muted) : item.optional ? badge("optional", C.warn) : el("div", {}),
+      ),
+      { type: "img", props: { src: `data:image/svg+xml;base64,${Buffer.from(kitIconSvg(item)).toString("base64")}`, width: iconSize, height: iconSize, style: { display: "flex" } } },
+      el(
+        "div",
+        {
+          fontFamily: "IBM Plex Sans",
+          fontWeight: 600,
+          fontSize: labelSize,
+          lineHeight: 1.15,
+          color: item.optional ? C.muted : C.ink,
+          textAlign: "center",
+          justifyContent: "center",
+          width: tileW - 2 * (PAD + BORDER),
+          maxHeight: labelSize * 1.15 * 2 + 2,
+          overflow: "hidden",
+          lineClamp: 2,
+        },
+        item.label,
+      ),
+    );
+
+  const count = `What you'll need · ${required} ${required === 1 ? "part" : "parts"}${optional ? ` + ${optional} optional` : ""}`;
+  const node = el(
+    "div",
+    { width: OG_WIDTH, height: OG_HEIGHT, background: C.paper, flexDirection: "column" },
+    el("div", { width: OG_WIDTH, height: RULE, background: C.accent }),
+    el(
+      "div",
+      { width: INNER_W, height: INNER_H, marginTop: TOP, marginLeft: SIDE, flexDirection: "column", gap: ROW_GAP, overflow: "hidden" },
+      header("Kit"),
+      el(
+        "div",
+        { fontFamily: "Saira Condensed", fontSize: Math.min(48, titleSize(o.name, 48)), lineHeight: 1, color: C.ink, textTransform: "uppercase", height: TITLE_H, maxWidth: INNER_W, overflow: "hidden", alignItems: "flex-end" },
+        o.name,
+      ),
+      el("div", { fontFamily: "IBM Plex Mono", fontSize: 24, color: C.muted, height: COUNT_H, alignItems: "center" }, count),
+      el("div", { flexWrap: "wrap", gap: GAP, width: INNER_W, height: GRID_H, alignContent: "flex-start" }, ...o.items.map(tile)),
+    ),
+  );
+  return png(node);
 }
