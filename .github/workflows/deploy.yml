@@ -49,6 +49,7 @@ jobs:
           node --experimental-strip-types tests/share.test.ts
           node --experimental-strip-types tests/previews.test.ts
           node --experimental-strip-types tests/lab-expect.test.ts
+          node --experimental-strip-types tests/settings.test.ts
           node scripts/test-tools.mjs
           node --experimental-strip-types scripts/test-search.mjs
 
