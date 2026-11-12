@@ -2,7 +2,7 @@
 
 A project library and a serial workbench for ESP32 boards, built as a static site with [Astro 7](https://astro.build/).
 
-- **Library:** sixteen projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
+- **Library:** twenty-one projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
 - **Boards:** pin headers, hardware-tested pins and field notes for the ESP32-DevKitC V4, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1. Projects that support more than one board have a board switch.
 - **Wire:** a wiring pad. Pick a board and parts, tap a part pin and a board pad, and each wire is checked for boot pins, input-only pins, 5 V signals and pads used twice. It can wire everything for you, and remix two projects onto one board.
 - **Detective:** flash a small helper firmware, touch a jumper from GND to any pad and watch that pad light up, with a silkscreen quiz. It also reads the chip, flash size and MAC address into a board passport you can save.

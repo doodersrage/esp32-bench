@@ -122,6 +122,14 @@ export const PARTS: Part[] = [
     ],
   },
   {
+    id: "neopixel", name: "NeoPixel strip",
+    pins: [
+      { name: "5V", kind: "power5", note: "About 60 mA per LED at full white. Past a few LEDs, power the strip from its own 5 V supply and join the grounds." },
+      { name: "GND", kind: "gnd" },
+      { name: "DIN", kind: "in", note: "300 to 500 Ω in series. A 74AHCT125 lifts the 3.3 V signal to 5 V if the first LED misses data." },
+    ],
+  },
+  {
     id: "led", name: "LED",
     pins: [
       { name: "ANODE", kind: "in", note: "220 Ω resistor in series." },
