@@ -3619,6 +3619,9 @@ const char* SHARE_URL = "https://probeharbor.dev/api/share/YOUR_SHARE_TOKEN/read
 const unsigned REFRESH_SECONDS = 60;  // ProbeHarbor allows 60 requests a minute per link
 const unsigned PAGE_SECONDS = 5;      // how long each sensor stays on screen
 const float FREEZE_F = 35.0;          // temperatures at or below this flash a warning
+// Probes meant to be cold (a freezer, a fridge) never raise the freeze warning.
+// Any sensor or device whose name contains one of these words is left out.
+const char* COLD_ON_PURPOSE[] = {"Freezer", "Fridge"};
 const unsigned STALE_MINUTES = 30;    // readings older than this are marked stale
 
 // ---- Pins ----
@@ -3789,8 +3792,27 @@ const char* boolWord(const Reading& r) {
 }
 
 // The things ProbeHarbor exists to catch: freezing, water, lost power.
+// Case-insensitive "does text contain word".
+bool containsWord(const char* text, const char* word) {
+  const size_t n = strlen(word);
+  for (const char* t = text; *t; t++) {
+    size_t i = 0;
+    while (i < n && t[i] && tolower((unsigned char)t[i]) == tolower((unsigned char)word[i])) i++;
+    if (i == n) return true;
+  }
+  return false;
+}
+
+bool coldOnPurpose(const Reading& r) {
+  for (const char* w : COLD_ON_PURPOSE) {
+    if (containsWord(r.label, w) || containsWord(r.device, w)) return true;
+  }
+  return false;
+}
+
 bool alarming(const Reading& r) {
   if (r.hasNum && !strcmp(r.kind, "temperature")) {
+    if (coldOnPurpose(r)) return false;
     const bool celsius = strstr(r.unit, "C") != nullptr;
     return r.num <= (celsius ? (FREEZE_F - 32) * 5 / 9 : FREEZE_F);
   }
@@ -3959,7 +3981,7 @@ void loop() {
       "Use a live link, not a history link: a history link also sends seven days of chart points, which is far more than this board needs to download every minute.",
       "It refreshes once a minute. ProbeHarbor allows 60 requests a minute per link, and if it ever answers 429 the sketch waits as long as the server asks.",
       "The connection is checked against the root certificates of Google Trust Services and Let's Encrypt, which Cloudflare uses for probeharbor.dev. If ProbeHarbor ever moves to another certificate authority, the display shows an HTTP error and needs that root added.",
-      "Temperatures at or below FREEZE_F (35 °F, or the same in °C when the sensor reports Celsius), water on a flood sensor and lost power flash the screen. Readings older than STALE_MINUTES are marked stale, which usually means the probe has gone quiet.",
+      "Temperatures at or below FREEZE_F (35 °F, or the same in °C when the sensor reports Celsius), water on a flood sensor and lost power flash the screen. Probes meant to be cold are left out of the freeze warning: any sensor or device named with a word from COLD_ON_PURPOSE (Freezer and Fridge to start with). Readings older than STALE_MINUTES are marked stale, which usually means the probe has gone quiet.",
       "Door, power, flood and motion sensors show OPEN or CLOSED, ON or OFF, WET or DRY and MOTION or CLEAR, as on the ProbeHarbor dashboard.",
     ],
     open: ["Not tested on hardware or against a real ProbeHarbor share link yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
@@ -4046,6 +4068,9 @@ const char* WIFI_PASS = "your-password";
 const char* SHARE_URL = "https://probeharbor.dev/api/share/YOUR_SHARE_TOKEN/readings";
 const unsigned REFRESH_SECONDS = 60;  // ProbeHarbor allows 60 requests a minute per link
 const float FREEZE_F = 35.0;          // temperatures at or below this raise the alarm
+// Probes meant to be cold (a freezer, a fridge) never raise the freeze warning.
+// Any sensor or device whose name contains one of these words is left out.
+const char* COLD_ON_PURPOSE[] = {"Freezer", "Fridge"};
 const unsigned STALE_MINUTES = 30;    // readings older than this are marked stale
 
 // ---- Pins ----
@@ -4238,8 +4263,27 @@ const char* boolWord(const Reading& r) {
 }
 
 // The things ProbeHarbor exists to catch: freezing, water, lost power.
+// Case-insensitive "does text contain word".
+bool containsWord(const char* text, const char* word) {
+  const size_t n = strlen(word);
+  for (const char* t = text; *t; t++) {
+    size_t i = 0;
+    while (i < n && t[i] && tolower((unsigned char)t[i]) == tolower((unsigned char)word[i])) i++;
+    if (i == n) return true;
+  }
+  return false;
+}
+
+bool coldOnPurpose(const Reading& r) {
+  for (const char* w : COLD_ON_PURPOSE) {
+    if (containsWord(r.label, w) || containsWord(r.device, w)) return true;
+  }
+  return false;
+}
+
 bool alarming(const Reading& r) {
   if (r.hasNum && !strcmp(r.kind, "temperature")) {
+    if (coldOnPurpose(r)) return false;
     const bool celsius = strstr(r.unit, "C") != nullptr;
     return r.num <= (celsius ? (FREEZE_F - 32) * 5 / 9 : FREEZE_F);
   }
@@ -4438,6 +4482,7 @@ void loop() {
 }
 `,
     notes: [
+      "Probes meant to be cold, such as a freezer or fridge, are left out of the freeze warning: name them with a word from COLD_ON_PURPOSE (Freezer and Fridge to start with) or add your own.",
       "It reads a ProbeHarbor share link, which is read-only and works on the free plan. In ProbeHarbor, open Dashboard, Share, create a live link and paste its readings address into SHARE_URL.",
       "The HD44780 runs on 5 V but accepts the ESP32's 3.3 V signals, because it treats anything above 2.2 V as high. That only works one way, which is why RW goes to GND: the LCD never drives its data pins, so no 5 V reaches the ESP32.",
       "Blank or solid blocks on the top row usually means the contrast: turn the trimmer slowly from one end to the other.",
