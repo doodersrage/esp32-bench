@@ -31,7 +31,7 @@ const description = hasHeader
 const tone = { safe: "ok", care: "warnt", avoid: "bad", power: "" } as const;
 ---
 
-<Base title={title} description={description} current="boards">
+<Base title={title} description={description} current="boards" image={`/og/boards/${b.id}.png`}>
   <section class="view">
     <a class="back" href={link("/boards/")}>← All boards</a>
 
