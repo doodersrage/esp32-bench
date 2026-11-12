@@ -2,7 +2,7 @@ import type { BoardId } from "./boards";
 import { BOM } from "../lib/shop";
 import { PROBEHARBOR_SKETCHES } from "./probeharbor";
 
-export type Tag = "no-parts" | "sensors" | "display" | "lights" | "wifi" | "bluetooth" | "power" | "flash" | "probeharbor";
+export type Tag = "motion" | "no-parts" | "sensors" | "display" | "lights" | "wifi" | "bluetooth" | "power" | "flash" | "probeharbor";
 
 /** A check done on real hardware. `board` says which board it was done on. */
 export interface Verified {
@@ -74,6 +74,9 @@ export const DRAWER = {
   max31855: "MAX31855 and thermocouple",
   max6675: "MAX6675 module",
   neopixel: "NeoPixel strip or stick",
+  servo: "Hobby servo (SG90 or similar)",
+  relay: "Relay module",
+  epaper: "SPI e-paper display",
 } as const;
 export type DrawerPart = keyof typeof DRAWER;
 
@@ -87,6 +90,7 @@ export const TAGS: [Tag | "all", string][] = [
   ["lights", "Lights"],
   ["wifi", "Wi-Fi"],
   ["bluetooth", "Bluetooth"],
+  ["motion", "Motors and relays"],
   ["power", "Power"],
 ];
 
@@ -865,6 +869,617 @@ void loop() {
       "d8:3a:dd:05:6e:90   -77 dBm  (no name)",
       "c4:7c:8d:6a:31:5f   -82 dBm  Flower care",
       "4e:91:0b:7f:c2:a8   -89 dBm  (no name)",
+    ],
+  },
+  {
+    id: "ota", needs: [], name: "Over-the-air updates", level: "Intermediate", mins: 15, tags: ["no-parts", "wifi"],
+    sum: "Upload new firmware over Wi-Fi with ArduinoOTA, so a board in a box on the shelf never needs a USB cable again.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    pins: [], libs: ["WiFi (built in)", "ArduinoOTA (built in)", "ESPmDNS (built in)"], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "USB cable for the first upload"]],
+    wiring: [],
+    code: R`#include <WiFi.h>
+#include <ESPmDNS.h>
+#include <ArduinoOTA.h>
+
+const char* WIFI_NAME = "your-network";
+const char* WIFI_PASS = "your-password";
+const char* OTA_NAME = "esp32-bench";  // the board appears as esp32-bench.local
+const char* OTA_PASS = "change-me";    // asked for on every network upload
+
+unsigned long lastBeat = 0;
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_NAME, WIFI_PASS);
+  Serial.printf("wifi joining %s\n", WIFI_NAME);
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.println("wifi failed, retrying in 5 s");
+    delay(5000);
+    WiFi.begin(WIFI_NAME, WIFI_PASS);
+  }
+
+  ArduinoOTA.setHostname(OTA_NAME);
+  ArduinoOTA.setPassword(OTA_PASS);
+  ArduinoOTA
+    .onStart([]() { Serial.printf("ota start: %s\n", ArduinoOTA.getCommand() == U_FLASH ? "sketch" : "filesystem"); })
+    .onProgress([](unsigned int done, unsigned int total) { Serial.printf("ota %u percent\r", done * 100 / total); })
+    .onEnd([]() { Serial.println("\nota done, restarting"); })
+    .onError([](ota_error_t error) { Serial.printf("ota error %u\n", error); });
+  ArduinoOTA.begin();
+  Serial.printf("ota ready: %s.local at %s\n", OTA_NAME, WiFi.localIP().toString().c_str());
+}
+
+void loop() {
+  ArduinoOTA.handle();  // call often: uploads only happen while this runs
+
+  if (millis() - lastBeat > 10000) {
+    lastBeat = millis();
+    Serial.printf("up %lu s, rssi %d dBm\n", millis() / 1000, WiFi.RSSI());
+  }
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The first upload has to go over USB. After that, the board shows up as a network port named esp32-bench in the Arduino IDE's port list, and Upload sends the sketch over Wi-Fi.",
+      "Every sketch you upload over the air must include the OTA code too. Leave it out and the next update needs a USB cable again.",
+      "Network uploads need a partition scheme with two app slots, such as the default. Huge APP and No OTA have only one slot and cannot take an update.",
+      "Your computer and the board must be on the same network, and some guest or mesh networks block the mDNS lookups the IDE uses to find the board.",
+      "In PlatformIO, set upload_protocol = espota, upload_port = esp32-bench.local and upload_flags = --auth=change-me.",
+      "To update from a browser instead, the core's HTTPUpdateServer example serves an upload page for the compiled .bin file.",
+    ],
+    sample: [
+      "wifi joining your-network",
+      "ota ready: esp32-bench.local at 192.168.1.71",
+      "up 10 s, rssi -54 dBm",
+      "ota start: sketch",
+      "ota 100 percent",
+      "ota done, restarting",
+    ],
+  },
+  {
+    id: "battery-sensor", needs: [["ds18b20"]], name: "Battery deep-sleep sensor", level: "Intermediate", mins: 30, tags: ["power", "sensors"],
+    sum: "Wake every five minutes, read a DS18B20 and the battery voltage, then go back to deep sleep. A boot counter survives in RTC memory.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { BAT: "35" }, esp32s3: { BAT: "7" }, esp32c3: { BAT: "3" } },
+    pins: ["3V3", "GND", "4", "%BAT%"], libs: ["OneWire", "DallasTemperature"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "DS18B20 waterproof probe", BOM.ds18b20],
+      [1, "4.7 kΩ resistor, pull-up for the probe data line", BOM.resistor4k7],
+      [2, "100 kΩ resistors, battery divider", BOM.resistor100k],
+      [1, "Single-cell Li-ion or LiPo battery with protection, and a way to get 3.3 V from it"],
+    ],
+    wiring: [
+      ["DS18B20 VDD (red)", "3V3", ""],
+      ["DS18B20 GND (black)", "GND", ""],
+      ["DS18B20 DATA (yellow)", "GPIO 4", "4.7 kΩ pull-up from DATA to 3V3"],
+      ["Battery + through 100 kΩ", "GPIO %BAT%", "Divider top. Never connect the battery straight to a GPIO"],
+      ["100 kΩ from GPIO %BAT%", "GND", "Divider bottom: the pin sees half the battery voltage"],
+    ],
+    code: R`#include <OneWire.h>
+#include <DallasTemperature.h>
+
+const int PROBE_PIN = 4;
+const int BAT_PIN = %BAT%;       // ADC1 pin at the middle of a 100k/100k divider
+const uint64_t SLEEP_MINUTES = 5;
+
+// RTC memory keeps these through deep sleep. Losing power or flashing clears them.
+RTC_DATA_ATTR uint32_t boots = 0;
+RTC_DATA_ATTR float lastC = NAN;
+
+OneWire oneWire(PROBE_PIN);
+DallasTemperature probes(&oneWire);
+
+void setup() {
+  Serial.begin(115200);
+  boots++;
+  bool timer = esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER;
+  Serial.printf("boot %lu, woke by %s\n", (unsigned long)boots, timer ? "timer" : "power-on or reset");
+
+  probes.begin();
+  probes.requestTemperatures();  // about 750 ms at full resolution
+  float c = probes.getTempCByIndex(0);
+  if (c == DEVICE_DISCONNECTED_C) {
+    Serial.println("no probe: check the data wire and the 4.7 kOhm pull-up");
+  } else {
+    Serial.printf("temp %.2f C, last time %.2f C\n", c, lastC);
+    lastC = c;
+  }
+
+  uint32_t mv = 0;
+  for (int i = 0; i < 8; i++) mv += analogReadMilliVolts(BAT_PIN);
+  float battery = mv / 8.0f * 2.0f / 1000.0f;  // the divider halves the voltage
+  Serial.printf("battery %.2f V\n", battery);
+
+  Serial.printf("awake %lu ms, sleeping %llu min\n", millis(), (unsigned long long)SLEEP_MINUTES);
+  Serial.flush();
+  esp_sleep_enable_timer_wakeup(SLEEP_MINUTES * 60ULL * 1000000ULL);
+  esp_deep_sleep_start();
+}
+
+void loop() {}  // never reached: every wake starts again at setup()`,
+    open: ["Not tested on hardware yet, and no current draw has been measured. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "A dev board is the wrong thing to run from a battery. Its voltage regulator, USB serial chip and power LED keep drawing current in deep sleep, typically milliamps rather than the microamps the chip itself needs. Measure your own board with a meter in series with the battery before trusting a battery-life estimate.",
+      "Espressif's datasheets put the chip alone at around 5 to 10 µA in deep sleep with the RTC timer running, depending on the chip. Getting near that needs a board built for low power, or a bare module with a low-quiescent regulator.",
+      "A full Li-ion cell is 4.2 V, too high for the 3V3 pin. Use a board with a battery connector, or a low-dropout 3.3 V regulator with a small quiescent current. The 5V pin's regulator on most dev boards drops too much voltage to run from one cell for long.",
+      "The 100k/100k divider draws about 20 µA from the battery all the time. For long battery life, switch it with a MOSFET or use larger resistors with a 100 nF capacitor from the pin to GND.",
+      "The battery pin must be an ADC1 pin: ADC2 cannot be read while Wi-Fi is on, which matters as soon as you add a Wi-Fi upload.",
+      "On the S3 and C3 with the native USB port, the serial port disappears during deep sleep and the bench loses the connection on every sleep. Use the UART USB port, or reconnect after each wake.",
+    ],
+    sample: [
+      "boot 1, woke by power-on or reset",
+      "temp 21.44 C, last time nan C",
+      "battery 4.08 V",
+      "awake 842 ms, sleeping 5 min",
+      "boot 2, woke by timer",
+      "temp 21.50 C, last time 21.44 C",
+      "battery 4.07 V",
+      "awake 838 ms, sleeping 5 min",
+    ],
+  },
+  {
+    id: "relay-servo", needs: [["servo", "relay"]], name: "Relay and servo control", level: "Starter", mins: 20, tags: ["motion"],
+    sum: "Move a hobby servo to any angle and switch a relay module on and off by typing commands on the bench.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SERVO: "18", RELAY: "26" },
+      esp32s3: { SERVO: "5", RELAY: "6" },
+      esp32c3: { SERVO: "4", RELAY: "5" },
+    },
+    pins: ["5V", "GND", "%SERVO%", "%RELAY%"], libs: ["ESP32Servo"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Micro servo, SG90 or SG92R class", BOM.microServo],
+      [1, "Relay module, such as a 3 V-ready mini relay board", BOM.miniRelay],
+      [5, "Jumper wires"],
+    ],
+    wiring: [
+      ["Servo red (power)", "5V", "One micro servo is fine from USB. Bigger servos need their own 5 V supply"],
+      ["Servo brown or black (ground)", "GND", "Join the grounds if the servo has its own supply"],
+      ["Servo orange or yellow (signal)", "GPIO %SERVO%", "3.3 V signals work with most hobby servos"],
+      ["Relay module VCC", "5V or 3V3", "Whatever the module is made for. Check its label"],
+      ["Relay module GND", "GND", ""],
+      ["Relay module IN or SIG", "GPIO %RELAY%", "Many blue modules switch on when IN is low: set RELAY_ACTIVE_LOW"],
+    ],
+    code: R`#include <ESP32Servo.h>
+
+const int SERVO_PIN = %SERVO%;
+const int RELAY_PIN = %RELAY%;
+const bool RELAY_ACTIVE_LOW = false;  // set true if your relay clicks on when IN is low
+
+Servo servo;
+String line;
+
+void relay(bool on) {
+  digitalWrite(RELAY_PIN, on != RELAY_ACTIVE_LOW ? HIGH : LOW);
+  Serial.printf("relay %s\n", on ? "on" : "off");
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(RELAY_PIN, OUTPUT);
+  relay(false);
+
+  servo.setPeriodHertz(50);
+  servo.attach(SERVO_PIN, 500, 2400);  // pulse range in microseconds for SG90-class servos
+  servo.write(90);
+  Serial.println("ready: type angle 0 to 180, relay on or relay off");
+}
+
+void loop() {
+  while (Serial.available()) {
+    char ch = Serial.read();
+    if (ch == '\r') continue;
+    if (ch != '\n') {
+      line += ch;
+      continue;
+    }
+    line.trim();
+    if (line.startsWith("angle ")) {
+      int angle = constrain(line.substring(6).toInt(), 0, 180);
+      servo.write(angle);
+      Serial.printf("servo %d deg\n", angle);
+    } else if (line == "relay on") {
+      relay(true);
+    } else if (line == "relay off") {
+      relay(false);
+    } else if (line.length() > 0) {
+      Serial.printf("unknown command: %s\n", line.c_str());
+    }
+    line = "";
+  }
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Type the commands into the bench's send box: angle 45, relay on, relay off. The bench sends a line ending, which ends each command.",
+      "Relay modules carry the transistor and the flyback diode a relay coil needs. A bare relay on a GPIO pin will not switch and its coil's voltage spike can kill the pin: use a module, or add an NPN transistor and a diode across the coil.",
+      "Many cheap blue relay modules are made for 5 V logic and switch on when IN is pulled low. Some will not switch reliably from 3.3 V; a module sold as 3 V-ready avoids the guesswork.",
+      "Mains voltage can kill. Keep relay projects to low-voltage loads unless you are qualified to wire mains, and never leave mains terminals exposed.",
+      "A servo that twitches or resets the board is drawing more current than USB can give. Power it separately and join the grounds.",
+      "If a servo buzzes at the ends of its travel, narrow the 500 to 2400 µs pulse range in attach() until it stops.",
+    ],
+    sample: [
+      "relay off",
+      "ready: type angle 0 to 180, relay on or relay off",
+      "servo 45 deg",
+      "servo 135 deg",
+      "relay on",
+      "relay off",
+    ],
+  },
+  {
+    id: "epaper", needs: [["epaper"], ["ds18b20"]], name: "E-paper temperature card", level: "Intermediate", mins: 30, tags: ["display", "sensors"],
+    sum: "Show a DS18B20 reading on a 2.9 inch e-paper panel that keeps its image with the power off, refreshing only when the value changes.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SCK: "18", MOSI: "23", CS: "5", DC: "17", RST: "16", BUSY: "25", PROBE: "4" },
+      esp32s3: { SCK: "12", MOSI: "11", CS: "10", DC: "17", RST: "16", BUSY: "15", PROBE: "4" },
+      esp32c3: { SCK: "4", MOSI: "6", CS: "7", DC: "10", RST: "1", BUSY: "3", PROBE: "5" },
+    },
+    pins: ["3V3", "GND", "%SCK%", "%MOSI%", "%CS%", "%DC%", "%RST%", "%BUSY%", "%PROBE%"],
+    libs: ["GxEPD2", "Adafruit GFX Library", "OneWire", "DallasTemperature"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "2.9 inch black and white SPI e-paper module, 296 by 128, SSD1680 driver"],
+      [1, "DS18B20 waterproof probe", BOM.ds18b20],
+      [1, "4.7 kΩ resistor, pull-up for the probe data line", BOM.resistor4k7],
+      [10, "Jumper wires"],
+    ],
+    wiring: [
+      ["Display VCC", "3V3", ""],
+      ["Display GND", "GND", ""],
+      ["Display CLK or SCK", "GPIO %SCK%", ""],
+      ["Display DIN or MOSI", "GPIO %MOSI%", ""],
+      ["Display CS", "GPIO %CS%", ""],
+      ["Display DC", "GPIO %DC%", ""],
+      ["Display RST", "GPIO %RST%", ""],
+      ["Display BUSY", "GPIO %BUSY%", ""],
+      ["DS18B20 DATA (yellow)", "GPIO %PROBE%", "4.7 kΩ pull-up to 3V3. Red to 3V3, black to GND"],
+    ],
+    code: R`#include <SPI.h>
+#include <GxEPD2_BW.h>
+#include <Fonts/FreeSans9pt7b.h>
+#include <Fonts/FreeSansBold24pt7b.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// Pick the class for your panel. GxEPD2_290_T94_V2 suits the common 2.9 inch SSD1680
+// modules (Waveshare 2.9 inch V2 and similar). See GxEPD2's display selection list for others.
+GxEPD2_BW<GxEPD2_290_T94_V2, GxEPD2_290_T94_V2::HEIGHT> display(
+  GxEPD2_290_T94_V2(/*CS*/ %CS%, /*DC*/ %DC%, /*RST*/ %RST%, /*BUSY*/ %BUSY%));
+
+OneWire oneWire(%PROBE%);
+DallasTemperature probes(&oneWire);
+
+float shown = NAN;
+unsigned long lastRead = 0, lastDraw = 0;
+uint32_t refreshes = 0;
+
+void draw(float c) {
+  refreshes++;
+  char line[48];
+  display.setRotation(1);
+  display.setFullWindow();
+  display.firstPage();
+  do {
+    display.fillScreen(GxEPD_WHITE);
+    display.setTextColor(GxEPD_BLACK);
+    display.setFont(&FreeSans9pt7b);
+    display.setCursor(10, 24);
+    display.print("ESP32 Bench");
+    display.setFont(&FreeSansBold24pt7b);
+    display.setCursor(10, 84);
+    if (isnan(c)) {
+      display.print("no probe");
+    } else {
+      snprintf(line, sizeof line, "%.1f C", c);
+      display.print(line);
+    }
+    display.setFont(&FreeSans9pt7b);
+    display.setCursor(10, 118);
+    snprintf(line, sizeof line, "up %lu min, refresh %lu", millis() / 60000, (unsigned long)refreshes);
+    display.print(line);
+  } while (display.nextPage());
+  display.hibernate();  // the image stays with the panel powered down
+  shown = c;
+  lastDraw = millis();
+}
+
+void setup() {
+  Serial.begin(115200);
+  SPI.begin(%SCK%, -1, %MOSI%, %CS%);  // before init, so the display uses these pins
+  display.init(0, true, 2, false);  // 0: no library diagnostics on the serial port
+  probes.begin();
+}
+
+void loop() {
+  if (lastRead != 0 && millis() - lastRead < 30000) return;
+  lastRead = millis();
+
+  probes.requestTemperatures();
+  float c = probes.getTempCByIndex(0);
+  if (c == DEVICE_DISCONNECTED_C) c = NAN;
+  if (isnan(c)) Serial.println("no probe: check the data wire and the 4.7 kOhm pull-up");
+  else Serial.printf("temp %.2f C\n", c);
+
+  // Full refreshes flash the panel and wear it, so only redraw on a real change,
+  // at most every three minutes, or every half hour regardless.
+  bool changed = isnan(c) != isnan(shown) || (!isnan(c) && fabs(c - shown) >= 0.2);
+  unsigned long since = millis() - lastDraw;
+  if (refreshes == 0 || (changed && since > 3 * 60000UL) || since > 30 * 60000UL) {
+    draw(c);
+    Serial.printf("display refreshed, %lu so far\n", (unsigned long)refreshes);
+  }
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "E-paper panels look alike but use different driver chips. If the screen stays blank or shows noise, the display class is wrong: GxEPD2's examples include a list that maps panel part numbers to classes.",
+      "A full refresh takes about two seconds and flashes black and white. That is normal. Panels are rated for a limited number of refreshes, which is why the sketch only redraws when the reading moves.",
+      "BUSY must be connected. Without it the library cannot tell when the panel has finished, and every refresh stalls until a timeout.",
+      "Most modules have a regulator and level shifting on board and are happy on 3V3. Bare panels with a 24-pin ribbon need a driver board.",
+      "The image survives power loss, so this pairs well with the battery deep-sleep sensor: draw, hibernate, sleep.",
+    ],
+    sample: [
+      "temp 21.44 C",
+      "display refreshed, 1 so far",
+      "temp 21.50 C",
+      "temp 21.50 C",
+      "temp 21.69 C",
+    ],
+  },
+  {
+    id: "bme280-web", needs: [["i2c"]], name: "BME280 web dashboard", level: "Intermediate", mins: 25, tags: ["sensors", "wifi"],
+    sum: "The board serves its own web page with live temperature, humidity and pressure and a chart that grows every two seconds.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { SDA: "21", SCL: "22" }, esp32s3: { SDA: "8", SCL: "9" }, esp32c3: { SDA: "6", SCL: "7" } },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%"], libs: ["Adafruit BME280 Library", "Adafruit Unified Sensor", "WiFi (built in)", "WebServer (built in)"], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "BME280 breakout, I2C", BOM.bme280], [4, "Jumper wires"]],
+    wiring: [
+      ["BME280 VIN or VCC", "3V3", ""],
+      ["BME280 GND", "GND", ""],
+      ["BME280 SDA or SDI", "GPIO %SDA%", ""],
+      ["BME280 SCL or SCK", "GPIO %SCL%", ""],
+    ],
+    code: R`#include <WiFi.h>
+#include <WebServer.h>
+#include <Wire.h>
+#include <Adafruit_BME280.h>
+
+const char* WIFI_NAME = "your-network";
+const char* WIFI_PASS = "your-password";
+
+Adafruit_BME280 bme;
+WebServer server(80);
+unsigned long lastLog = 0;
+
+const char PAGE[] = R"html(<!doctype html>
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>BME280</title>
+<style>body{font-family:sans-serif;margin:16px;background:#f2f5f1;color:#14231f}b{font-size:2em}
+canvas{width:100%;height:160px;background:#fff;border:1px solid #c8d1cb}</style></head>
+<body><h1>BME280</h1>
+<p><b id="t">--</b> &deg;C &nbsp; <b id="h">--</b> %RH &nbsp; <b id="p">--</b> hPa</p>
+<canvas id="c" width="600" height="160"></canvas><p id="s">connecting</p>
+<script>
+var pts = [], c = document.getElementById('c'), g = c.getContext('2d');
+function draw() {
+  g.clearRect(0, 0, 600, 160);
+  if (pts.length < 2) return;
+  var lo = Math.min.apply(null, pts) - 0.5, hi = Math.max.apply(null, pts) + 0.5;
+  g.beginPath();
+  pts.forEach(function (v, i) {
+    var x = i * 600 / (pts.length - 1), y = 160 - (v - lo) * 160 / (hi - lo);
+    if (i) g.lineTo(x, y); else g.moveTo(x, y);
+  });
+  g.strokeStyle = '#c0341a'; g.lineWidth = 2; g.stroke();
+}
+function tick() {
+  fetch('/data.json').then(function (r) { return r.json(); }).then(function (d) {
+    document.getElementById('t').textContent = d.t.toFixed(1);
+    document.getElementById('h').textContent = d.h.toFixed(0);
+    document.getElementById('p').textContent = d.p.toFixed(1);
+    pts.push(d.t); if (pts.length > 150) pts.shift(); draw();
+    document.getElementById('s').textContent = 'updated ' + new Date().toLocaleTimeString();
+  }).catch(function () { document.getElementById('s').textContent = 'board not answering'; });
+}
+tick(); setInterval(tick, 2000);
+</script></body></html>)html";
+
+void sendData() {
+  char json[96];
+  snprintf(json, sizeof json, "{\"t\":%.2f,\"h\":%.1f,\"p\":%.1f}",
+           bme.readTemperature(), bme.readHumidity(), bme.readPressure() / 100.0f);
+  server.send(200, "application/json", json);
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(%SDA%, %SCL%);
+  if (!bme.begin(0x76, &Wire) && !bme.begin(0x77, &Wire)) {
+    Serial.println("BME280 not found at 0x76 or 0x77: check wiring, or it may be a BMP280");
+    for (;;) delay(1000);
+  }
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_NAME, WIFI_PASS);
+  Serial.printf("wifi joining %s\n", WIFI_NAME);
+  while (WiFi.status() != WL_CONNECTED) delay(300);
+
+  server.on("/", []() { server.send(200, "text/html", PAGE); });
+  server.on("/data.json", sendData);
+  server.begin();
+  Serial.printf("dashboard at http://%s/\n", WiFi.localIP().toString().c_str());
+}
+
+void loop() {
+  server.handleClient();
+  if (millis() - lastLog > 10000) {
+    lastLog = millis();
+    Serial.printf("t %.2f C  h %.1f %%  p %.1f hPa\n", bme.readTemperature(), bme.readHumidity(), bme.readPressure() / 100.0f);
+  }
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Open the address the bench prints, such as http://192.168.1.80/, from any phone or computer on the same network. The chart keeps the last five minutes in the browser.",
+      "Many cheap purple breakouts sold as BME280 carry a BMP280, which has no humidity sensor. The library refuses it, and the sketch says so. The chip markings tell them apart.",
+      "Address 0x76 or 0x77 depends on the board's SDO pin; the sketch tries both. Run the I2C scanner project if neither answers.",
+      "The BME280 warms itself a little when read constantly. Readings every two seconds are fine; for accurate room temperature, keep the sensor away from the ESP32's own heat.",
+      "/data.json is plain JSON, so Home Assistant's REST sensor or a script can read it too.",
+    ],
+    sample: [
+      "wifi joining your-network",
+      "dashboard at http://192.168.1.80/",
+      "t 22.31 C  h 41.2 %  p 1013.6 hPa",
+      "t 22.33 C  h 41.0 %  p 1013.6 hPa",
+      "t 22.35 C  h 40.9 %  p 1013.5 hPa",
+    ],
+  },
+  {
+    id: "wifi-portal", needs: [], name: "Wi-Fi setup portal", level: "Intermediate", mins: 20, tags: ["no-parts", "wifi"],
+    sum: "No passwords in the sketch: the board opens its own setup network with a page to pick your Wi-Fi, saves it, and joins it from then on.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { BOOT: "0" }, esp32s3: { BOOT: "0" }, esp32c3: { BOOT: "9" } },
+    pins: ["%BOOT%"], libs: ["WiFi (built in)", "WebServer (built in)", "DNSServer (built in)", "Preferences (built in)"], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit]],
+    wiring: [],
+    code: R`#include <WiFi.h>
+#include <WebServer.h>
+#include <DNSServer.h>
+#include <Preferences.h>
+
+const int BOOT_BUTTON = %BOOT%;     // the board's BOOT button
+const char* AP_PASS = "bench1234";  // password for the setup network, at least 8 characters
+
+Preferences prefs;
+WebServer server(80);
+DNSServer dns;
+bool portal = false;
+String options;  // network names found when the portal started
+unsigned long lastBeat = 0;
+
+String escapeHtml(const String& s) {
+  String out;
+  for (char c : s) {
+    if (c == '<') out += "&lt;";
+    else if (c == '&') out += "&amp;";
+    else if (c == '"') out += "&quot;";
+    else out += c;
+  }
+  return out;
+}
+
+void handleRoot() {
+  String page = "<!doctype html><html><head><meta name=viewport content='width=device-width,initial-scale=1'>";
+  page += "<title>Wi-Fi setup</title></head><body style='font-family:sans-serif;margin:16px'><h1>Wi-Fi setup</h1>";
+  page += "<form method=post action=/save><p><label>Network<br><input name=ssid list=nets required></label></p>";
+  page += "<datalist id=nets>";
+  page += options;
+  page += "</datalist><p><label>Password<br><input name=pass type=password></label></p>";
+  page += "<p><button>Save and restart</button></p></form></body></html>";
+  server.send(200, "text/html", page);
+}
+
+void handleSave() {
+  prefs.putString("ssid", server.arg("ssid"));
+  prefs.putString("pass", server.arg("pass"));
+  server.send(200, "text/html", "<p style='font-family:sans-serif'>Saved. The board restarts and joins the network.</p>");
+  Serial.printf("saved network %s, restarting\n", server.arg("ssid").c_str());
+  delay(1000);
+  ESP.restart();
+}
+
+void startPortal() {
+  portal = true;
+  WiFi.mode(WIFI_AP_STA);
+  int n = WiFi.scanNetworks();
+  for (int i = 0; i < n; i++) {
+    options += "<option value=\"";
+    options += escapeHtml(WiFi.SSID(i));
+    options += "\">";
+  }
+
+  char name[24];
+  snprintf(name, sizeof name, "ESP32-Setup-%04x", (unsigned)(ESP.getEfuseMac() >> 32) & 0xffff);
+  WiFi.softAP(name, AP_PASS);
+  delay(100);
+  dns.start(53, "*", WiFi.softAPIP());  // answer every name with the board, so phones open the page
+
+  server.on("/", handleRoot);
+  server.on("/save", HTTP_POST, handleSave);
+  server.onNotFound([]() {
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/plain", "");
+  });
+  server.begin();
+  Serial.printf("portal up: join %s (password %s), then open http://192.168.4.1\n", name, AP_PASS);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BOOT_BUTTON, INPUT_PULLUP);
+  prefs.begin("wifi", false);
+
+  // Holding BOOT while the board resets enters download mode, so the button is
+  // only checked in the first two seconds after start-up.
+  Serial.println("hold BOOT now to forget the saved network");
+  unsigned long start = millis();
+  while (millis() - start < 2000) {
+    if (digitalRead(BOOT_BUTTON) == LOW) {
+      prefs.clear();
+      Serial.println("BOOT held: saved network cleared");
+      break;
+    }
+    delay(20);
+  }
+
+  String ssid = prefs.getString("ssid", "");
+  if (ssid.length() == 0) {
+    Serial.println("no saved network");
+    startPortal();
+    return;
+  }
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid.c_str(), prefs.getString("pass", "").c_str());
+  Serial.printf("wifi joining %s\n", ssid.c_str());
+  if (WiFi.waitForConnectResult(15000) == WL_CONNECTED) {
+    Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("wifi failed");
+    startPortal();
+  }
+}
+
+void loop() {
+  if (portal) {
+    dns.processNextRequest();
+    server.handleClient();
+    return;
+  }
+  // Your own code goes here. The board reconnects by itself if the network drops.
+  if (millis() - lastBeat > 10000) {
+    lastBeat = millis();
+    Serial.printf("online, rssi %d dBm\n", WiFi.RSSI());
+  }
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "First start: join the ESP32-Setup network from a phone with the password bench1234. Most phones open the setup page by themselves; if not, browse to http://192.168.4.1.",
+      "The network list comes from a scan when the portal starts. Type the name instead if yours is hidden.",
+      "The password is stored in the chip's flash without encryption. Anyone with the board and a USB cable can read it back, so do not ship boards with a network you care about.",
+      "To change networks, reset the board and hold BOOT within two seconds. Holding it while pressing reset puts the board in download mode instead.",
+      "If the saved network is out of reach at start-up, the portal opens again, so a board that moves house can be set up without a cable.",
+      "The WiFiManager library does the same with more polish. This sketch shows how it works in about a hundred lines with only built-in libraries.",
+    ],
+    sample: [
+      "hold BOOT now to forget the saved network",
+      "no saved network",
+      "portal up: join ESP32-Setup-3c71 (password bench1234), then open http://192.168.4.1",
+      "saved network your-network, restarting",
+      "hold BOOT now to forget the saved network",
+      "wifi joining your-network",
+      "wifi ok 192.168.1.66",
+      "online, rssi -57 dBm",
     ],
   },
   ...PROBEHARBOR_SKETCHES,

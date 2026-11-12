@@ -130,6 +130,35 @@ export const PARTS: Part[] = [
     ],
   },
   {
+    id: "servo", name: "Hobby servo",
+    pins: [
+      { name: "V+", kind: "power5", note: "One micro servo runs from USB. Larger servos need their own 5 V supply with the grounds joined." },
+      { name: "GND", kind: "gnd" },
+      { name: "SIG", kind: "in", note: "A 3.3 V signal works with most hobby servos." },
+    ],
+  },
+  {
+    id: "relay", name: "Relay module",
+    pins: [
+      { name: "VCC", kind: "power5", note: "Use 3V3 instead for modules made for 3 V logic." },
+      { name: "GND", kind: "gnd" },
+      { name: "IN", kind: "in", note: "Use a module with a driver transistor and flyback diode. Never drive a bare relay coil from a GPIO." },
+    ],
+  },
+  {
+    id: "epaper", name: "SPI e-paper",
+    pins: [
+      { name: "VCC", kind: "power3" },
+      { name: "GND", kind: "gnd" },
+      { name: "DIN", kind: "in" },
+      { name: "CLK", kind: "in" },
+      { name: "CS", kind: "in" },
+      { name: "DC", kind: "in" },
+      { name: "RST", kind: "in" },
+      { name: "BUSY", kind: "out" },
+    ],
+  },
+  {
     id: "led", name: "LED",
     pins: [
       { name: "ANODE", kind: "in", note: "220 Ω resistor in series." },

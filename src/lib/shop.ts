@@ -48,4 +48,6 @@ export const BOM = {
   resistor100k: "https://www.adafruit.com/product/2787",
   neopixelStick: "https://www.adafruit.com/product/1426",
   levelShifter: "https://www.adafruit.com/product/1787",
+  microServo: "https://www.adafruit.com/product/169",
+  miniRelay: "https://www.adafruit.com/product/4409",
 } as const;
