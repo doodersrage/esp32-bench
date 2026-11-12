@@ -5,32 +5,16 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import COMPILE from "../../src/data/compile-libs.json" with { type: "json" };
 
 export const PLATFORM =
   process.env.PIOARDUINO_PLATFORM ??
   "https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip";
 
 // Library names as the project pages list them, mapped to PlatformIO registry ids.
-// A new library on the site must be added here; unknown names fail loudly.
-export const LIBS = {
-  "DHT sensor library (Adafruit)": "adafruit/DHT sensor library",
-  "Adafruit Unified Sensor": "adafruit/Adafruit Unified Sensor",
-  "Adafruit SSD1306": "adafruit/Adafruit SSD1306",
-  "Adafruit GFX Library": "adafruit/Adafruit GFX Library",
-  "Adafruit NeoPixel": "adafruit/Adafruit NeoPixel",
-  "Adafruit BME280 Library": "adafruit/Adafruit BME280 Library",
-  "Adafruit MAX31855 library": "adafruit/Adafruit MAX31855 library",
-  "MAX6675 library": "adafruit/MAX6675 library",
-  "PubSubClient (Nick O'Leary)": "knolleary/PubSubClient",
-  OneWire: "paulstoffregen/OneWire",
-  DallasTemperature: "milesburton/DallasTemperature",
-  "WiFiManager (tzapu)": "tzapu/WiFiManager",
-  ESP32Servo: "madhephaestus/ESP32Servo",
-  GxEPD2: "zinggjm/GxEPD2",
-  ArduinoJson: "bblanchon/ArduinoJson",
-  LiquidCrystal: "arduino-libraries/LiquidCrystal",
-  RF24: "nrf24/RF24",
-};
+// They live in src/data/compile-libs.json so the site's Build tool offers the same
+// list. A new library on the site must be added there; unknown names fail loudly.
+export const LIBS = COMPILE.libs;
 
 /** Site board id → PlatformIO board. */
 export const BOARDS = {
@@ -66,7 +50,7 @@ export const CHIPS = {
 const CHIP_IDS = { esp32: 0x0000, esp32s2: 0x0002, esp32c3: 0x0005, esp32s3: 0x0009, esp32c6: 0x000d };
 
 // Sketches that need more app space than the default partition table gives.
-export const HUGE_APP = new Set(["ble-scan"]);
+export const HUGE_APP = new Set(COMPILE.hugeApp);
 
 /** Read the sketch export (built with DUMP_SKETCHES=1), optionally one project or board. */
 export function loadSketches(dump, only = "") {

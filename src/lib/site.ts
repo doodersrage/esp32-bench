@@ -13,6 +13,8 @@ export const SITE = {
   ahrefsKey: "OCD7LFsMxlGOUms5cW+xFw",
   /** Backend that emails reports to the site owner (api/ in this repository) */
   reportApi: "https://api.esp32bench.dev/report",
+  /** Compiles sketches for the editor and Build a sketch (compile/ in this repository) */
+  compileApi: "https://compile.esp32bench.dev",
   /** Approved community build reports: GET ?project=<id> */
   buildsApi: "https://api.esp32bench.dev/builds",
   /** Prebuilt firmware for every project (R2 bucket esp32-bench-firmware, filled by the Firmware library workflow) */

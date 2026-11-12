@@ -1,0 +1,155 @@
+---
+// Edit a sketch in the browser, build it with the compile service and flash it.
+// mode "project": one per board panel on a project page, opened by a button.
+// mode "tool": the standalone /tools/build/ page, with board and library pickers.
+// The editor (CodeMirror) and the flasher (esptool-js) load only when used.
+import { SITE } from "../lib/site";
+import { link } from "../lib/paths";
+import COMPILE from "../data/compile-libs.json";
+
+interface Props {
+  mode: "project" | "tool";
+  project?: string;
+  board?: string;
+  libs?: string[];
+  hugeApp?: boolean;
+  baud?: number;
+  hasSettings?: boolean;
+  boards?: { id: string; name: string }[];
+  starter?: string;
+}
+
+const { mode, project = "", board = "esp32", libs = [], hugeApp = false, baud = 115200, hasSettings = false, boards = [], starter = "" } = Astro.props;
+const benchHref = `${link("/bench/")}?baud=${baud}${project ? `&sample=${project}` : ""}`;
+const libNames = Object.keys(COMPILE.libs).sort((a, b) => a.localeCompare(b));
+const tool = mode === "tool";
+---
+
+<div
+  class="sb"
+  data-sb
+  data-mode={mode}
+  data-api={SITE.compileApi}
+  data-project={project}
+  data-board={board}
+  data-libs={JSON.stringify(libs)}
+  data-huge={hugeApp ? "1" : "0"}
+  data-baud={baud}
+  data-bench={benchHref}
+  data-settings={hasSettings ? "1" : "0"}
+>
+  {
+    !tool && (
+      <div class="row">
+        <button class="btn sm" type="button" data-sb-open aria-expanded="false">Edit and build</button>
+        <span class="cap left sb-hint">Change the sketch here, compile it online and flash it, no Arduino IDE needed.</span>
+      </div>
+    )
+  }
+  <div class="sb-work stack tight" data-sb-work hidden={!tool}>
+    {
+      tool && (
+        <div class="sb-choices">
+          <label>
+            Board
+            <select data-sb-board>
+              {boards.map((b) => (
+                <option value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </label>
+          <fieldset class="sb-libs">
+            <legend>Libraries</legend>
+            {libNames.map((name) => (
+              <label class="sb-lib">
+                <input type="checkbox" value={name} data-sb-lib />
+                {name}
+              </label>
+            ))}
+            <p class="cap left">Libraries built into the ESP32 core (WiFi, Wire, Preferences, BLE, WebServer and the rest) are always there.</p>
+          </fieldset>
+          <label class="sb-check">
+            <input type="checkbox" data-sb-huge />
+            Big app partition (huge_app): for sketches that use Bluetooth and Wi-Fi together
+          </label>
+          <textarea data-sb-starter hidden>{starter}</textarea>
+        </div>
+      )
+    }
+    <div class="sb-editor" data-sb-editor></div>
+    <div class="row sb-tools">
+      <button class="btn go" type="button" data-sb-build>Build</button>
+      <button class="btn sm" type="button" data-sb-reset disabled>Reset to the original</button>
+      <span class="sb-edited cap" data-sb-edited hidden>Edited, saved in this browser</span>
+      <span class="sb-status" data-sb-status role="status" aria-live="polite"></span>
+    </div>
+    <div class="sb-result stack tight" data-sb-result hidden></div>
+    <p class="cap left">
+      Building sends the sketch to the ESP32 Bench compile service, which compiles it with the Arduino-ESP32 core and
+      sends the firmware back. Your code is not stored. Up to 4 builds a minute and 40 a day per visitor.
+    </p>
+  </div>
+</div>
+
+<style>
+  .sb { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .sb-hint { margin: 0; }
+  .sb-editor { border: 1px solid var(--line); border-radius: 2px; min-height: 260px; max-height: 70vh; overflow: auto; background: var(--term-bg); }
+  .sb-editor :global(.cm-editor) { min-height: 260px; }
+  .sb-tools { align-items: center; }
+  .sb-edited { margin: 0; }
+  .sb-status { font: 500 0.85rem/1.3 var(--mono); }
+  .sb-status:global(.bad) { color: var(--accent); }
+  .sb-choices { display: flex; flex-direction: column; gap: 10px; }
+  .sb-choices > label { display: flex; flex-direction: column; gap: 4px; font-size: 0.88rem; font-weight: 500; max-width: 320px; }
+  .sb-choices select { padding: 7px 8px; border: 1px solid var(--line); background: var(--panel); border-radius: 2px; }
+  .sb-libs { border: 1px solid var(--line); margin: 0; padding: 10px 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 6px 14px; }
+  .sb-libs legend { font: 600 0.72rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+  .sb-libs .cap { grid-column: 1 / -1; }
+  .sb-lib, .sb-choices > label.sb-check { display: flex; flex-direction: row; gap: 6px; align-items: baseline; font-size: 0.88rem; font-weight: 400; max-width: none; }
+  .sb-result :global(.sb-ok) { font-weight: 600; color: var(--ok); }
+  .sb-result :global(.sb-bar) { display: flex; flex-direction: column; gap: 4px; max-width: 520px; }
+  .sb-result :global(.sb-barhead) { display: flex; justify-content: space-between; gap: 8px; font: 400 0.8rem/1.2 var(--mono); }
+  .sb :global(.sb-track) { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; max-width: 520px; }
+  .sb :global(.sb-fill) { display: block; height: 100%; background: var(--ok); width: 0; transition: width 0.2s; }
+  .sb :global(.sb-fill.warn) { background: var(--warn); }
+  .sb-result :global(ul.sb-errors) { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
+  .sb-result :global(ul.sb-errors.other li) { font: 400 0.8rem/1.4 var(--mono); overflow-wrap: anywhere; }
+  .sb :global(.sb-errorlink) { background: none; border: 0; padding: 0; font: 600 0.85rem/1.3 var(--mono); color: var(--accent); text-decoration: underline; cursor: pointer; }
+  .sb-result :global(.sb-details summary) { cursor: pointer; font-size: 0.88rem; }
+  .sb-result :global(.sb-details pre) { max-height: 260px; margin-top: 6px; }
+  .sb-result :global(.sb-flashstatus) { font-size: 0.9rem; }
+  .sb-result :global(.sb-flashstatus a) { color: var(--accent); }
+  @media (prefers-reduced-motion: reduce) { .sb :global(.sb-fill) { transition: none; } }
+</style>
+
+<script>
+  // Only this small script runs on page load; the editor loads when asked for.
+  const load = () => import("../scripts/editor/builder");
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-sb]")) {
+    const work = root.querySelector<HTMLElement>("[data-sb-work]")!;
+    if (root.dataset.mode === "tool") {
+      void load().then((m) => m.openBuilder(root));
+      continue;
+    }
+    const btn = root.querySelector<HTMLButtonElement>("[data-sb-open]")!;
+    const original = root.closest("[data-panel]")?.querySelector<HTMLElement>("pre.code");
+    btn.addEventListener("click", async () => {
+      const opening = work.hidden;
+      work.hidden = !opening;
+      if (original) original.hidden = opening;
+      btn.setAttribute("aria-expanded", String(opening));
+      btn.textContent = opening ? "Show the original sketch" : "Edit and build";
+      if (opening) {
+        btn.disabled = true;
+        try {
+          const m = await load();
+          await m.openBuilder(root);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+    });
+  }
+</script>

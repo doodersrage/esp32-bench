@@ -8,6 +8,8 @@ import Flasher from "../../components/Flasher.astro";
 import FirmwareLibrary from "../../components/FirmwareLibrary.astro";
 import ProbeSetup from "../../components/ProbeSetup.astro";
 import SettingsForm from "../../components/SettingsForm.astro";
+import SketchBuilder from "../../components/SketchBuilder.astro";
+import COMPILE from "../../data/compile-libs.json";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
 import { boardById } from "../../data/boards";
 import { link } from "../../lib/paths";
@@ -170,6 +172,15 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
                 <button class="btn sm" type="button" data-copy>Copy firmware</button>
               </div>
               <pre class="code"><code>{panel.code}</code></pre>
+              <SketchBuilder
+                mode="project"
+                project={p.id}
+                board={panel.board.id}
+                libs={p.libs}
+                hugeApp={COMPILE.hugeApp.includes(p.id)}
+                baud={p.baud}
+                hasSettings={!!p.settings}
+              />
             </div>
           )}
         </div>

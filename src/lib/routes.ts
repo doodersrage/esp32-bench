@@ -14,6 +14,7 @@ export const STATIC_PAGES = [
   "/errors/",
   "/tools/",
   "/tools/backtrace/",
+  "/tools/build/",
   "/tools/flash/",
   "/tools/partitions/",
   "/flames/",
