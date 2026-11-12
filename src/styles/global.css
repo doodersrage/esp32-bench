@@ -286,3 +286,9 @@ ul.jump span { color: var(--muted); font-size: 0.9rem; }
 .change .btn { align-self: flex-start; }
 p.when { font: 500 0.78rem/1 var(--mono); }
 .h3.mb { margin-bottom: 8px; }
+@media (max-width: 720px) {
+  /* Brand and tools always share one row, whatever font is loaded, so nothing shifts when fonts arrive */
+  header.top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+  header.top .brand { white-space: nowrap; overflow: hidden; text-overflow: clip; }
+  header.top nav.tabs { grid-column: 1 / -1; }
+}
