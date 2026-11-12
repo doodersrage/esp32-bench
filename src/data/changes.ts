@@ -14,6 +14,21 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-8",
+    date: "2026-11-12",
+    title: "Version 0.8: search everything, share a log, detect pins on the S2 and C6",
+    summary:
+      "One search box for projects, boards, pins, errors and tools; serial logs you can share as a link; the pin detective on two more chips; and a report form.",
+    items: [
+      "Search: press / anywhere, or use the box in the header. Finds projects, boards, single pins like GPIO 34 or ADC2, errors and tools, and works offline.",
+      "Share a log: the bench and the crash translator make a link that carries the log itself. Nothing is uploaded; whoever opens it sees the log explained.",
+      "Pin detective: firmware for the ESP32-S2 and ESP32-C6, and the XIAO ESP32C3 and ESP32S3 with their D0 to D10 labels.",
+      "Report form: send a build report, a correction or a message. It goes by email and is never published.",
+      "Every project, board, error and tool page now has its own preview image for links shared in chats and forums.",
+    ],
+    link: "/search/",
+  },
+  {
     id: "v0-7",
     date: "2026-11-12",
     title: "Version 0.7: more boards, a backtrace decoder and seven new projects",
