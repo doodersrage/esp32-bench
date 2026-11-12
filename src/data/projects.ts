@@ -164,12 +164,16 @@ export const PROJECTS: Project[] = [
     wiring: [
       ["Sensor VCC", "3V3", ""],
       ["Sensor GND", "GND", ""],
-      ["DS18B20 or DHT22 data", "GPIO 4", "4.7 kΩ pull-up to 3V3. Up to four DS18B20s share the line"],
+      ["DS18B20 or DHT22 data", "GPIO 4", "Up to four DS18B20s share the line"],
+      ["4.7 kΩ pull-up resistor", "GPIO 4 to 3V3", "Holds the data line high"],
       ["I2C sensor SDA", "GPIO %SDA%", "SHT31, BME280 or AHT20, found at boot"],
       ["I2C sensor SCL", "GPIO %SCL%", ""],
-      ["Leak contact", "GPIO %LEAK%", "Other wire to GND. Only read when enabled in setup"],
-      ["Door reed switch", "GPIO %DOOR%", "Other wire to GND. Only read when enabled in setup"],
-      ["Battery divider midpoint", "GPIO %BAT%", "1:1 divider from a single Li-ion cell. Only read when enabled"],
+      ["Optional: leak contact, wire A", "GPIO %LEAK%", "Only read when enabled in setup"],
+      ["Optional: leak contact, wire B", "GND", ""],
+      ["Optional: door reed switch, wire A", "GPIO %DOOR%", "Only read when enabled in setup"],
+      ["Optional: door reed switch, wire B", "GND", ""],
+      ["Optional: battery + through 100 kΩ", "GPIO %BAT%", "1:1 divider from a single Li-ion cell. Only read when enabled"],
+      ["Optional: 100 kΩ from GPIO %BAT%", "GND", "Divider bottom: the pin sees half the battery voltage"],
     ],
     sourceUrl: "https://github.com/doodersrage/probeharbor/tree/main/firmware/probeharbor-probe",
     flash: {
@@ -311,7 +315,12 @@ void loop() {
     boards: ["esp32", "esp32s3", "esp32c3"],
     pins: ["3V3", "GND", "4"], libs: ["DHT sensor library (Adafruit)", "Adafruit Unified Sensor"], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "DHT22 (AM2302) sensor"], [1, "10 kΩ resistor, only for a bare sensor without a breakout"], [3, "Jumper wires"]],
-    wiring: [["DHT22 VCC", "3V3", ""], ["DHT22 DATA", "GPIO 4", "10 kΩ pull-up to 3V3 on a bare sensor"], ["DHT22 GND", "GND", ""]],
+    wiring: [
+      ["DHT22 VCC", "3V3", ""],
+      ["DHT22 DATA", "GPIO 4", ""],
+      ["DHT22 GND", "GND", ""],
+      ["Optional: 10 kΩ pull-up resistor", "GPIO 4 to 3V3", "Only for a bare 4-pin sensor. Modules on a small board have one built in"],
+    ],
     code: R`#include <DHT.h>
 
 DHT dht(4, DHT22);
@@ -375,7 +384,7 @@ void loop() {
     sum: "Measure distance with an ultrasonic sensor. The echo pin is 5 V, so it goes through a divider.",
     pins: ["5V", "GND", "5", "18"], libs: [], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "HC-SR04 ultrasonic sensor"], [1, "1 kΩ resistor"], [1, "2 kΩ resistor"], [4, "Jumper wires"]],
-    wiring: [["HC-SR04 VCC", "5V", ""], ["HC-SR04 GND", "GND", ""], ["HC-SR04 TRIG", "GPIO 5", ""], ["HC-SR04 ECHO, through 1 kΩ", "GPIO 18", "Add 2 kΩ from GPIO 18 to GND to drop 5 V to 3.3 V"]],
+    wiring: [["HC-SR04 VCC", "5V", ""], ["HC-SR04 GND", "GND", ""], ["HC-SR04 TRIG", "GPIO 5", ""], ["HC-SR04 ECHO, through 1 kΩ", "GPIO 18", "The divider's top resistor"], ["2 kΩ resistor", "GPIO 18 to GND", "The divider's bottom resistor: drops the 5 V echo to 3.3 V"]],
     code: R`const int TRIG = 5;
 const int ECHO = 18;
 
@@ -747,7 +756,8 @@ void loop() {
     wiring: [
       ["DS18B20 VDD (red)", "3V3", ""],
       ["DS18B20 GND (black)", "GND", ""],
-      ["DS18B20 DATA (yellow)", "GPIO 4", "4.7 kΩ pull-up from DATA to 3V3"],
+      ["DS18B20 DATA (yellow)", "GPIO 4", ""],
+      ["4.7 kΩ pull-up resistor", "GPIO 4 to 3V3", "Holds the data line high"],
     ],
     code: R`#include <WiFi.h>
 #include <PubSubClient.h>
@@ -987,7 +997,8 @@ void loop() {
     wiring: [
       ["DS18B20 VDD (red)", "3V3", ""],
       ["DS18B20 GND (black)", "GND", ""],
-      ["DS18B20 DATA (yellow)", "GPIO 4", "4.7 kΩ pull-up from DATA to 3V3"],
+      ["DS18B20 DATA (yellow)", "GPIO 4", ""],
+      ["4.7 kΩ pull-up resistor", "GPIO 4 to 3V3", "Holds the data line high"],
       ["Battery + through 100 kΩ", "GPIO %BAT%", "Divider top. Never connect the battery straight to a GPIO"],
       ["100 kΩ from GPIO %BAT%", "GND", "Divider bottom: the pin sees half the battery voltage"],
     ],
@@ -1170,7 +1181,10 @@ void loop() {
       ["Display DC", "GPIO %DC%", ""],
       ["Display RST", "GPIO %RST%", ""],
       ["Display BUSY", "GPIO %BUSY%", ""],
-      ["DS18B20 DATA (yellow)", "GPIO %PROBE%", "4.7 kΩ pull-up to 3V3. Red to 3V3, black to GND"],
+      ["DS18B20 VDD (red)", "3V3", ""],
+      ["DS18B20 GND (black)", "GND", ""],
+      ["DS18B20 DATA (yellow)", "GPIO %PROBE%", ""],
+      ["4.7 kΩ pull-up resistor", "GPIO %PROBE% to 3V3", "Holds the data line high"],
     ],
     code: R`#include <SPI.h>
 #include <GxEPD2_BW.h>
@@ -1690,17 +1704,19 @@ void loop() {
     sum: "How fast are you? The onboard LED lights after a random wait and you slap the BOOT button. Your best time survives a power cut.",
     boards: ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32s3"],
     vars: {
-      esp32: { LED: "2", BTN: "0", RGB: "false", ON: "HIGH" },
-      esp32s3: { LED: "38", BTN: "0", RGB: "true", ON: "HIGH" },
-      esp32c3: { LED: "8", BTN: "9", RGB: "true", ON: "HIGH" },
-      esp32s2: { LED: "18", BTN: "0", RGB: "true", ON: "HIGH" },
-      esp32c6: { LED: "8", BTN: "9", RGB: "true", ON: "HIGH" },
-      "xiao-esp32s3": { LED: "21", BTN: "0", RGB: "false", ON: "LOW" },
+      esp32: { LED: "2", BTN: "0", RGB: "false", ON: "HIGH", XLED: "GPIO 2", XGND: "GND" },
+      esp32s3: { LED: "38", BTN: "0", RGB: "true", ON: "HIGH", XLED: "Not used on this board: it has its own LED", XGND: "Not used on this board: it has its own LED" },
+      esp32c3: { LED: "8", BTN: "9", RGB: "true", ON: "HIGH", XLED: "Not used on this board: it has its own LED", XGND: "Not used on this board: it has its own LED" },
+      esp32s2: { LED: "18", BTN: "0", RGB: "true", ON: "HIGH", XLED: "Not used on this board: it has its own LED", XGND: "Not used on this board: it has its own LED" },
+      esp32c6: { LED: "8", BTN: "9", RGB: "true", ON: "HIGH", XLED: "Not used on this board: it has its own LED", XGND: "Not used on this board: it has its own LED" },
+      "xiao-esp32s3": { LED: "21", BTN: "0", RGB: "false", ON: "LOW", XLED: "Not used on this board: it has its own LED", XGND: "Not used on this board: it has its own LED" },
     },
     pins: ["%LED%", "%BTN%"], libs: ["Preferences (built in)"], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "LED and 220 Ω resistor, only on a board without its own LED"]],
     wiring: [
-      ["Onboard LED", "GPIO %LED%", "Already on the board. On the classic ESP32 DevKitC, add an LED and 220 Ω from GPIO 2 to GND"],
+      ["Onboard LED", "GPIO %LED%", "Already on the board"],
+      ["Optional: LED anode, through 220 Ω", "%XLED%", "Only on a board without its own LED, such as the classic ESP32-DevKitC"],
+      ["Optional: LED cathode", "%XGND%", ""],
       ["BOOT button", "GPIO %BTN%", "Already on the board"],
     ],
     code: R`// Reaction timer: the LED lights after a random wait, press BOOT as fast as you can.
@@ -1924,15 +1940,24 @@ void loop() {
       [16, "Jumper wires"],
     ],
     wiring: [
-      ["Green LED, through 220 Ω", "GPIO %LA%", "LED cathodes to GND"],
-      ["Red LED, through 220 Ω", "GPIO %LB%", ""],
-      ["Yellow LED, through 220 Ω", "GPIO %LC%", ""],
-      ["Blue LED, through 220 Ω", "GPIO %LD%", ""],
-      ["Green button", "GPIO %KA%", "Other side of each button to GND. The internal pull-ups do the rest"],
-      ["Red button", "GPIO %KB%", ""],
-      ["Yellow button", "GPIO %KC%", ""],
-      ["Blue button", "GPIO %KD%", ""],
-      ["Buzzer +", "GPIO %BUZZ%", "Buzzer - to GND"],
+      ["Green LED anode, through 220 Ω", "GPIO %LA%", "The anode is the longer leg"],
+      ["Green LED cathode", "GND", ""],
+      ["Red LED anode, through 220 Ω", "GPIO %LB%", ""],
+      ["Red LED cathode", "GND", ""],
+      ["Yellow LED anode, through 220 Ω", "GPIO %LC%", ""],
+      ["Yellow LED cathode", "GND", ""],
+      ["Blue LED anode, through 220 Ω", "GPIO %LD%", ""],
+      ["Blue LED cathode", "GND", ""],
+      ["Green button, side A", "GPIO %KA%", "The internal pull-ups do the rest"],
+      ["Green button, side B", "GND", ""],
+      ["Red button, side A", "GPIO %KB%", ""],
+      ["Red button, side B", "GND", ""],
+      ["Yellow button, side A", "GPIO %KC%", ""],
+      ["Yellow button, side B", "GND", ""],
+      ["Blue button, side A", "GPIO %KD%", ""],
+      ["Blue button, side B", "GND", ""],
+      ["Buzzer +", "GPIO %BUZZ%", ""],
+      ["Buzzer -", "GND", ""],
     ],
     code: R`// Simon: repeat the growing sequence of lights and tones.
 #include <Preferences.h>
@@ -2072,8 +2097,10 @@ void loop() {
       ["HC-SR04 VCC", "5V", ""],
       ["HC-SR04 GND", "GND", ""],
       ["HC-SR04 TRIG", "GPIO %TRIG%", ""],
-      ["HC-SR04 ECHO, through 1 kΩ", "GPIO %ECHO%", "Add 2 kΩ from GPIO %ECHO% to GND to drop the 5 V echo to 3.3 V"],
-      ["Buzzer +", "GPIO %BUZZ%", "Buzzer - to GND"],
+      ["HC-SR04 ECHO, through 1 kΩ", "GPIO %ECHO%", "The divider's top resistor"],
+      ["2 kΩ resistor", "GPIO %ECHO% to GND", "The divider's bottom resistor: drops the 5 V echo to 3.3 V"],
+      ["Buzzer +", "GPIO %BUZZ%", ""],
+      ["Buzzer -", "GND", ""],
     ],
     code: R`// Ultrasonic theremin: hand distance sets the pitch. Closer is higher.
 const int TRIG = %TRIG%;
@@ -2161,8 +2188,12 @@ void loop() {
       ["OLED GND", "GND", ""],
       ["OLED SDA", "GPIO %SDA%", ""],
       ["OLED SCL", "GPIO %SCL%", ""],
-      ["Left knob, middle pin", "GPIO %PA%", "Outer pins of each knob to 3V3 and GND, never 5V"],
-      ["Right knob, middle pin", "GPIO %PB%", "Skip it and set TWO_PLAYERS to false to play the computer"],
+      ["Left knob, middle pin", "GPIO %PA%", ""],
+      ["Left knob, outer pin", "3V3", "3V3, never 5V"],
+      ["Left knob, other outer pin", "GND", ""],
+      ["Right knob, middle pin", "GPIO %PB%", "Skip the right knob and set TWO_PLAYERS to false to play the computer"],
+      ["Right knob, outer pin", "3V3", ""],
+      ["Right knob, other outer pin", "GND", ""],
     ],
     code: R`// Pong on a 128 x 64 SSD1306 with two potentiometers as paddles.
 #include <Wire.h>
@@ -2303,7 +2334,8 @@ void loop() {
       ["OLED GND", "GND", ""],
       ["OLED SDA", "GPIO %SDA%", ""],
       ["OLED SCL", "GPIO %SCL%", ""],
-      ["Button", "GPIO %BTN%", "Other side to GND. The internal pull-up does the rest"],
+      ["Button, side A", "GPIO %BTN%", "The internal pull-up does the rest"],
+      ["Button, side B", "GND", ""],
     ],
     code: R`// Electronic dice on an SSD1306. Press the button to roll.
 #include <Wire.h>
@@ -2742,7 +2774,8 @@ void loop() {
     ],
     wiring: [
       ["Sharp VCC (red)", "5V", "The sensor needs 5 V. Its output stays below about 3.1 V, so it is safe for the ESP32"],
-      ["Sharp GND (black)", "GND", "Put the 100 µF capacitor across VCC and GND, right at the sensor"],
+      ["Sharp GND (black)", "GND", ""],
+      ["100 µF capacitor", "5V to GND", "Right at the sensor, longer leg (+) to 5V. It smooths the sensor's current pulses"],
       ["Sharp Vo (yellow or white)", "GPIO %IR%", "An ADC1 pin, so it keeps working if you add Wi-Fi later"],
       ["Servo red", "5V", "One micro servo is fine from USB"],
       ["Servo brown", "GND", ""],
@@ -2915,7 +2948,8 @@ void loop() {
       ["Roll servo signal", "GPIO %SX%", "Tilts the plate left and right"],
       ["Pitch servo signal", "GPIO %SY%", "Tilts the plate forward and back"],
       ["Both servos red", "5 V supply +", "Not the ESP32's 3V3 pin. Two servos moving at once can draw an amp"],
-      ["Both servos brown, and supply -", "GND", "Join the servo supply's ground to the ESP32's GND"],
+      ["Both servos brown", "GND", ""],
+      ["5 V supply -", "GND", "Joins the servo supply's ground to the ESP32's"],
     ],
     code: R`// Self-levelling platform: an MPU-6050 on the base measures how far it is
 // tilted, and two servos tilt the plate the other way so it stays level.
@@ -3110,7 +3144,9 @@ void loop() {
       ["Tilt servo signal", "GPIO %TILT%", ""],
       ["Both servos red", "5V", "Fine from USB for two micro servos that move gently; use a separate 5 V supply if the board resets"],
       ["Both servos brown", "GND", ""],
-      ["Optional MPU-6050 SDA and SCL", "GPIO %SDA% and %SCL%", "VCC to 3V3, GND to GND. Found automatically at start-up"],
+      ["Optional: MPU-6050 VCC", "3V3", ""],
+      ["Optional: MPU-6050 GND", "GND", ""],
+      ["Optional: MPU-6050 SDA and SCL", "GPIO %SDA% and %SCL%", "Found automatically at start-up"],
     ],
     code: R`// Joystick pan-tilt turret: push the stick and two servos follow. Click the stick
 // to switch to tilt mode, where an MPU-6050 in your hand steers instead (if one
@@ -3284,7 +3320,8 @@ void loop() {
       ["PIR VCC", "5V", "The HC-SR501 needs 5 V or more, but its OUT pin only goes to 3.3 V"],
       ["PIR GND", "GND", ""],
       ["PIR OUT", "GPIO %PIR%", ""],
-      ["74HC595 VCC (pin 16)", "3V3", "Put the 0.1 µF capacitor from pin 16 to GND, close to the chip"],
+      ["74HC595 VCC (pin 16)", "3V3", ""],
+      ["0.1 µF capacitor", "3V3 to GND", "Right at the chip, across pins 16 and 8"],
       ["74HC595 GND (pin 8)", "GND", ""],
       ["74HC595 SER (pin 14)", "GPIO %SER%", "Data in"],
       ["74HC595 SRCLK (pin 11)", "GPIO %CLK%", "Shift clock"],
@@ -3294,7 +3331,8 @@ void loop() {
       ["74HC595 Q0 to Q6 (pins 15, 1 to 6)", "Digit segments a to g", "Each through its own 330 Ω resistor"],
       ["74HC595 Q7 (pin 7)", "Digit decimal point", "Through 330 Ω"],
       ["Digit common pin", "GND or 3V3", "GND for common cathode, 3V3 for common anode (then set COMMON_ANODE)"],
-      ["Buzzer +", "GPIO %BUZZ%", "Buzzer - to GND"],
+      ["Buzzer +", "GPIO %BUZZ%", ""],
+      ["Buzzer -", "GND", ""],
     ],
     code: R`// Visitor counter: a PIR sensor counts people walking past, a 74HC595 shift
 // register drives a 7-segment digit, and a piezo chirps for each visitor.
@@ -3466,9 +3504,12 @@ void loop() {
       ["Transistor emitter", "GND", "Check your transistor's pin order before wiring: a PN2222A is emitter, base, collector with the flat side facing you, but many parts sold as 2N2222 (such as P2N2222A) are collector, base, emitter"],
       ["Transistor base, through 470 Ω", "GPIO %MOTOR%", "About 5 mA of base current, enough to switch the motor fully on"],
       ["1N4001 across the motor", "Stripe to motor +, other end to motor -", "Catches the voltage spike when the motor switches off. Backwards it shorts the supply"],
-      ["Photoresistor", "3V3 to GPIO %LDR%", "One leg to 3V3, the other to the pin"],
+      ["Photoresistor", "3V3 to GPIO %LDR%", "Either way round"],
       ["10 kΩ resistor", "GPIO %LDR% to GND", "With the photoresistor, brighter light gives a higher reading"],
-      ["Optional DS18B20 data", "GPIO %OW%", "VCC to 3V3, GND to GND, 4.7 kΩ from data to 3V3. Then set SOURCE to USE_TEMPERATURE"],
+      ["Optional: DS18B20 VDD (red)", "3V3", ""],
+      ["Optional: DS18B20 GND (black)", "GND", ""],
+      ["Optional: DS18B20 DATA (yellow)", "GPIO %OW%", "Then set SOURCE to USE_TEMPERATURE"],
+      ["Optional: 4.7 kΩ pull-up resistor", "GPIO %OW% to 3V3", "Holds the probe's data line high"],
     ],
     code: R`// Automatic fan: a small DC motor spins faster as the light gets brighter (a
 // sunny window warms a room), or as a DS18B20 reads warmer if you wire one and
@@ -4035,7 +4076,9 @@ void loop() {
     wiring: [
       ["LCD 1 VSS", "GND", ""],
       ["LCD 2 VDD", "5V", "The LCD runs on 5 V"],
-      ["LCD 3 V0", "Trimmer wiper", "Trimmer ends to 5V and GND. Turn it until the characters show"],
+      ["LCD 3 V0", "Trimmer wiper", "Turn the trimmer until the characters show"],
+      ["Trimmer, outer pin", "5V", ""],
+      ["Trimmer, other outer pin", "GND", ""],
       ["LCD 4 RS", "GPIO %RS%", ""],
       ["LCD 5 RW", "GND", "Always. Tied low, the LCD only listens and never sends 5 V back to the ESP32"],
       ["LCD 6 E", "GPIO %EN%", ""],
@@ -4044,10 +4087,15 @@ void loop() {
       ["LCD 13 D6", "GPIO %DC%", ""],
       ["LCD 14 D7", "GPIO %DD%", ""],
       ["LCD 15 A (backlight +)", "5V", "Many modules have the backlight resistor on board; if yours does not, add about 100 Ω"],
-      ["LCD 16 K (backlight -)", "GND, or the transistor", "Optional blink: K to the NPN collector, emitter to GND, base through 1 kΩ to %BLTO%"],
-      ["Encoder A / CLK", "GPIO %ENCA%", "The encoder's middle pin goes to GND. Internal pull-ups are used"],
+      ["LCD 16 K (backlight -)", "GND", "For the optional blink, K goes to the transistor's collector instead"],
+      ["Optional: blink transistor collector", "LCD 16 K (backlight -)", "An NPN such as a PN2222, so the alarm can blink the backlight"],
+      ["Optional: blink transistor emitter", "GND", ""],
+      ["Optional: blink transistor base, through 1 kΩ", "%BLTO%", ""],
+      ["Encoder A / CLK", "GPIO %ENCA%", "Internal pull-ups are used"],
       ["Encoder B / DT", "GPIO %ENCB%", ""],
-      ["Encoder push switch / SW", "%SWTO%", "Other switch leg to GND"],
+      ["Encoder middle pin (C), or KY-040 GND", "GND", "The encoder's common pin"],
+      ["Encoder push switch / SW", "%SWTO%", ""],
+      ["Encoder push switch, other leg", "GND", "A KY-040 board already joins it to GND"],
       ["KY-040 board + (if you have one)", "3V3", "Never 5 V: its pull-ups would put 5 V on the GPIOs"],
     ],
     code: R`// ProbeHarbor on a 16x2 LCD: turn the knob to step through your sensors,
@@ -4534,7 +4582,7 @@ void loop() {
       ["RGB red", "GPIO %LR%", "Through 220 Ω"],
       ["RGB green", "GPIO %LG%", "Through 220 Ω"],
       ["RGB blue", "GPIO %LB%", "Through 220 Ω"],
-      ["RGB common leg (the longest)", "GND", "For a common-anode LED: to 3V3, and set COMMON_ANODE to true"],
+      ["RGB common leg (the longest)", "GND", "A common-anode LED needs 3V3 here instead, and COMMON_ANODE set to true"],
     ],
     code: R`// PIR motion to ProbeHarbor: an HC-SR501 reports motion to a ProbeHarbor push
 // device, and an RGB LED shows what is happening.
@@ -4785,18 +4833,21 @@ void loop() {
       [16, "Jumper wires"],
     ],
     wiring: [
-      ["ESP32 nRF24 VCC", "3V3", "3.3 V only: 5 V destroys it. 10 µF capacitor across VCC and GND, right at the module"],
+      ["ESP32 nRF24 VCC", "3V3", "3.3 V only: 5 V destroys it"],
+      ["10 µF capacitor", "3V3 to GND", "Right at the module, longer leg (+) to 3V3. The radio misbehaves without it"],
       ["ESP32 nRF24 GND", "GND", ""],
       ["ESP32 nRF24 SCK", "GPIO %SCK%", ""],
       ["ESP32 nRF24 MISO", "GPIO %MISO%", ""],
       ["ESP32 nRF24 MOSI", "GPIO %MOSI%", ""],
       ["ESP32 nRF24 CSN", "GPIO %CSN%", ""],
       ["ESP32 nRF24 CE", "GPIO %CE%", "IRQ stays unconnected"],
-      ["Uno nRF24 VCC", "Uno 3.3V", "Again 3.3 V only, with its own 10 µF capacitor"],
+      ["Uno nRF24 VCC", "Uno 3.3V", "Again 3.3 V only"],
+      ["Uno 10 µF capacitor", "Uno 3.3V to GND", "Right at the Uno's module, longer leg (+) to 3.3V"],
       ["Uno nRF24 GND", "Uno GND", ""],
       ["Uno nRF24 SCK / MISO / MOSI", "Uno 13 / 12 / 11", "The Uno's fixed SPI pins"],
       ["Uno nRF24 CSN / CE", "Uno 10 / 9", ""],
-      ["Photoresistor", "Uno 5V to A0", "10 kΩ from A0 to GND makes the divider: brighter light, higher number"],
+      ["Photoresistor", "Uno 5V to A0", "Brighter light, higher number"],
+      ["10 kΩ resistor", "Uno A0 to GND", "The divider's bottom resistor"],
       ["Push button", "Uno 2 to GND", "Uses the Uno's internal pull-up"],
     ],
     code: R`// nRF24L01+ receiver on the ESP32: hears an Arduino Uno across the room or garage,

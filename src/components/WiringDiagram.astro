@@ -31,6 +31,8 @@ const listedOnBoard = model?.listed.filter((l) => l.why === "on-board") ?? [];
 const listedNot = model?.listed.filter((l) => l.why === "not-wired" || l.why === "no-pad") ?? [];
 const rowText = (i: number) => `${rows[i][0]} → ${rows[i][1]}`;
 const pinText = (label: string) => (label === "pin" ? "" : label);
+// Optional wires first, so a required wire sharing a rail draws its line solid on top.
+const wiresBack = lay ? [...lay.wires].sort((a, b) => Number(!!b.wire.optional) - Number(!!a.wire.optional)) : [];
 ---
 
 {
@@ -73,9 +75,19 @@ const pinText = (label: string) => (label === "pin" ? "" : label);
             ))}
           </g>
 
-          {lay.wires.map(({ wire, d, resistorAt, end }) => (
+          {lay.railPaths.map((r) => (
+            <g class:list={["wire", "rail", r.color]} data-rows={r.rows.join(",")}>
+              {r.dashed && <path class="dash" d={r.dashed} />}
+              {r.solid && <path d={r.solid} />}
+            </g>
+          ))}
+
+          {wiresBack.map(({ wire, d, resistorAt, end, dots }) => (
             <g class:list={["wire", wire.color, { optional: wire.optional }]} data-row={wire.row}>
               <path d={d} />
+              {dots?.map((dot) => (
+                <circle class="dot" cx={dot.x} cy={dot.y} r="3.4" />
+              ))}
               {resistorAt && (
                 <g class="res" transform={`translate(${resistorAt.x} ${resistorAt.y})`}>
                   <rect x="-15" y="-6" width="30" height="12" />
@@ -124,7 +136,7 @@ const pinText = (label: string) => (label === "pin" ? "" : label);
         </svg>
       </div>
       <figcaption class="cap left">
-        {`Fig. 2. Wiring on the ${board.name}, from the table above. Red is 3V3, orange is 5V and grey is GND; each signal has its own colour. L and R give each pad's side and position on the header, counted from the top. Numbers match the build steps.`}
+        {`Fig. 2. Wiring on the ${board.name}, from the table above. Red is 3V3, orange is 5V and grey is GND; each signal has its own colour.${lay.rails.length ? ` ${lay.rails.join(" and ")} ${lay.rails.length > 1 ? "each have" : "has"} a shared rail; a dot marks each connection to it.` : ""} L and R give each pad's side and position on the header, counted from the top. Numbers match the build steps.`}
       </figcaption>
       {(listedOnBoard.length > 0 || listedOther.length > 0 || listedNot.length > 0) && (
         <ul class="wd-also">
@@ -280,6 +292,10 @@ const pinText = (label: string) => (label === "pin" ? "" : label);
     stroke-width: 2.4;
     stroke-linejoin: round;
   }
+  .dot {
+    fill: currentColor;
+  }
+  .wire path.dash,
   .wire.optional > path {
     stroke-dasharray: 6 4;
   }

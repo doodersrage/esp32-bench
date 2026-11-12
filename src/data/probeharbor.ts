@@ -32,7 +32,8 @@ export const PROBEHARBOR_SKETCHES: Project[] = [
     wiring: [
       ["DS18B20 red", "3V3", ""],
       ["DS18B20 black", "GND", ""],
-      ["DS18B20 data, usually yellow", "GPIO 4", "4.7 kΩ pull-up from data to 3V3"],
+      ["DS18B20 data, usually yellow", "GPIO 4", ""],
+      ["4.7 kΩ pull-up resistor", "GPIO 4 to 3V3", "Holds the data line high"],
     ],
     code: ds18b20, sourceUrl: source("ds18b20_ingest"),
     notes: [KEY_NOTE, "GPIO 4 is the probe data pin ProbeHarbor's own firmware uses on all three boards. This sketch itself has no recorded hardware test."],
@@ -51,7 +52,8 @@ export const PROBEHARBOR_SKETCHES: Project[] = [
     wiring: [
       ["DS18B20 red", "3V3", ""],
       ["DS18B20 black", "GND", ""],
-      ["DS18B20 data, usually yellow", "GPIO 4", "4.7 kΩ pull-up from data to 3V3"],
+      ["DS18B20 data, usually yellow", "GPIO 4", ""],
+      ["4.7 kΩ pull-up resistor", "GPIO 4 to 3V3", "Holds the data line high"],
     ],
     code: ds18b20Portal, sourceUrl: source("ds18b20_wifimanager"),
     notes: [

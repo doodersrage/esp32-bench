@@ -110,9 +110,11 @@ export function startBuild(fig: HTMLElement): void {
     back.disabled = at === 0;
     next.textContent = at === steps.length - 1 ? "Finish" : "Next";
     for (const w of wires) {
-      const row = Number(w.dataset.row);
-      w.classList.toggle("now", row === s.row);
-      w.classList.toggle("done", row !== s.row && done.has(row));
+      // A rail belongs to every row on it (data-rows); other wires to one row (data-row).
+      const rows = (w.dataset.rows ?? w.dataset.row ?? "").split(",").filter(Boolean).map(Number);
+      const now = rows.includes(s.row);
+      w.classList.toggle("now", now);
+      w.classList.toggle("done", !now && rows.length > 0 && rows.every((r) => done.has(r)));
     }
     for (const p of pads) p.classList.toggle("now", s.pads.includes(p.dataset.pad ?? ""));
     for (const r of held) r.classList.remove("held");
