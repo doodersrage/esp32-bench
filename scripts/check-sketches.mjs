@@ -38,6 +38,8 @@ const LIBS = {
   ESP32Servo: "madhephaestus/ESP32Servo",
   GxEPD2: "zinggjm/GxEPD2",
   ArduinoJson: "bblanchon/ArduinoJson",
+  LiquidCrystal: "arduino-libraries/LiquidCrystal",
+  RF24: "nrf24/RF24",
 };
 const BOARDS = {
   esp32: "esp32dev",

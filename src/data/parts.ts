@@ -188,6 +188,57 @@ export const PARTS: Part[] = [
       { name: "CATHODE", kind: "gnd" },
     ],
   },
+  {
+    id: "lcd1602", name: "16x2 LCD (HD44780)",
+    pins: [
+      { name: "VDD", kind: "power5", note: "The LCD runs on 5 V. Tie RW to GND so it never drives 5 V back; contrast (V0) goes to a trimmer wiper." },
+      { name: "VSS", kind: "gnd" },
+      { name: "RS", kind: "in", note: "3.3 V signals are enough: the HD44780 reads 2.2 V and up as high at 5 V." },
+      { name: "E", kind: "in" },
+      { name: "D4", kind: "in" },
+      { name: "D5", kind: "in" },
+      { name: "D6", kind: "in" },
+      { name: "D7", kind: "in" },
+    ],
+  },
+  {
+    id: "encoder", name: "Rotary encoder",
+    pins: [
+      { name: "A / CLK", kind: "out", note: "Internal pull-up. The encoder's common pin goes to GND." },
+      { name: "B / DT", kind: "out" },
+      { name: "SW", kind: "out", note: "Push switch to GND, internal pull-up." },
+      { name: "GND", kind: "gnd" },
+    ],
+  },
+  {
+    id: "pir", name: "PIR sensor (HC-SR501)",
+    pins: [
+      { name: "VCC", kind: "power5", note: "Needs 4.5 V or more; it regulates down to 3.3 V itself." },
+      { name: "OUT", kind: "out", note: "3.3 V when high, so it is safe on any GPIO." },
+      { name: "GND", kind: "gnd" },
+    ],
+  },
+  {
+    id: "nrf24", name: "nRF24L01+ radio",
+    pins: [
+      { name: "VCC", kind: "power3", note: "3.3 V only: 5 V destroys it. Put 10 µF across VCC and GND at the module." },
+      { name: "GND", kind: "gnd" },
+      { name: "CE", kind: "in" },
+      { name: "CSN", kind: "in" },
+      { name: "SCK", kind: "in" },
+      { name: "MOSI", kind: "in" },
+      { name: "MISO", kind: "out" },
+    ],
+  },
+  {
+    id: "rgbled", name: "RGB LED",
+    pins: [
+      { name: "RED", kind: "in", note: "220 Ω in series on each colour." },
+      { name: "GREEN", kind: "in" },
+      { name: "BLUE", kind: "in" },
+      { name: "COMMON", kind: "gnd", note: "Common cathode to GND. A common-anode LED goes to 3V3 instead, with the colours inverted in code." },
+    ],
+  },
 ];
 
 export const partById = (id: string): Part | undefined => PARTS.find((p) => p.id === id);

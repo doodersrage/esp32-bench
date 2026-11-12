@@ -50,6 +50,13 @@ export interface Project {
   flash?: { manifest: string; version: string; after: string[] };
   /** Show the form that sends ProbeHarbor settings to the board over USB */
   setup?: "probeharbor";
+  /**
+   * ProbeHarbor projects written here rather than copied from ProbeHarbor:
+   * "reads" shows readings from a share link, "sends" posts to a push device.
+   */
+  probeharbor?: "reads" | "sends";
+  /** A second sketch for another board, such as the Uno end of a radio link */
+  extraCode?: { title: string; board: string; code: string };
   /** Checks done on real hardware */
   verified?: Verified[];
   /** Things that have only been compiled or are still untested */
@@ -81,6 +88,11 @@ export const DRAWER = {
   buzzer: "Passive buzzer or piezo",
   pot: "10 kΩ potentiometers",
   soil: "Capacitive soil moisture sensor",
+  lcd1602: "16x2 character LCD",
+  encoder: "Rotary encoder",
+  pir: "PIR motion sensor (HC-SR501)",
+  nrf24: "Two nRF24L01+ radio modules",
+  rgbled: "RGB LED",
 } as const;
 export type DrawerPart = keyof typeof DRAWER;
 
@@ -2704,6 +2716,7 @@ void loop() {
   },
   {
     id: "ph-display", needs: [["oled"]], name: "ProbeHarbor readout display", level: "Intermediate", mins: 20, tags: ["probeharbor", "display", "wifi"],
+    probeharbor: "reads",
     sum: "Show your ProbeHarbor sensors on a small OLED by the door: each probe's latest reading, how old it is, and a flashing warning for freezing, water or lost power.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -3114,6 +3127,957 @@ void loop() {
       "Garage: Door = CLOSED (at 15:53 UTC)",
       "Crawlspace: Pipe_probe = 41.0 °F (at 15:52 UTC)",
       "Crawlspace: Leak_pads = DRY (at 15:52 UTC)",
+    ],
+  },
+  {
+    id: "ph-lcd", needs: [["lcd1602"], ["encoder"]], name: "ProbeHarbor on a 16x2 LCD", level: "Intermediate", mins: 40, tags: ["probeharbor", "display", "wifi"],
+    probeharbor: "reads",
+    sum: "Your ProbeHarbor sensors on the classic 16x2 character LCD. Turn a rotary encoder to step through them, press it for the device and the reading's age, and watch for the ! that marks freezing, water or lost power.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { RS: "13", EN: "14", DA: "25", DB: "26", DC: "27", DD: "33", ENCA: "18", ENCB: "19", ENCSW: "23", SWNOTE: "", BL: "4", BLTO: "GPIO 4", SWTO: "GPIO 23" },
+      esp32s3: { RS: "4", EN: "5", DA: "6", DB: "7", DC: "15", DD: "16", ENCA: "17", ENCB: "18", ENCSW: "8", SWNOTE: "", BL: "9", BLTO: "GPIO 9", SWTO: "GPIO 8" },
+      esp32c3: { RS: "0", EN: "1", DA: "3", DB: "4", DC: "5", DD: "10", ENCA: "6", ENCB: "7", ENCSW: "9", SWNOTE: " (the board's BOOT button: the C3 has no spare pin)", BL: "-1", BLTO: "Not used on the C3: wire the backlight to 5 V", SWTO: "Not wired on the C3: press the BOOT button instead" },
+    },
+    pins: ["5V", "3V3", "GND", "%RS%", "%EN%", "%DA%", "%DB%", "%DC%", "%DD%", "%ENCA%", "%ENCB%", "%ENCSW%", "%BL%"],
+    libs: ["ArduinoJson", "LiquidCrystal", "WiFi (built in)", "HTTPClient (built in)"],
+    baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "16x2 character LCD (HD44780), 5 V"],
+      [1, "10 kΩ trimmer potentiometer, for the contrast"],
+      [1, "Rotary encoder with push button (EC11 or a KY-040 board)"],
+      [1, "Optional: NPN transistor (2N2222, BC547 or similar) and 1 kΩ resistor, to blink the backlight"],
+      [16, "Jumper wires and a breadboard"],
+    ],
+    wiring: [
+      ["LCD 1 VSS", "GND", ""],
+      ["LCD 2 VDD", "5V", "The LCD runs on 5 V"],
+      ["LCD 3 V0", "Trimmer wiper", "Trimmer ends to 5V and GND. Turn it until the characters show"],
+      ["LCD 4 RS", "GPIO %RS%", ""],
+      ["LCD 5 RW", "GND", "Always. Tied low, the LCD only listens and never sends 5 V back to the ESP32"],
+      ["LCD 6 E", "GPIO %EN%", ""],
+      ["LCD 11 D4", "GPIO %DA%", "4-bit mode: D0 to D3 stay unconnected"],
+      ["LCD 12 D5", "GPIO %DB%", ""],
+      ["LCD 13 D6", "GPIO %DC%", ""],
+      ["LCD 14 D7", "GPIO %DD%", ""],
+      ["LCD 15 A (backlight +)", "5V", "Many modules have the backlight resistor on board; if yours does not, add about 100 Ω"],
+      ["LCD 16 K (backlight -)", "GND, or the transistor", "Optional blink: K to the NPN collector, emitter to GND, base through 1 kΩ to %BLTO%"],
+      ["Encoder A / CLK", "GPIO %ENCA%", "The encoder's middle pin goes to GND. Internal pull-ups are used"],
+      ["Encoder B / DT", "GPIO %ENCB%", ""],
+      ["Encoder push switch / SW", "%SWTO%", "Other switch leg to GND"],
+      ["KY-040 board + (if you have one)", "3V3", "Never 5 V: its pull-ups would put 5 V on the GPIOs"],
+    ],
+    code: R`// ProbeHarbor on a 16x2 LCD: turn the knob to step through your sensors,
+// press it for the device name and how old the reading is.
+// Reads a ProbeHarbor share link (read-only, works on the free plan) once a minute.
+// Libraries: ArduinoJson, LiquidCrystal.
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <LiquidCrystal.h>
+#include <ArduinoJson.h>
+#include <time.h>
+
+// ---- Your settings ----
+const char* WIFI_SSID = "your-wifi";
+const char* WIFI_PASS = "your-password";
+// ProbeHarbor: Dashboard, Share, create a live link, copy its readings address.
+const char* SHARE_URL = "https://probeharbor.dev/api/share/YOUR_SHARE_TOKEN/readings";
+const unsigned REFRESH_SECONDS = 60;  // ProbeHarbor allows 60 requests a minute per link
+const float FREEZE_F = 35.0;          // temperatures at or below this raise the alarm
+const unsigned STALE_MINUTES = 30;    // readings older than this are marked stale
+
+// ---- Pins ----
+LiquidCrystal lcd(%RS%, %EN%, %DA%, %DB%, %DC%, %DD%);  // RS, E, D4, D5, D6, D7
+const int ENC_A = %ENCA%;       // encoder CLK / A
+const int ENC_B = %ENCB%;       // encoder DT / B
+const int ENC_SW = %ENCSW%;     // encoder push button%SWNOTE%
+const int BACKLIGHT = %BL%;     // transistor that switches the backlight, or -1 if it is wired to 5 V
+
+// Root certificates for probeharbor.dev: Google Trust Services R1 and R4, and
+// Let's Encrypt ISRG X1 and X2. Cloudflare issues the site's certificate from one of these.
+const char* ROOT_CAS = R"PEM(
+-----BEGIN CERTIFICATE-----
+MIIFVzCCAz+gAwIBAgINAgPlk28xsBNJiGuiFzANBgkqhkiG9w0BAQwFADBHMQsw
+CQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEU
+MBIGA1UEAxMLR1RTIFJvb3QgUjEwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAw
+MDAwWjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZp
+Y2VzIExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjEwggIiMA0GCSqGSIb3DQEBAQUA
+A4ICDwAwggIKAoICAQC2EQKLHuOhd5s73L+UPreVp0A8of2C+X0yBoJx9vaMf/vo
+27xqLpeXo4xL+Sv2sfnOhB2x+cWX3u+58qPpvBKJXqeqUqv4IyfLpLGcY9vXmX7w
+Cl7raKb0xlpHDU0QM+NOsROjyBhsS+z8CZDfnWQpJSMHobTSPS5g4M/SCYe7zUjw
+TcLCeoiKu7rPWRnWr4+wB7CeMfGCwcDfLqZtbBkOtdh+JhpFAz2weaSUKK0Pfybl
+qAj+lug8aJRT7oM6iCsVlgmy4HqMLnXWnOunVmSPlk9orj2XwoSPwLxAwAtcvfaH
+szVsrBhQf4TgTM2S0yDpM7xSma8ytSmzJSq0SPly4cpk9+aCEI3oncKKiPo4Zor8
+Y/kB+Xj9e1x3+naH+uzfsQ55lVe0vSbv1gHR6xYKu44LtcXFilWr06zqkUspzBmk
+MiVOKvFlRNACzqrOSbTqn3yDsEB750Orp2yjj32JgfpMpf/VjsPOS+C12LOORc92
+wO1AK/1TD7Cn1TsNsYqiA94xrcx36m97PtbfkSIS5r762DL8EGMUUXLeXdYWk70p
+aDPvOmbsB4om3xPXV2V4J95eSRQAogB/mqghtqmxlbCluQ0WEdrHbEg8QOB+DVrN
+VjzRlwW5y0vtOUucxD/SVRNuJLDWcfr0wbrM7Rv1/oFB2ACYPTrIrnqYNxgFlQID
+AQABo0IwQDAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E
+FgQU5K8rJnEaK0gnhS9SZizv8IkTcT4wDQYJKoZIhvcNAQEMBQADggIBAJ+qQibb
+C5u+/x6Wki4+omVKapi6Ist9wTrYggoGxval3sBOh2Z5ofmmWJyq+bXmYOfg6LEe
+QkEzCzc9zolwFcq1JKjPa7XSQCGYzyI0zzvFIoTgxQ6KfF2I5DUkzps+GlQebtuy
+h6f88/qBVRRiClmpIgUxPoLW7ttXNLwzldMXG+gnoot7TiYaelpkttGsN/H9oPM4
+7HLwEXWdyzRSjeZ2axfG34arJ45JK3VmgRAhpuo+9K4l/3wV3s6MJT/KYnAK9y8J
+ZgfIPxz88NtFMN9iiMG1D53Dn0reWVlHxYciNuaCp+0KueIHoI17eko8cdLiA6Ef
+MgfdG+RCzgwARWGAtQsgWSl4vflVy2PFPEz0tv/bal8xa5meLMFrUKTX5hgUvYU/
+Z6tGn6D/Qqc6f1zLXbBwHSs09dR2CQzreExZBfMzQsNhFRAbd03OIozUhfJFfbdT
+6u9AWpQKXCBfTkBdYiJ23//OYb2MI3jSNwLgjt7RETeJ9r/tSQdirpLsQBqvFAnZ
+0E6yove+7u7Y/9waLd64NnHi/Hm3lCXRSHNboTXns5lndcEZOitHTtNCjv0xyBZm
+2tIMPNuzjsmhDYAPexZ3FL//2wmUspO8IFgV6dtxQ/PeEMMA3KgqlbbC1j+Qa3bb
+bP6MvPJwNQzcmRk13NfIRmPVNnGuV/u3gm3c
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD
+VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEUMBIG
+A1UEAxMLR1RTIFJvb3QgUjQwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAwMDAw
+WjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2Vz
+IExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjQwdjAQBgcqhkjOPQIBBgUrgQQAIgNi
+AATzdHOnaItgrkO4NcWBMHtLSZ37wWHO5t5GvWvVYRg1rkDdc/eJkTBa6zzuhXyi
+QHY7qca4R9gq55KRanPpsXI5nymfopjTX15YhmUPoYRlBtHci8nHc8iMai/lxKvR
+HYqjQjBAMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW
+BBSATNbrdP9JNqPV2Py1PsVq8JQdjDAKBggqhkjOPQQDAwNpADBmAjEA6ED/g94D
+9J+uHXqnLrmvT/aDHQ4thQEd0dlq7A/Cr8deVl5c1RxYIigL9zC2L7F8AjEA8GE8
+p/SgguMh1YQdc4acLa/KNJvxn7kjNuK8YAOdgLOaVsjh4rsUecrNIdSUtUlD
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICGzCCAaGgAwIBAgIQQdKd0XLq7qeAwSxs6S+HUjAKBggqhkjOPQQDAzBPMQsw
+CQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJuZXQgU2VjdXJpdHkgUmVzZWFyY2gg
+R3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBYMjAeFw0yMDA5MDQwMDAwMDBaFw00
+MDA5MTcxNjAwMDBaME8xCzAJBgNVBAYTAlVTMSkwJwYDVQQKEyBJbnRlcm5ldCBT
+ZWN1cml0eSBSZXNlYXJjaCBHcm91cDEVMBMGA1UEAxMMSVNSRyBSb290IFgyMHYw
+EAYHKoZIzj0CAQYFK4EEACIDYgAEzZvVn4CDCuwJSvMWSj5cz3es3mcFDR0HttwW
++1qLFNvicWDEukWVEYmO6gbf9yoWHKS5xcUy4APgHoIYOIvXRdgKam7mAHf7AlF9
+ItgKbppbd9/w+kHsOdx1ymgHDB/qo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0T
+AQH/BAUwAwEB/zAdBgNVHQ4EFgQUfEKWrt5LSDv6kviejM9ti6lyN5UwCgYIKoZI
+zj0EAwMDaAAwZQIwe3lORlCEwkSHRhtFcP9Ymd70/aTSVaYgLXTWNLxBo1BfASdW
+tL4ndQavEi51mI38AjEAi/V3bNTIZargCyzuFJ0nN6T5U6VR5CmD1/iQMVtCnwr1
+/q4AaOeMSQ+2b1tbFfLn
+-----END CERTIFICATE-----
+)PEM";
+
+struct Reading {
+  char device[24];
+  char label[24];
+  char kind[14];
+  char unit[10];
+  bool hasNum, hasBool;
+  float num;
+  bool flag;
+  time_t at;
+};
+const int MAX_READINGS = 16;
+Reading readings[MAX_READINGS];
+int count = 0, page = 0;
+char status[40] = "Starting";
+unsigned long lastFetch = 0, retryAfterMs = 0;
+bool detailView = false;  // true while the device name and age are shown
+
+// ---- Rotary encoder: a table of valid Gray-code steps, so contact bounce cancels out ----
+volatile int encSteps = 0;
+uint8_t encState = 0;
+const int8_t ENC_TABLE[16] = {0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0};
+portMUX_TYPE encLock = portMUX_INITIALIZER_UNLOCKED;
+
+// A small background task samples the encoder every millisecond. That is quick
+// enough for a knob turned by hand, and it keeps counting while loop() waits on
+// ProbeHarbor, without the interrupt and fast-RAM rules an ISR would need.
+void pollEncoder(void*) {
+  for (;;) {
+    encState = (uint8_t)(((encState << 2) | (digitalRead(ENC_A) << 1) | digitalRead(ENC_B)) & 0x0F);
+    const int8_t step = ENC_TABLE[encState];
+    if (step) {
+      taskENTER_CRITICAL(&encLock);
+      encSteps += step;
+      taskEXIT_CRITICAL(&encLock);
+    }
+    vTaskDelay(1);
+  }
+}
+
+// Most EC11 / KY-040 encoders give four steps per click.
+int takeClicks() {
+  taskENTER_CRITICAL(&encLock);
+  const int clicks = encSteps / 4;
+  encSteps -= clicks * 4;
+  taskEXIT_CRITICAL(&encLock);
+  return clicks;
+}
+
+// Days since 1970-01-01 for a civil date (Howard Hinnant's algorithm), so we can
+// turn "2026-11-12T15:50:44Z" into a UTC timestamp without timegm().
+long daysFromCivil(int y, unsigned m, unsigned d) {
+  y -= m <= 2;
+  const long era = (y >= 0 ? y : y - 399) / 400;
+  const unsigned yoe = (unsigned)(y - era * 400);
+  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  return era * 146097 + (long)doe - 719468;
+}
+
+time_t parseTime(const char* s) {
+  int Y, M, D, h, m, sec;
+  if (!s || sscanf(s, "%4d-%2d-%2d%*c%2d:%2d:%2d", &Y, &M, &D, &h, &m, &sec) != 6) return 0;
+  time_t t = (time_t)daysFromCivil(Y, M, D) * 86400 + h * 3600 + m * 60 + sec;
+  // Optional offset after the seconds: Z, +HH, +HH:MM, -HHMM ...
+  const char* p = s + 19;
+  while (*p == '.' || isdigit((unsigned char)*p)) p++;
+  if (*p == '+' || *p == '-') {
+    int oh = 0, om = 0;
+    sscanf(p + 1, "%2d%*[:]%2d", &oh, &om);
+    if (om == 0) sscanf(p + 1, "%2d%2d", &oh, &om);
+    const long off = oh * 3600L + om * 60L;
+    t += (*p == '+') ? -off : off;
+  }
+  return t;
+}
+
+void copyText(char* to, size_t size, const char* from) {
+  snprintf(to, size, "%s", from ? from : "");
+}
+
+const char* boolWord(const Reading& r) {
+  if (!strcmp(r.kind, "door")) return r.flag ? "OPEN" : "CLOSED";
+  if (!strcmp(r.kind, "power")) return r.flag ? "ON" : "OFF";
+  if (!strcmp(r.kind, "flood")) return r.flag ? "WET" : "DRY";
+  if (!strcmp(r.kind, "motion")) return r.flag ? "MOTION" : "CLEAR";
+  return r.flag ? "YES" : "NO";
+}
+
+// The things ProbeHarbor exists to catch: freezing, water, lost power.
+bool alarming(const Reading& r) {
+  if (r.hasNum && !strcmp(r.kind, "temperature")) {
+    const bool celsius = strstr(r.unit, "C") != nullptr;
+    return r.num <= (celsius ? (FREEZE_F - 32) * 5 / 9 : FREEZE_F);
+  }
+  if (r.hasBool && !strcmp(r.kind, "flood")) return r.flag;
+  if (r.hasBool && !strcmp(r.kind, "power")) return !r.flag;
+  return false;
+}
+
+long ageMinutes(const Reading& r) {
+  const time_t now = time(nullptr);
+  if (now < 1700000000 || r.at == 0) return -1;  // clock not set yet
+  return (long)(now - r.at) / 60;
+}
+
+void fetchReadings() {
+  WiFiClientSecure tls;
+  tls.setCACert(ROOT_CAS);
+  HTTPClient http;
+  http.useHTTP10(true);  // a plain body, so ArduinoJson can read it as it arrives
+  const char* keep[] = {"Retry-After"};
+  http.collectHeaders(keep, 1);
+  if (!http.begin(tls, SHARE_URL)) {
+    copyText(status, sizeof(status), "Bad SHARE_URL");
+    return;
+  }
+  const int code = http.GET();
+  if (code == 200) {
+    JsonDocument filter;
+    JsonObject f = filter["readings"].add<JsonObject>();
+    for (const char* k : {"device", "label", "kind", "unit", "value_num", "value_bool", "recorded_at"}) f[k] = true;
+    JsonDocument doc;
+    const DeserializationError err = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
+    if (err) {
+      snprintf(status, sizeof(status), "Bad reply: %s", err.c_str());
+    } else {
+      count = 0;
+      for (JsonObject r : doc["readings"].as<JsonArray>()) {
+        if (count == MAX_READINGS) break;
+        Reading& x = readings[count++];
+        copyText(x.device, sizeof(x.device), r["device"] | "");
+        copyText(x.label, sizeof(x.label), r["label"] | "");
+        copyText(x.kind, sizeof(x.kind), r["kind"] | "generic");
+        copyText(x.unit, sizeof(x.unit), r["unit"] | "");
+        x.hasNum = r["value_num"].is<float>();
+        x.num = r["value_num"] | 0.0f;
+        x.hasBool = r["value_bool"].is<bool>();
+        x.flag = r["value_bool"] | false;
+        x.at = parseTime(r["recorded_at"] | "");
+      }
+      snprintf(status, sizeof(status), "%d sensors", count);
+      if (page >= count) page = 0;
+      for (int i = 0; i < count; i++) {
+        const Reading& r = readings[i];
+        // "Garage: Freezer_probe = 4.2 °F (at 15:50 UTC)": one name per sensor, so the bench plots each one.
+        char name[sizeof(r.label)];
+        copyText(name, sizeof(name), r.label);
+        for (char* c = name; *c; c++) if (!isalnum((unsigned char)*c)) *c = '_';
+        Serial.printf("%s: %s = ", r.device, name);
+        if (r.hasNum) Serial.printf("%.1f %s", r.num, r.unit);
+        else if (r.hasBool) Serial.print(boolWord(r));
+        else Serial.print("no value");
+        if (r.at) {
+          struct tm t;
+          gmtime_r(&r.at, &t);
+          Serial.printf(" (at %02d:%02d UTC)", t.tm_hour, t.tm_min);
+        }
+        Serial.println();
+        if (alarming(r)) Serial.printf("ALERT %s: %s\n", r.device, r.label);
+      }
+    }
+  } else if (code == 404) {
+    copyText(status, sizeof(status), "Link invalid or expired");
+  } else if (code == 429) {
+    retryAfterMs = 1000UL * (unsigned long)max(60L, http.header("Retry-After").toInt());
+    copyText(status, sizeof(status), "Too many requests");
+  } else {
+    snprintf(status, sizeof(status), "HTTP %d", code);
+  }
+  if (code != 200) Serial.printf("ProbeHarbor: %s\n", status);
+  http.end();
+}
+
+// The LCD's character set has a degree sign (0xDF) and a micro sign (0xE4).
+void printUnit(const char* unit) {
+  for (const char* p = unit; *p; p++) {
+    if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB0) { lcd.write((uint8_t)0xDF); p++; }       // °
+    else if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB5) { lcd.write((uint8_t)0xE4); p++; }  // µ
+    else if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB3) { lcd.write('3'); p++; }             // ³
+    else if ((uint8_t)p[0] < 0x80) lcd.write(p[0]);
+  }
+}
+
+// Print text padded or cut to exactly \`width\` characters, so old text never lingers.
+void printFixed(const char* text, int width) {
+  int n = 0;
+  for (; text[n] && n < width; n++) lcd.write(text[n]);
+  for (; n < width; n++) lcd.write(' ');
+}
+
+void draw() {
+  static char shown[2][17] = {"", ""};
+  char top[17], bottom[17];
+  if (count == 0) {
+    snprintf(top, sizeof(top), "ProbeHarbor");
+    snprintf(bottom, sizeof(bottom), "%.16s", status);
+  } else {
+    const Reading& r = readings[page];
+    const bool alarm = alarming(r);
+    const long age = ageMinutes(r);
+    if (!detailView) {
+      // Top: the sensor's label, with "!" at the end when it is alarming.
+      snprintf(top, sizeof(top), "%-15.15s%c", r.label, alarm ? '!' : ' ');
+      bottom[0] = 0;  // drawn below, because of the unit characters
+    } else {
+      snprintf(top, sizeof(top), "%.16s", r.device);
+      if (age >= (long)STALE_MINUTES) snprintf(bottom, sizeof(bottom), "STALE %ldm", age);
+      else if (age >= 0) snprintf(bottom, sizeof(bottom), "%ldm ago", age);
+      else snprintf(bottom, sizeof(bottom), "time not set");
+    }
+    // Blink the backlight while the shown sensor is alarming, if a transistor drives it.
+    if (BACKLIGHT >= 0) digitalWrite(BACKLIGHT, alarm && (millis() / 500) % 2 ? LOW : HIGH);
+  }
+  if (strcmp(top, shown[0])) {
+    lcd.setCursor(0, 0);
+    printFixed(top, 16);
+    snprintf(shown[0], sizeof(shown[0]), "%s", top);
+  }
+  if (count > 0 && !detailView) {
+    const Reading& r = readings[page];
+    char value[17], pos[8];
+    if (r.hasNum) snprintf(value, sizeof(value), "%.1f ", r.num);
+    else if (r.hasBool) snprintf(value, sizeof(value), "%s", boolWord(r));
+    else snprintf(value, sizeof(value), "--");
+    snprintf(pos, sizeof(pos), "%d/%d", page + 1, count);
+    char key[40];
+    snprintf(key, sizeof(key), "%s|%s|%s", value, r.unit, pos);
+    if (strcmp(key, shown[1])) {  // only redraw when something changed: no flicker
+      lcd.setCursor(0, 1);
+      printFixed("", 16);
+      lcd.setCursor(0, 1);
+      lcd.print(value);
+      if (r.hasNum) printUnit(r.unit);
+      lcd.setCursor(16 - (int)strlen(pos), 1);
+      lcd.print(pos);
+      snprintf(shown[1], sizeof(shown[1]), "%.16s", key);
+    }
+  } else if (strcmp(bottom, shown[1])) {
+    lcd.setCursor(0, 1);
+    printFixed(bottom, 16);
+    snprintf(shown[1], sizeof(shown[1]), "%s", bottom);
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  lcd.begin(16, 2);
+  if (BACKLIGHT >= 0) {
+    pinMode(BACKLIGHT, OUTPUT);
+    digitalWrite(BACKLIGHT, HIGH);
+  }
+  pinMode(ENC_A, INPUT_PULLUP);
+  pinMode(ENC_B, INPUT_PULLUP);
+  pinMode(ENC_SW, INPUT_PULLUP);
+  encState = (uint8_t)((digitalRead(ENC_A) << 1) | digitalRead(ENC_B));
+  xTaskCreate(pollEncoder, "encoder", 2048, nullptr, 2, nullptr);  // above loop()'s priority
+  copyText(status, sizeof(status), "Joining Wi-Fi");
+  draw();
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) delay(250);
+  Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
+  configTime(0, 0, "pool.ntp.org", "time.google.com");  // UTC, for "minutes ago"
+  copyText(status, sizeof(status), "Fetching");
+  draw();
+}
+
+void loop() {
+  const unsigned long now = millis();
+  const unsigned long every = retryAfterMs ? retryAfterMs : REFRESH_SECONDS * 1000UL;
+  if (lastFetch == 0 || now - lastFetch >= every) {
+    lastFetch = now ? now : 1;
+    retryAfterMs = 0;
+    if (WiFi.status() == WL_CONNECTED) fetchReadings();
+    else {
+      copyText(status, sizeof(status), "Wi-Fi lost");
+      WiFi.reconnect();
+    }
+  }
+  const int clicks = takeClicks();
+  if (clicks && count) page = ((page + clicks) % count + count) % count;
+  static bool wasDown = false;
+  const bool down = digitalRead(ENC_SW) == LOW;
+  if (down && !wasDown) detailView = !detailView;  // press: toggle the detail view
+  wasDown = down;
+  draw();
+  delay(20);
+}
+`,
+    notes: [
+      "It reads a ProbeHarbor share link, which is read-only and works on the free plan. In ProbeHarbor, open Dashboard, Share, create a live link and paste its readings address into SHARE_URL.",
+      "The HD44780 runs on 5 V but accepts the ESP32's 3.3 V signals, because it treats anything above 2.2 V as high. That only works one way, which is why RW goes to GND: the LCD never drives its data pins, so no 5 V reaches the ESP32.",
+      "Blank or solid blocks on the top row usually means the contrast: turn the trimmer slowly from one end to the other.",
+      "A small background task reads the encoder every millisecond against a table of valid Gray-code steps, so a bouncy contact cancels itself out instead of skipping sensors, and turns still count while the board is fetching from ProbeHarbor. If one click moves two sensors, change the 4 in takeClicks() to 2.",
+      "On a 16x2 an alarm shows as ! at the end of the sensor's name. With the optional transistor the backlight also blinks while that sensor is on screen. Without it, BACKLIGHT is -1 and the backlight simply stays on.",
+      "The ESP32-C3 has eight pins free of boot, USB and serial duties, and this project needs nine, so on the C3 the board's BOOT button stands in for the encoder's push switch and the backlight blink is left out. Do not hold BOOT while the board resets.",
+      "GPIO 14 on the classic ESP32 wiggles briefly at power-up. On the LCD's E pin that is harmless: the screen is cleared when the sketch starts.",
+    ],
+    open: ["Not tested on hardware or against a real ProbeHarbor share link yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    sample: [
+      "wifi ok 192.168.1.74",
+      "Garage: Freezer_probe = 4.2 °F (at 15:49 UTC)",
+      "Garage: Garage_air = 33.8 °F (at 15:49 UTC)",
+      "ALERT Garage: Garage air",
+      "Crawlspace: Pipe_probe = 41.5 °F (at 15:48 UTC)",
+      "Garage: Freezer_probe = 4.1 °F (at 15:50 UTC)",
+      "Garage: Garage_air = 34.4 °F (at 15:50 UTC)",
+      "ALERT Garage: Garage air",
+      "Crawlspace: Pipe_probe = 41.3 °F (at 15:50 UTC)",
+      "Garage: Freezer_probe = 4.3 °F (at 15:51 UTC)",
+      "Garage: Garage_air = 35.6 °F (at 15:51 UTC)",
+      "Crawlspace: Pipe_probe = 41.2 °F (at 15:51 UTC)",
+    ],
+  },
+  {
+    id: "ph-motion", needs: [["pir"], ["rgbled", "led"]], name: "PIR motion sensor for ProbeHarbor", level: "Starter", mins: 25, tags: ["probeharbor", "sensors", "wifi"],
+    probeharbor: "sends",
+    sum: "An HC-SR501 PIR sensor reports motion in the garage, shed or workshop to ProbeHarbor, with an RGB LED that glows green when quiet, red on motion and blue if Wi-Fi or ProbeHarbor is unreachable.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { PIR: "27", LR: "25", LG: "26", LB: "33" },
+      esp32s3: { PIR: "4", LR: "5", LG: "6", LB: "7" },
+      esp32c3: { PIR: "4", LR: "5", LG: "6", LB: "7" },
+    },
+    pins: ["5V", "GND", "%PIR%", "%LR%", "%LG%", "%LB%"],
+    libs: ["WiFi (built in)", "HTTPClient (built in)"],
+    baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "HC-SR501 PIR motion sensor"],
+      [1, "RGB LED, common cathode or common anode (or three single LEDs)"],
+      [3, "220 Ω resistors, one per LED colour"],
+      [8, "Jumper wires"],
+    ],
+    wiring: [
+      ["PIR VCC", "5V", "The HC-SR501 needs 4.5 V or more; it has its own 3.3 V regulator"],
+      ["PIR OUT", "GPIO %PIR%", "Its output is 3.3 V when high, safe for the ESP32 as it is"],
+      ["PIR GND", "GND", ""],
+      ["RGB red", "GPIO %LR%", "Through 220 Ω"],
+      ["RGB green", "GPIO %LG%", "Through 220 Ω"],
+      ["RGB blue", "GPIO %LB%", "Through 220 Ω"],
+      ["RGB common leg (the longest)", "GND", "For a common-anode LED: to 3V3, and set COMMON_ANODE to true"],
+    ],
+    code: R`// PIR motion to ProbeHarbor: an HC-SR501 reports motion to a ProbeHarbor push
+// device, and an RGB LED shows what is happening.
+// Green: quiet. Red: motion. Blue: Wi-Fi or ProbeHarbor trouble. Green blinking: PIR warming up.
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+
+// ---- Your settings ----
+const char* WIFI_SSID = "your-wifi";
+const char* WIFI_PASS = "your-password";
+// ProbeHarbor: Dashboard, Devices, add a push device, copy its ingest address.
+const char* INGEST_URL = "https://probeharbor.dev/api/ingest/YOUR_DEVICE_KEY";
+// ProbeHarbor reads a true/false value whose name contains "motion" as a motion sensor.
+const char* SENSOR_KEY = "motion1";
+const unsigned long HEARTBEAT_MS = 5UL * 60UL * 1000UL;  // re-send the state every 5 minutes
+const unsigned long MIN_GAP_MS = 10UL * 1000UL;          // never post more often than this
+const unsigned long WARMUP_MS = 60UL * 1000UL;           // the HC-SR501 settles for about a minute
+
+// ---- Pins ----
+const int PIR_PIN = %PIR%;
+const int LED_R = %LR%, LED_G = %LG%, LED_B = %LB%;
+const bool COMMON_ANODE = false;  // true if the LED's long leg goes to 3V3 instead of GND
+
+// Root certificates for probeharbor.dev: Google Trust Services R1 and R4, and
+// Let's Encrypt ISRG X1 and X2. Cloudflare issues the site's certificate from one of these.
+const char* ROOT_CAS = R"PEM(
+-----BEGIN CERTIFICATE-----
+MIIFVzCCAz+gAwIBAgINAgPlk28xsBNJiGuiFzANBgkqhkiG9w0BAQwFADBHMQsw
+CQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEU
+MBIGA1UEAxMLR1RTIFJvb3QgUjEwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAw
+MDAwWjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZp
+Y2VzIExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjEwggIiMA0GCSqGSIb3DQEBAQUA
+A4ICDwAwggIKAoICAQC2EQKLHuOhd5s73L+UPreVp0A8of2C+X0yBoJx9vaMf/vo
+27xqLpeXo4xL+Sv2sfnOhB2x+cWX3u+58qPpvBKJXqeqUqv4IyfLpLGcY9vXmX7w
+Cl7raKb0xlpHDU0QM+NOsROjyBhsS+z8CZDfnWQpJSMHobTSPS5g4M/SCYe7zUjw
+TcLCeoiKu7rPWRnWr4+wB7CeMfGCwcDfLqZtbBkOtdh+JhpFAz2weaSUKK0Pfybl
+qAj+lug8aJRT7oM6iCsVlgmy4HqMLnXWnOunVmSPlk9orj2XwoSPwLxAwAtcvfaH
+szVsrBhQf4TgTM2S0yDpM7xSma8ytSmzJSq0SPly4cpk9+aCEI3oncKKiPo4Zor8
+Y/kB+Xj9e1x3+naH+uzfsQ55lVe0vSbv1gHR6xYKu44LtcXFilWr06zqkUspzBmk
+MiVOKvFlRNACzqrOSbTqn3yDsEB750Orp2yjj32JgfpMpf/VjsPOS+C12LOORc92
+wO1AK/1TD7Cn1TsNsYqiA94xrcx36m97PtbfkSIS5r762DL8EGMUUXLeXdYWk70p
+aDPvOmbsB4om3xPXV2V4J95eSRQAogB/mqghtqmxlbCluQ0WEdrHbEg8QOB+DVrN
+VjzRlwW5y0vtOUucxD/SVRNuJLDWcfr0wbrM7Rv1/oFB2ACYPTrIrnqYNxgFlQID
+AQABo0IwQDAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E
+FgQU5K8rJnEaK0gnhS9SZizv8IkTcT4wDQYJKoZIhvcNAQEMBQADggIBAJ+qQibb
+C5u+/x6Wki4+omVKapi6Ist9wTrYggoGxval3sBOh2Z5ofmmWJyq+bXmYOfg6LEe
+QkEzCzc9zolwFcq1JKjPa7XSQCGYzyI0zzvFIoTgxQ6KfF2I5DUkzps+GlQebtuy
+h6f88/qBVRRiClmpIgUxPoLW7ttXNLwzldMXG+gnoot7TiYaelpkttGsN/H9oPM4
+7HLwEXWdyzRSjeZ2axfG34arJ45JK3VmgRAhpuo+9K4l/3wV3s6MJT/KYnAK9y8J
+ZgfIPxz88NtFMN9iiMG1D53Dn0reWVlHxYciNuaCp+0KueIHoI17eko8cdLiA6Ef
+MgfdG+RCzgwARWGAtQsgWSl4vflVy2PFPEz0tv/bal8xa5meLMFrUKTX5hgUvYU/
+Z6tGn6D/Qqc6f1zLXbBwHSs09dR2CQzreExZBfMzQsNhFRAbd03OIozUhfJFfbdT
+6u9AWpQKXCBfTkBdYiJ23//OYb2MI3jSNwLgjt7RETeJ9r/tSQdirpLsQBqvFAnZ
+0E6yove+7u7Y/9waLd64NnHi/Hm3lCXRSHNboTXns5lndcEZOitHTtNCjv0xyBZm
+2tIMPNuzjsmhDYAPexZ3FL//2wmUspO8IFgV6dtxQ/PeEMMA3KgqlbbC1j+Qa3bb
+bP6MvPJwNQzcmRk13NfIRmPVNnGuV/u3gm3c
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD
+VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEUMBIG
+A1UEAxMLR1RTIFJvb3QgUjQwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAwMDAw
+WjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2Vz
+IExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjQwdjAQBgcqhkjOPQIBBgUrgQQAIgNi
+AATzdHOnaItgrkO4NcWBMHtLSZ37wWHO5t5GvWvVYRg1rkDdc/eJkTBa6zzuhXyi
+QHY7qca4R9gq55KRanPpsXI5nymfopjTX15YhmUPoYRlBtHci8nHc8iMai/lxKvR
+HYqjQjBAMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW
+BBSATNbrdP9JNqPV2Py1PsVq8JQdjDAKBggqhkjOPQQDAwNpADBmAjEA6ED/g94D
+9J+uHXqnLrmvT/aDHQ4thQEd0dlq7A/Cr8deVl5c1RxYIigL9zC2L7F8AjEA8GE8
+p/SgguMh1YQdc4acLa/KNJvxn7kjNuK8YAOdgLOaVsjh4rsUecrNIdSUtUlD
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICGzCCAaGgAwIBAgIQQdKd0XLq7qeAwSxs6S+HUjAKBggqhkjOPQQDAzBPMQsw
+CQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJuZXQgU2VjdXJpdHkgUmVzZWFyY2gg
+R3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBYMjAeFw0yMDA5MDQwMDAwMDBaFw00
+MDA5MTcxNjAwMDBaME8xCzAJBgNVBAYTAlVTMSkwJwYDVQQKEyBJbnRlcm5ldCBT
+ZWN1cml0eSBSZXNlYXJjaCBHcm91cDEVMBMGA1UEAxMMSVNSRyBSb290IFgyMHYw
+EAYHKoZIzj0CAQYFK4EEACIDYgAEzZvVn4CDCuwJSvMWSj5cz3es3mcFDR0HttwW
++1qLFNvicWDEukWVEYmO6gbf9yoWHKS5xcUy4APgHoIYOIvXRdgKam7mAHf7AlF9
+ItgKbppbd9/w+kHsOdx1ymgHDB/qo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0T
+AQH/BAUwAwEB/zAdBgNVHQ4EFgQUfEKWrt5LSDv6kviejM9ti6lyN5UwCgYIKoZI
+zj0EAwMDaAAwZQIwe3lORlCEwkSHRhtFcP9Ymd70/aTSVaYgLXTWNLxBo1BfASdW
+tL4ndQavEi51mI38AjEAi/V3bNTIZargCyzuFJ0nN6T5U6VR5CmD1/iQMVtCnwr1
+/q4AaOeMSQ+2b1tbFfLn
+-----END CERTIFICATE-----
+)PEM";
+
+bool motion = false;          // debounced PIR state
+int sentState = -1;           // last state ProbeHarbor accepted
+unsigned long lastPost = 0, changedAt = 0, retryAfterMs = 0;
+bool trouble = false;
+
+void setColor(uint8_t r, uint8_t g, uint8_t b) {
+  if (COMMON_ANODE) { r = 255 - r; g = 255 - g; b = 255 - b; }
+  analogWrite(LED_R, r);
+  analogWrite(LED_G, g);
+  analogWrite(LED_B, b);
+}
+
+// Returns the HTTP status, or a negative number if the request never got an answer.
+int postMotion(bool on) {
+  WiFiClientSecure tls;
+  tls.setCACert(ROOT_CAS);
+  HTTPClient http;
+  const char* keep[] = {"Retry-After"};
+  http.collectHeaders(keep, 1);
+  if (!http.begin(tls, INGEST_URL)) return -1;
+  http.addHeader("Content-Type", "application/json");
+  char body[64];
+  snprintf(body, sizeof(body), "{\"%s\":%s}", SENSOR_KEY, on ? "true" : "false");
+  const int code = http.POST(body);
+  if (code == 429) retryAfterMs = 1000UL * (unsigned long)max(10L, http.header("Retry-After").toInt());
+  http.end();
+  return code;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(PIR_PIN, INPUT);  // the HC-SR501 drives its output high and low itself
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_G, OUTPUT);
+  pinMode(LED_B, OUTPUT);
+  setColor(0, 0, 80);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) delay(250);
+  Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
+}
+
+void loop() {
+  const unsigned long now = millis();
+
+  // Debounce: the PIR output has to hold a new level for 200 ms.
+  const bool raw = digitalRead(PIR_PIN) == HIGH;
+  static bool lastRaw = false;
+  static unsigned long rawSince = 0;
+  if (raw != lastRaw) { lastRaw = raw; rawSince = now; }
+  if (raw != motion && now - rawSince >= 200) {
+    motion = raw;
+    changedAt = now;
+    Serial.printf("motion = %d\n", motion ? 1 : 0);
+  }
+
+  const bool warming = now < WARMUP_MS;
+  if (warming) setColor(0, (now / 300) % 2 ? 60 : 0, 0);
+  else if (trouble) setColor(0, 0, 160);
+  else if (motion) setColor(200, 0, 0);
+  else setColor(0, 60, 0);
+  if (warming) return;
+
+  if (WiFi.status() != WL_CONNECTED) {
+    trouble = true;
+    static unsigned long lastTry = 0;
+    if (now - lastTry > 10000) { lastTry = now; WiFi.reconnect(); }
+    return;
+  }
+
+  const bool changed = (int)motion != sentState;
+  const bool heartbeat = now - lastPost >= HEARTBEAT_MS;
+  const unsigned long gap = retryAfterMs ? retryAfterMs : MIN_GAP_MS;
+  if ((changed || heartbeat) && (lastPost == 0 || now - lastPost >= gap)) {
+    lastPost = now;
+    retryAfterMs = 0;
+    const int code = postMotion(motion);
+    trouble = code < 200 || code >= 300;
+    if (!trouble) sentState = motion;
+    Serial.printf("posted %s %s\n", motion ? "motion" : "quiet", trouble ? "FAILED" : "ok");
+    if (trouble) Serial.printf("ProbeHarbor answered HTTP %d\n", code);
+  }
+}
+`,
+    notes: [
+      "In ProbeHarbor, add a push device and paste its ingest address into INGEST_URL. The sketch sends {\"motion1\": true} or false: ProbeHarbor files a true/false value whose name contains motion as a motion sensor, shown as MOTION or CLEAR.",
+      "It posts when motion starts and stops, and again every 5 minutes so ProbeHarbor knows the sensor is alive. Posts are at least 10 seconds apart, well inside ProbeHarbor's 60 a minute, and if ProbeHarbor answers 429 it waits as long as asked.",
+      "The HC-SR501 has two orange trimmers. Sx sets sensitivity, roughly 3 to 7 metres. Tx sets how long the output stays high after motion, from about 3 seconds to about 5 minutes: turn it fully anticlockwise for the shortest time, so ProbeHarbor sees each visit separately.",
+      "Set the jumper to H (repeat trigger): the output then stays high as long as something keeps moving, instead of dropping out mid-visit. L gives one fixed pulse per trigger.",
+      "After power-up the sensor needs about a minute to settle and may trigger on its own. The LED blinks green during that minute and nothing is sent.",
+      "Which leg is common? On most 5 mm RGB LEDs it is the longest. If green shows as everything-but-green, you have a common-anode LED: set COMMON_ANODE to true and move the common leg to 3V3.",
+      "PIR sensors see warm moving bodies, so heaters, sunlight on a wall or a draught from a vent can trigger them. Point it away from windows and heat sources.",
+    ],
+    open: ["Not tested on hardware or with ProbeHarbor yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    sample: [
+      "wifi ok 192.168.1.75",
+      "posted quiet ok",
+      "motion = 1",
+      "posted motion ok",
+      "motion = 0",
+      "posted quiet ok",
+      "motion = 1",
+      "posted motion ok",
+      "motion = 0",
+      "posted quiet ok",
+      "motion = 1",
+      "posted motion ok",
+      "motion = 0",
+      "posted quiet ok",
+    ],
+  },
+  {
+    id: "nrf24-link", needs: [["nrf24"]], name: "Arduino Uno to ESP32 radio link", level: "Intermediate", mins: 45, tags: ["wifi", "sensors"],
+    sum: "Give an old Arduino Uno a radio: two nRF24L01+ modules carry a light sensor and a button from the Uno to an ESP32, which plots them on the bench and serves them on a web page.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SCK: "18", MISO: "19", MOSI: "23", CSN: "21", CE: "22" },
+      esp32s3: { SCK: "12", MISO: "13", MOSI: "11", CSN: "10", CE: "9" },
+      esp32c3: { SCK: "4", MISO: "5", MOSI: "6", CSN: "7", CE: "10" },
+    },
+    pins: ["3V3", "GND", "%SCK%", "%MISO%", "%MOSI%", "%CSN%", "%CE%"],
+    libs: ["RF24", "WiFi (built in)", "WebServer (built in)"],
+    baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Arduino Uno"],
+      [2, "nRF24L01+ modules"],
+      [2, "10 µF capacitors, one across each module's VCC and GND"],
+      [1, "Photoresistor (light sensor) and a 10 kΩ resistor"],
+      [1, "Push button"],
+      [16, "Jumper wires"],
+    ],
+    wiring: [
+      ["ESP32 nRF24 VCC", "3V3", "3.3 V only: 5 V destroys it. 10 µF capacitor across VCC and GND, right at the module"],
+      ["ESP32 nRF24 GND", "GND", ""],
+      ["ESP32 nRF24 SCK", "GPIO %SCK%", ""],
+      ["ESP32 nRF24 MISO", "GPIO %MISO%", ""],
+      ["ESP32 nRF24 MOSI", "GPIO %MOSI%", ""],
+      ["ESP32 nRF24 CSN", "GPIO %CSN%", ""],
+      ["ESP32 nRF24 CE", "GPIO %CE%", "IRQ stays unconnected"],
+      ["Uno nRF24 VCC", "Uno 3.3V", "Again 3.3 V only, with its own 10 µF capacitor"],
+      ["Uno nRF24 GND", "Uno GND", ""],
+      ["Uno nRF24 SCK / MISO / MOSI", "Uno 13 / 12 / 11", "The Uno's fixed SPI pins"],
+      ["Uno nRF24 CSN / CE", "Uno 10 / 9", ""],
+      ["Photoresistor", "Uno 5V to A0", "10 kΩ from A0 to GND makes the divider: brighter light, higher number"],
+      ["Push button", "Uno 2 to GND", "Uses the Uno's internal pull-up"],
+    ],
+    code: R`// nRF24L01+ receiver on the ESP32: hears an Arduino Uno across the room or garage,
+// prints what it sends for the bench plotter, and shows it on a small web page.
+// Libraries: RF24 (by TMRh20). The Uno's sketch is further down this page.
+#include <SPI.h>
+#include <RF24.h>
+#include <WiFi.h>
+#include <WebServer.h>
+
+const char* WIFI_SSID = "your-wifi";
+const char* WIFI_PASS = "your-password";
+
+// ---- Pins ----
+const int PIN_SCK = %SCK%, PIN_MISO = %MISO%, PIN_MOSI = %MOSI%;
+const int PIN_CSN = %CSN%, PIN_CE = %CE%;
+
+// Must match the Uno's sketch exactly.
+const uint8_t ADDRESS[6] = "BNCH1";
+const uint8_t CHANNEL = 108;  // 2.508 GHz, above the Wi-Fi channels
+
+// The packet. Packed and fixed-size so the Uno (8-bit) and the ESP32 (32-bit) agree on its layout.
+struct __attribute__((packed)) Packet {
+  uint32_t seq;     // counts up with every packet
+  uint16_t light;   // photoresistor, 0 (dark) to 1023 (bright)
+  uint8_t button;   // 1 while the button is held
+};
+
+RF24 radio(PIN_CE, PIN_CSN);
+WebServer server(80);
+Packet last = {};
+uint32_t received = 0, lost = 0;
+unsigned long lastHeard = 0;
+
+void handleRoot() {
+  const unsigned long age = lastHeard ? (millis() - lastHeard) / 1000 : 0;
+  char page[900];
+  snprintf(page, sizeof(page),
+           "<!doctype html><meta name=viewport content='width=device-width'>"
+           "<meta http-equiv=refresh content=2><title>Radio link</title>"
+           "<body style='font:18px system-ui;margin:2em'><h1>Uno over nRF24</h1>"
+           "<p>Light: <b>%u</b> of 1023<p>Button: <b>%s</b>"
+           "<p>Packets: %lu received, %lu missed<p>%s</body>",
+           last.light, last.button ? "pressed" : "up", (unsigned long)received, (unsigned long)lost,
+           lastHeard ? (age < 5 ? "The Uno is talking." : "No packets for a while: is the Uno on?") : "Waiting for the first packet.");
+  server.send(200, "text/html", page);
+}
+
+void handleJson() {
+  char json[160];
+  snprintf(json, sizeof(json), "{\"light\":%u,\"button\":%u,\"seq\":%lu,\"received\":%lu,\"lost\":%lu}",
+           last.light, last.button, (unsigned long)last.seq, (unsigned long)received, (unsigned long)lost);
+  server.send(200, "application/json", json);
+}
+
+void setup() {
+  Serial.begin(115200);
+  SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CSN);
+  if (!radio.begin(&SPI)) {
+    Serial.println("nRF24 not found: check 3.3 V, the 10 uF capacitor and the SPI wires");
+    while (true) delay(1000);
+  }
+  radio.setChannel(CHANNEL);
+  radio.setDataRate(RF24_250KBPS);  // slower, but reaches further and tolerates noise
+  radio.setPALevel(RF24_PA_LOW);    // raise to RF24_PA_HIGH for longer range
+  radio.setPayloadSize(sizeof(Packet));
+  radio.openReadingPipe(1, ADDRESS);
+  radio.startListening();
+  Serial.println("radio listening");
+
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(250);
+  if (WiFi.status() == WL_CONNECTED) {
+    server.on("/", handleRoot);
+    server.on("/data.json", handleJson);
+    server.begin();
+    Serial.printf("web page at http://%s/\n", WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("Wi-Fi not joined; the radio still works on the serial port");
+  }
+}
+
+void loop() {
+  if (WiFi.status() == WL_CONNECTED) server.handleClient();
+  while (radio.available()) {
+    Packet p;
+    radio.read(&p, sizeof(p));
+    if (received > 0 && p.seq > last.seq + 1) lost += p.seq - last.seq - 1;
+    last = p;
+    received++;
+    lastHeard = millis();
+    Serial.printf("light = %u  button = %u\n", p.light, p.button);
+  }
+  static unsigned long lastReport = 0;
+  if (millis() - lastReport >= 10000) {
+    lastReport = millis();
+    Serial.printf("missed = %lu\n", (unsigned long)lost);
+  }
+}
+`,
+    extraCode: {
+      title: "Transmitter, Arduino sketch for the Uno",
+      board: "Arduino Uno",
+      code: R`// nRF24L01+ transmitter on an Arduino Uno: sends the photoresistor and a button
+// to the ESP32 twice a second, and straight away when the button changes.
+// Libraries: RF24 (by TMRh20). Board: Arduino Uno.
+#include <SPI.h>
+#include <RF24.h>
+
+const int PIN_CE = 9, PIN_CSN = 10;  // SPI itself is fixed on the Uno: 11 MOSI, 12 MISO, 13 SCK
+const int LIGHT_PIN = A0;            // photoresistor divider
+const int BUTTON_PIN = 2;            // button to GND
+
+const uint8_t ADDRESS[6] = "BNCH1";
+const uint8_t CHANNEL = 108;
+
+struct __attribute__((packed)) Packet {
+  uint32_t seq;
+  uint16_t light;
+  uint8_t button;
+};
+
+RF24 radio(PIN_CE, PIN_CSN);
+Packet p = {};
+unsigned long lastSend = 0;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  if (!radio.begin()) {
+    Serial.println(F("nRF24 not found: check 3.3 V, the 10 uF capacitor and the SPI wires"));
+    while (true) {}
+  }
+  radio.setChannel(CHANNEL);
+  radio.setDataRate(RF24_250KBPS);
+  radio.setPALevel(RF24_PA_LOW);
+  radio.setPayloadSize(sizeof(Packet));
+  radio.openWritingPipe(ADDRESS);
+  radio.stopListening();
+  Serial.println(F("radio sending"));
+}
+
+void loop() {
+  const uint8_t button = digitalRead(BUTTON_PIN) == LOW;
+  if (button != p.button || millis() - lastSend >= 500) {
+    lastSend = millis();
+    p.seq++;
+    p.light = analogRead(LIGHT_PIN);
+    p.button = button;
+    const bool ok = radio.write(&p, sizeof(p));  // true when the ESP32 acknowledged it
+    Serial.print(F("sent "));
+    Serial.print(p.seq);
+    Serial.println(ok ? F(" ok") : F(" no ack"));
+  }
+}
+`,
+    },
+    notes: [
+      "Upload the ESP32 sketch to the ESP32 and the Uno sketch (further down) to the Uno. Both use the RF24 library by TMRh20 from the Library Manager. The ESP32 prints its web address on the bench; open it on a phone to watch the light level.",
+      "nRF24L01+ modules run on 3.3 V only. The Uno's 3.3V pin can supply a plain module like these (around 12 mA while sending), but not the long-range versions with an antenna and amplifier, which need their own 3.3 V regulator.",
+      "The Uno's signals are 5 V. Nordic's datasheet lists the nRF24L01+ inputs as 5 V tolerant, and wiring them straight to an Uno is how most guides do it, but it is the module's supply, not its inputs, that must stay at 3.3 V. If a module behaves oddly, a level shifter on SCK, MOSI, CSN and CE is the careful fix.",
+      "Most nRF24 trouble is power: the module draws short bursts that a long jumper cannot supply. The 10 µF capacitor right across VCC and GND fixes most 'not found' and dropped-packet problems.",
+      "Both sketches use channel 108 (2.508 GHz), above the Wi-Fi channels, and 250 kbit/s, which reaches further than the default. Change CHANNEL on both if you run two links side by side.",
+      "The packet is a packed struct with fixed-size fields, so the 8-bit Uno and the 32-bit ESP32 agree on its layout. Keep the two structs identical if you add fields.",
+      "On the bench, light and button are charted as they arrive, and missed counts packets that never made it.",
+    ],
+    open: ["Not tested on hardware yet. The ESP32 sketch compiles for every board listed with Arduino-ESP32 core 3.3.12, and the Uno sketch compiles for the Arduino Uno (PlatformIO Atmel AVR 5.3.0)."],
+    sample: [
+      "radio listening",
+      "web page at http://192.168.1.76/",
+      "light = 612  button = 0",
+      "light = 615  button = 0",
+      "light = 598  button = 0",
+      "light = 402  button = 0",
+      "light = 233  button = 1",
+      "light = 230  button = 1",
+      "light = 236  button = 0",
+      "light = 410  button = 0",
+      "missed = 0",
+      "light = 588  button = 0",
+      "light = 603  button = 0",
+      "light = 611  button = 0",
+      "missed = 1",
+      "light = 608  button = 0",
+      "light = 606  button = 0",
+      "missed = 1",
     ],
   },
   ...PROBEHARBOR_SKETCHES,
