@@ -1,7 +1,7 @@
 // Wiring pad: pick a board and parts, tap a part pin and then a board pad.
 // The rules in src/lib/wiring.ts check every wire as it is made.
 import { BOARDS, boardById, type Board, type BoardId } from "../data/boards";
-import { PARTS, partById, type Part } from "../data/parts";
+import { partById, type Part } from "../data/parts";
 import { autoWire, checkWiring, pinConstants, type Connection } from "../lib/wiring";
 
 interface State {
