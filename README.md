@@ -5,6 +5,10 @@ A project library and a serial workbench for ESP32 boards, built as a static sit
 - **Library:** sixteen projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
 - **Boards:** pin headers, hardware-tested pins and field notes for the ESP32-DevKitC V4, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1. Projects that support more than one board have a board switch.
 - **Bench:** a serial monitor built on Web Serial. Connect, pick a baud rate, send lines, pulse EN to reset the board, and copy the log. Crash lines are highlighted and common ones get a plain-language hint.
+- **Plotter:** numbers that keep appearing in the serial output are charted live, one small chart per value.
+- **Wi-Fi radar:** the Wi-Fi scanner project's output is drawn as arches by channel and signal strength.
+- **Crash translator:** reset reasons, Guru Meditation errors and backtraces get a plain-language explanation, live or from a pasted log.
+- **Bench log:** mark projects as built to earn badges and keep a streak, and let the library pick a project from the parts in your drawer. Kept in the browser only.
 - **Sample output:** recorded output for every project, so you can see what a working build prints without a board attached.
 
 ## Run it
@@ -40,7 +44,12 @@ src/
     projects/[id].astro   One page per project
     boards.astro          Board reference
     bench.astro           Serial monitor
-  scripts/bench.ts        Web Serial logic and line hints for the bench
+  scripts/bench.ts        Web Serial logic for the bench
+  scripts/plotter.ts      Live charts from serial numbers
+  scripts/radar.ts        Wi-Fi channel view
+  scripts/library.ts      Filters, bench log and the drawer picker
+  scripts/progress.ts     Build marks, streaks and badges
+  lib/crash.ts            Explanations for reset, panic and backtrace lines
   scripts/probe-setup.ts  The probe's USB settings protocol
   lib/shop.ts             Buy links and the Amazon Associates tag
   lib/paths.ts            Link helper that respects Astro's `base`
@@ -52,6 +61,7 @@ src/
 Add an entry to `PROJECTS` in `src/data/projects.ts`. The `Project` type documents each field.
 
 - List `boards` to support more than the classic ESP32, and put per-board pin numbers in `vars`. Write `%SDA%`-style placeholders in `pins`, `wiring`, `code` and `sample`; they are filled in per board.
+- List the parts it needs beyond the board in `needs`, using keys of `DRAWER`.
 - Record real hardware checks in `verified`. A project with none is labelled "Not hardware tested".
 - For prebuilt firmware, put the merged images and an ESP Web Tools `manifest.json` under `public/firmware/<id>/` and set `flash`.
 
@@ -73,7 +83,7 @@ The site is static. For Cloudflare, build with `npm run build` and serve `dist/`
 
 v0.3. Every push is built by the `Build` workflow in GitHub Actions. Not verified yet:
 
-- The site builds in CI (Astro 7.4, 12 pages), but nobody has looked at the built pages in a browser yet.
+- The site builds in CI. The bench's plotter, radar and crash translator were checked once in a headless browser with sample data; the other pages have not been viewed in a browser yet.
 - The eight starter sketches and the bench's serial monitor have not been run against a physical board. Only the ProbeHarbor probe carries hardware test results, and those were recorded in ProbeHarbor, not here.
 - The flash button and the settings form on the probe page have not been tried from this site.
 - The seven ProbeHarbor sketches have no recorded hardware test.

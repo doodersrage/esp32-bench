@@ -26,8 +26,8 @@ const haystack = [
   .toLowerCase();
 ---
 
-<a class="card" href={link(`/projects/${p.id}/`)} data-tags={p.tags.join(" ")} data-hay={haystack}>
-  <span class="no">No. {String(number).padStart(2, "0")}</span>
+<a class="card" href={link(`/projects/${p.id}/`)} data-id={p.id} data-tags={p.tags.join(" ")} data-flash={p.flash ? "1" : "0"} data-needs={p.needs.map((group) => group.join("|")).join(" ")} data-hay={haystack}>
+  <span class="no">No. {String(number).padStart(2, "0")}<span class="built" data-built hidden>Built</span></span>
   <span class="name">{p.name}</span>
   <span class="sum">{p.sum}</span>
   <span class="meta">

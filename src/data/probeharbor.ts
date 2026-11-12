@@ -20,7 +20,7 @@ const KEY_NOTE =
 
 export const PROBEHARBOR_SKETCHES: Project[] = [
   {
-    id: "ph-ds18b20", name: "DS18B20 to ProbeHarbor", level: "Starter", mins: 20, tags: ["probeharbor", "sensors", "wifi"],
+    id: "ph-ds18b20", needs: [["ds18b20"]], name: "DS18B20 to ProbeHarbor", level: "Starter", mins: 20, tags: ["probeharbor", "sensors", "wifi"],
     sum: "Read a waterproof DS18B20 probe and post the temperature to ProbeHarbor once a minute.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     pins: ["3V3", "GND", "4"], libs: ["OneWire", "DallasTemperature"], baud: 115200,
@@ -39,7 +39,7 @@ export const PROBEHARBOR_SKETCHES: Project[] = [
     sample: ["WiFi..... ok", 'POST 200 {"temp1":68.45,"rssi":-58}', 'POST 200 {"temp1":68.34,"rssi":-57}', "DS18B20 disconnected"],
   },
   {
-    id: "ph-ds18b20-portal", name: "DS18B20 with Wi-Fi portal", level: "Starter", mins: 20, tags: ["probeharbor", "sensors", "wifi"],
+    id: "ph-ds18b20-portal", needs: [["ds18b20"]], name: "DS18B20 with Wi-Fi portal", level: "Starter", mins: 20, tags: ["probeharbor", "sensors", "wifi"],
     sum: "The same DS18B20 probe, but Wi-Fi is set from a phone through a captive portal instead of being compiled in.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     pins: ["3V3", "GND", "4"], libs: ["OneWire", "DallasTemperature", "WiFiManager (tzapu)"], baud: 115200,
@@ -61,7 +61,7 @@ export const PROBEHARBOR_SKETCHES: Project[] = [
     sample: ["WiFi ok", 'POST 200 {"temp1":68.45,"rssi":-58}', 'POST 200 {"temp1":68.34,"rssi":-57}'],
   },
   {
-    id: "ph-door", name: "Door contact to ProbeHarbor", level: "Starter", mins: 15, tags: ["probeharbor", "sensors", "wifi"],
+    id: "ph-door", needs: [["reed"]], name: "Door contact to ProbeHarbor", level: "Starter", mins: 15, tags: ["probeharbor", "sensors", "wifi"],
     sum: "A reed switch on a door. Posts open or shut once a minute and right away when it changes.",
     pins: ["GND", "4"], libs: [], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "Magnetic reed switch", BOM.reedSwitch]],
@@ -74,7 +74,7 @@ export const PROBEHARBOR_SKETCHES: Project[] = [
     sample: ["WiFi..... ok", 'POST 200 {"door1":false}', 'POST 200 {"door1":true}', 'POST 200 {"door1":false}'],
   },
   {
-    id: "ph-leak", name: "Leak pads to ProbeHarbor", level: "Starter", mins: 15, tags: ["probeharbor", "sensors", "wifi"],
+    id: "ph-leak", needs: [["wires"]], name: "Leak pads to ProbeHarbor", level: "Starter", mins: 15, tags: ["probeharbor", "sensors", "wifi"],
     sum: "Two bare contacts on the floor. Water between them posts a leak, which ProbeHarbor turns into an alert.",
     pins: ["GND", "4"], libs: [], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [2, "Bare wires or contact pads"]],
@@ -91,7 +91,7 @@ export const PROBEHARBOR_SKETCHES: Project[] = [
     sample: ["WiFi..... ok", 'POST 200 {"leak1":false}', 'POST 200 {"leak1":true}'],
   },
   {
-    id: "ph-power", name: "Power sense to ProbeHarbor", level: "Intermediate", mins: 20, tags: ["probeharbor", "power", "wifi"],
+    id: "ph-power", needs: [["powersense"]], name: "Power sense to ProbeHarbor", level: "Intermediate", mins: 20, tags: ["probeharbor", "power", "wifi"],
     sum: "Report whether a circuit has power. ProbeHarbor raises a power-off alert when it drops and a recovery notice when it returns.",
     pins: ["GND", "4"], libs: [], baud: 115200,
     parts: [
@@ -111,7 +111,7 @@ export const PROBEHARBOR_SKETCHES: Project[] = [
     sample: ["WiFi..... ok", 'POST 200 {"power1":true}', 'POST 200 {"power1":false}'],
   },
   {
-    id: "ph-max31855", name: "MAX31855 thermocouple to ProbeHarbor", level: "Intermediate", mins: 25, tags: ["probeharbor", "sensors", "wifi"],
+    id: "ph-max31855", needs: [["max31855"]], name: "MAX31855 thermocouple to ProbeHarbor", level: "Intermediate", mins: 25, tags: ["probeharbor", "sensors", "wifi"],
     sum: "A K-type thermocouple through a MAX31855 amplifier, for temperatures a DS18B20 cannot survive.",
     pins: ["3V3", "GND", "5", "18", "19"], libs: ["Adafruit MAX31855 library"], baud: 115200,
     parts: [
@@ -131,7 +131,7 @@ export const PROBEHARBOR_SKETCHES: Project[] = [
     sample: [".... WiFi ok", "POST 200", "POST 200", "Thermocouple fault"],
   },
   {
-    id: "ph-max6675", name: "MAX6675 thermocouple to ProbeHarbor", level: "Intermediate", mins: 25, tags: ["probeharbor", "sensors", "wifi"],
+    id: "ph-max6675", needs: [["max6675"]], name: "MAX6675 thermocouple to ProbeHarbor", level: "Intermediate", mins: 25, tags: ["probeharbor", "sensors", "wifi"],
     sum: "The lower-cost MAX6675 thermocouple module, posting a temperature once a minute.",
     pins: ["3V3", "GND", "5", "18", "19"], libs: ["MAX6675 library"], baud: 115200,
     parts: [

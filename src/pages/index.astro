@@ -1,7 +1,10 @@
 ---
 import Base from "../layouts/Base.astro";
 import ProjectCard from "../components/ProjectCard.astro";
-import { PROJECTS, TAGS } from "../data/projects";
+import { DRAWER, PROJECTS, TAGS } from "../data/projects";
+import { BADGES } from "../scripts/progress";
+
+const parts = Object.entries(DRAWER);
 ---
 
 <Base current="library">
@@ -12,7 +15,7 @@ import { PROJECTS, TAGS } from "../data/projects";
       it, then watch it talk on the bench.
     </p>
     <div class="filters">
-      <input type="search" id="q" placeholder="Search projects, parts or pins" aria-label="Search projects" />
+      <input type="search" id="q" placeholder="Search projects, parts or boards" aria-label="Search projects" />
       <div class="row" id="chips">
         {
           TAGS.map(([id, label]) => (
@@ -27,47 +30,43 @@ import { PROJECTS, TAGS } from "../data/projects";
       {PROJECTS.map((p, i) => <ProjectCard project={p} number={i + 1} />)}
     </div>
     <div class="empty" id="empty" hidden>No project matches. Clear the search or pick another filter.</div>
+
+    <div class="stack tight band" id="drawer">
+      <h2>What can I build tonight?</h2>
+      <p class="lede">Tick what is in your parts drawer. A bare board is enough for three of the projects.</p>
+      <div class="row">
+        {
+          parts.map(([id, label]) => (
+            <button class="chip" type="button" data-part={id} aria-pressed="false">
+              {label}
+            </button>
+          ))
+        }
+      </div>
+      <div class="row">
+        <button class="btn go" type="button" id="pick">Pick a project</button>
+        <span class="pickresult" id="pick-result" role="status"></span>
+      </div>
+    </div>
+
+    <div class="stack tight band">
+      <h2>Bench log</h2>
+      <p class="lede" id="log-summary">Mark projects as built to fill this in. The log is kept in this browser only.</p>
+      <ul class="badges">
+        {
+          BADGES.map((b) => (
+            <li class="badge" data-badge={b.id}>
+              <span class="badgename">{b.name}</span>
+              <span class="badgehow">{b.how}</span>
+              <span class="badgestate" data-badge-state>Locked</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
   </section>
 </Base>
 
 <script>
-  const q = document.getElementById("q") as HTMLInputElement;
-  const empty = document.getElementById("empty") as HTMLElement;
-  const chips = [...document.querySelectorAll<HTMLButtonElement>("#chips .chip")];
-  const cards = [...document.querySelectorAll<HTMLElement>("#grid .card")];
-
-  let activeTag = "all";
-  try {
-    activeTag = localStorage.getItem("bench.tag") ?? "all";
-  } catch {
-    // Storage can be unavailable; the filter still works for this visit.
-  }
-
-  function apply() {
-    const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    let shown = 0;
-    for (const card of cards) {
-      const tags = (card.dataset.tags ?? "").split(" ");
-      const hay = card.dataset.hay ?? "";
-      const ok = (activeTag === "all" || tags.includes(activeTag)) && words.every((w) => hay.includes(w));
-      card.hidden = !ok;
-      if (ok) shown++;
-    }
-    empty.hidden = shown > 0;
-    for (const chip of chips) chip.setAttribute("aria-pressed", String(chip.dataset.tag === activeTag));
-  }
-
-  for (const chip of chips) {
-    chip.addEventListener("click", () => {
-      activeTag = chip.dataset.tag ?? "all";
-      try {
-        localStorage.setItem("bench.tag", activeTag);
-      } catch {
-        // Ignore: remembering the filter is a convenience only.
-      }
-      apply();
-    });
-  }
-  q.addEventListener("input", apply);
-  apply();
+  import "../scripts/library.ts";
 </script>

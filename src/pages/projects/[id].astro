@@ -197,11 +197,15 @@ const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
 
     <div class="row">
       <a class="btn go" href={benchHref}>Open the bench at {p.baud} baud</a>
+      <button class="btn" type="button" id="built" data-project={p.id} data-board={boards[0].id} aria-pressed="false">Mark as built</button>
+      <span class="pickresult" id="built-note" role="status"></span>
     </div>
   </section>
 </Base>
 
 <script>
+  import { loadBuilt, saveBuilt } from "../../scripts/progress";
+
   // Board switcher: one pre-rendered panel per board, one visible at a time.
   const buttons = [...document.querySelectorAll<HTMLButtonElement>("#boardswitch [data-board]")];
   const panels = [...document.querySelectorAll<HTMLElement>("[data-panel]")];
@@ -228,6 +232,28 @@ const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
   } catch {
     // Storage unavailable: stay on the first board.
   }
+
+  // Build log: remember that this project worked, and on which board.
+  const builtBtn = document.getElementById("built") as HTMLButtonElement;
+  const builtNote = document.getElementById("built-note") as HTMLElement;
+  const projectId = builtBtn.dataset.project ?? "";
+  const currentBoard = () =>
+    buttons.find((b) => b.getAttribute("aria-pressed") === "true")?.dataset.board ?? builtBtn.dataset.board ?? "";
+
+  function showBuilt() {
+    const mark = loadBuilt()[projectId];
+    builtBtn.setAttribute("aria-pressed", String(Boolean(mark)));
+    builtBtn.textContent = mark ? "Built. Undo" : "Mark as built";
+    builtNote.textContent = mark ? `Logged on ${new Date(mark.at).toLocaleDateString()}. See your badges on the library page.` : "";
+  }
+  builtBtn.addEventListener("click", () => {
+    const all = loadBuilt();
+    if (all[projectId]) delete all[projectId];
+    else all[projectId] = { at: new Date().toISOString(), board: currentBoard() };
+    saveBuilt(all);
+    showBuilt();
+  });
+  showBuilt();
 
   for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
     btn.addEventListener("click", async () => {

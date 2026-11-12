@@ -28,6 +28,7 @@ const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
       <span class="sp"></span>
       <label for="stamps"><input type="checkbox" id="stamps" /> Timestamps</label>
       <label for="follow"><input type="checkbox" id="follow" checked /> Follow</label>
+      <label for="sound"><input type="checkbox" id="sound" /> Sound</label>
       <button class="btn sm" id="copylog" type="button">Copy log</button>
       <button class="btn sm" id="clear" type="button">Clear</button>
     </div>
@@ -52,6 +53,30 @@ const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
       </select>
       <button class="btn sm" id="sample" type="button">Play sample output</button>
     </div>
+
+    <div class="stack tight">
+      <h2 class="h3">Plotter</h2>
+      <p class="lede" id="plots-empty">Numbers that keep appearing in the output are charted here, one chart per value. Play the DHT22 or HC-SR04 sample to see it.</p>
+      <div class="plots" id="plots"></div>
+    </div>
+
+    <div class="stack tight" id="radar" hidden>
+      <h2 class="h3">Wi-Fi radar</h2>
+      <canvas class="radar" role="img" aria-label="Nearby Wi-Fi networks by channel and signal strength"></canvas>
+      <p class="cap left" data-radar-note></p>
+    </div>
+
+    <details class="translator">
+      <summary>Crash translator</summary>
+      <div class="stack tight">
+        <label for="crashlog">Paste a boot log or crash output</label>
+        <textarea id="crashlog" rows="5" spellcheck="false" placeholder="Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled."></textarea>
+        <div class="row">
+          <button class="btn" id="crashgo" type="button">Explain it</button>
+        </div>
+        <ul class="notes" id="crashout"></ul>
+      </div>
+    </details>
   </section>
 </Base>
 

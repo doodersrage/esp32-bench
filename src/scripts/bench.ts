@@ -1,5 +1,9 @@
 // Serial monitor for the bench page. Runs in the browser only.
 import { PROJECTS, boardsOf, forBoard } from "../data/projects";
+import { explainLine, explainLog } from "../lib/crash";
+import { feedPlotter, initPlotter, resetPlotter } from "./plotter";
+import { feedRadar, initRadar, resetRadar } from "./radar";
+import { markSeen } from "./progress";
 
 // Minimal Web Serial types: the API is not in TypeScript's DOM library yet.
 interface SerialPortLike extends EventTarget {
@@ -27,23 +31,15 @@ const stamps = $<HTMLInputElement>("stamps");
 const follow = $<HTMLInputElement>("follow");
 const sampleBtn = $<HTMLButtonElement>("sample");
 const samplePick = $<HTMLSelectElement>("samplepick");
+const sound = $<HTMLInputElement>("sound");
+const dot = document.querySelector<HTMLElement>("#status .dot");
 
 const MAX_LINES = 1500;
 const LINE_ENDINGS: Record<string, string> = { lf: "\n", crlf: "\r\n", cr: "\r", none: "" };
-const TROUBLE = /(Guru Meditation|Brownout detector|abort\(\)|Backtrace:|assert failed|read failed|not found)/i;
+const TROUBLE = /(Guru Meditation|Brownout detector|abort\(\)|Backtrace:|assert failed|read failed|not found|wdt timeout|watchdog got triggered|CORRUPT HEAP|Stack smashing|TT sensor problem|TT no probe|fault\b)/i;
 
-// Plain-language hints for lines that are easy to misread. Each prints once per
-// connection. The ProbeHarbor ones come from that project's hardware test log.
-const HINTS: [RegExp, string][] = [
-  [/Brownout detector/i, "Hint: the supply voltage dipped. Try a shorter USB cable or a powered hub."],
-  [/waiting for download/i, "Hint: the board is in download mode. Press EN or RST to run the firmware."],
-  [/USB_UART_CHIP_RESET/, "Hint: opening the native USB port reset the board. That is normal on an ESP32-S3."],
-  [/TT post -5/, "Hint: -5 means the reply was lost, not the reading. The server usually has it."],
-  [/TT sensor problem/, "Hint: a sensor that is found but will not read usually has a loose power or ground wire."],
-  [/TT no probe/, "Hint: no sensor answered. Check the data wire is on the pad marked 4 and the pull-up is fitted."],
-  [/TT setup:/, "Hint: the probe has no settings. A fresh flash erases them, so send Wi-Fi and the key again."],
-];
-const hintsShown = new Set<number>();
+// Hints print once per connection. The explanations live in src/lib/crash.ts.
+const hintsShown = new Set<string>();
 
 type LineKind = "" | "sys" | "tx";
 
@@ -88,13 +84,56 @@ function addLine(text: string, kind: LineKind = "") {
   term.append(line);
   while (term.childElementCount > MAX_LINES) term.firstElementChild?.remove();
   if (follow.checked) term.scrollTop = term.scrollHeight;
-  if (!kind) {
-    const i = HINTS.findIndex(([pattern]) => pattern.test(text));
-    if (i >= 0 && !hintsShown.has(i)) {
-      hintsShown.add(i);
-      addLine(HINTS[i][1], "sys");
-    }
+  if (kind) return;
+
+  // Everything below reacts to output from the board (or a sample).
+  feedPlotter(text);
+  feedRadar(text);
+  blip(line.className === "bad");
+  beat();
+  if (port) {
+    // Only a real board earns these; samples and pasted logs do not count.
+    if (/Brownout detector/i.test(text)) markSeen("brownout");
+    if (/Guru Meditation/.test(text)) markSeen("guru");
   }
+  const hint = explainLine(text);
+  if (hint && !hintsShown.has(hint.key)) {
+    hintsShown.add(hint.key);
+    addLine(`Hint: ${hint.text}`, "sys");
+  }
+}
+
+// A short tick per line and a lower tone for trouble, when Sound is on.
+let audio: AudioContext | null = null;
+let lastBlip = 0;
+function blip(trouble: boolean) {
+  if (!sound.checked) return;
+  const now = performance.now();
+  if (now - lastBlip < 45) return;
+  lastBlip = now;
+  try {
+    audio ??= new AudioContext();
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    const length = trouble ? 0.16 : 0.025;
+    osc.type = trouble ? "square" : "sine";
+    osc.frequency.value = trouble ? 196 : 1175;
+    gain.gain.setValueAtTime(trouble ? 0.05 : 0.03, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + length);
+    osc.connect(gain).connect(audio.destination);
+    osc.start();
+    osc.stop(audio.currentTime + length);
+  } catch {
+    // Audio is a nicety; a browser that refuses it changes nothing else.
+  }
+}
+
+// Pulse the status dot on each line, so the header shows the board's rhythm.
+function beat() {
+  if (!dot) return;
+  dot.classList.remove("beat");
+  void dot.offsetWidth; // restart the animation
+  dot.classList.add("beat");
 }
 
 function setConnected(on: boolean) {
@@ -184,6 +223,8 @@ async function connect() {
   remember("baud", String(baudRate));
   keepReading = true;
   hintsShown.clear();
+  resetPlotter();
+  resetRadar();
   setConnected(true);
   addLine(`Connected at ${baudRate} baud.`, "sys");
   loopDone = readLoop().then(() => {
@@ -264,6 +305,8 @@ function playSample() {
   const lines = forBoard(project, boardsOf(project)[0]).sample;
   let i = 0;
   hintsShown.clear();
+  resetPlotter();
+  resetRadar();
   addLine(`Sample output for ${project.name}. This is recorded text, not a board.`, "sys");
   sampleBtn.textContent = "Stop sample";
   sampleTimer = setInterval(() => {
@@ -295,7 +338,27 @@ function init() {
 
   connectBtn.addEventListener("click", () => void (port ? disconnect(false) : connect()));
   resetBtn.addEventListener("click", () => void resetBoard());
-  $("clear").addEventListener("click", () => term.replaceChildren());
+  $("clear").addEventListener("click", () => {
+    term.replaceChildren();
+    resetPlotter();
+    resetRadar();
+  });
+
+  initPlotter($("plots"), $("plots-empty"));
+  initRadar($("radar"));
+
+  // Crash translator: explain a pasted log without a board attached.
+  $("crashgo").addEventListener("click", () => {
+    const found = explainLog($<HTMLTextAreaElement>("crashlog").value);
+    const out = $("crashout");
+    out.replaceChildren(
+      ...(found.length > 0 ? found.map((e) => e.text) : ["Nothing recognised. Paste the lines around the reset or the Guru Meditation message."]).map((text) => {
+        const li = document.createElement("li");
+        li.textContent = text;
+        return li;
+      }),
+    );
+  });
   $("copylog").addEventListener("click", async () => {
     const btn = $<HTMLButtonElement>("copylog");
     const label = btn.textContent;

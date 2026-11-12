@@ -169,3 +169,37 @@ td.m a { color: var(--accent); }
 .setupform legend { font: 600 0.72rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
 .setupform .hint { font-size: 0.78rem; font-weight: 400; color: var(--muted); flex-basis: 100%; }
 .setupstatus { font-size: 0.9rem; font-weight: 500; }
+
+/* Batch 1: plotter, radar, translator, bench log, drawer */
+.h3 { font: 600 0.78rem/1.2 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.plots { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.plot { background: var(--panel); border: 1px solid var(--line); padding: 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.plothead { display: flex; align-items: baseline; gap: 8px; }
+.plotlabel { font: 500 0.75rem/1.2 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.plotnow { font: 700 1.5rem/1 var(--display); font-variant-numeric: tabular-nums; margin-left: auto; }
+.plot canvas { width: 100%; height: 84px; display: block; }
+.plotrange { font: 400 0.7rem/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+canvas.radar { width: 100%; height: 240px; display: block; background: var(--panel); border: 1px solid var(--line); }
+details.translator { background: var(--panel); border: 1px solid var(--line); padding: 10px 14px; }
+details.translator summary { cursor: pointer; font: 600 1.1rem/1.2 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
+details.translator[open] summary { margin-bottom: 12px; }
+details.translator label { font: 500 0.75rem/1 var(--mono); color: var(--muted); }
+details.translator textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 2px; font: 400 0.8rem/1.5 var(--mono); resize: vertical; }
+.dot.beat { animation: beat 0.35s ease-out; }
+@keyframes beat { from { transform: scale(1.9); opacity: 0.5; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .dot.beat { animation: none; } }
+
+.band { padding-top: 24px; border-top: 2px solid var(--ink); }
+.pickresult { font-size: 0.92rem; font-weight: 500; }
+.pickresult a { color: var(--accent); }
+.card.picked { border-color: var(--accent); border-top-color: var(--accent); box-shadow: 0 0 0 3px var(--pad-soft); }
+.card .no { display: flex; justify-content: space-between; gap: 8px; }
+.card .built { color: var(--ok); font-weight: 500; }
+.btn[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
+ul.badges { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 8px; }
+.badge { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px dashed var(--line); color: var(--muted); }
+.badgename { font: 700 1.15rem/1.1 var(--display); text-transform: uppercase; }
+.badgehow { font-size: 0.82rem; }
+.badgestate { font: 500 0.68rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
+.badge.earned { border: 1px solid var(--pad); background: var(--pad-soft); color: var(--ink); }
+.badge.earned .badgestate { color: var(--pad); }

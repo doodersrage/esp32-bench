@@ -22,6 +22,11 @@ export interface Project {
   tags: Tag[];
   /** One-line summary */
   sum: string;
+  /**
+   * Parts needed beyond the board, as keys of DRAWER. Each inner list is a set
+   * of alternatives: [["ds18b20", "dht22"]] means either one will do.
+   */
+  needs: DrawerPart[][];
   /** Boards this project supports. Defaults to the classic ESP32. */
   boards?: BoardId[];
   /**
@@ -55,6 +60,22 @@ export interface Project {
   sample: string[];
 }
 
+/** Parts someone might have in a drawer, for the "build tonight" picker. */
+export const DRAWER = {
+  dht22: "DHT22",
+  ds18b20: "DS18B20 probe",
+  i2c: "BME280, SHT31, AHT20 or another I2C module",
+  oled: "SSD1306 OLED",
+  hcsr04: "HC-SR04",
+  button: "Push button",
+  reed: "Reed switch",
+  wires: "Bare wire or contact pads",
+  powersense: "Power sense module",
+  max31855: "MAX31855 and thermocouple",
+  max6675: "MAX6675 module",
+} as const;
+export type DrawerPart = keyof typeof DRAWER;
+
 export const TAGS: [Tag | "all", string][] = [
   ["all", "All"],
   ["flash", "Browser flash"],
@@ -86,7 +107,7 @@ const R = String.raw;
 
 export const PROJECTS: Project[] = [
   {
-    id: "probeharbor-probe", name: "ProbeHarbor probe", level: "Starter", mins: 15, tags: ["flash", "probeharbor", "sensors", "wifi"],
+    id: "probeharbor-probe", needs: [["ds18b20", "dht22", "i2c"]], name: "ProbeHarbor probe", level: "Starter", mins: 15, tags: ["flash", "probeharbor", "sensors", "wifi"],
     sum: "Prebuilt sensor firmware from the ProbeHarbor project. Flash it from this page, then it finds a temperature sensor by itself and posts a reading every minute.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -165,7 +186,7 @@ export const PROJECTS: Project[] = [
     ],
   },
   {
-    id: "blink", name: "Blink and heartbeat", level: "Starter", mins: 5, tags: ["no-parts"],
+    id: "blink", needs: [], name: "Blink and heartbeat", level: "Starter", mins: 5, tags: ["no-parts"],
     sum: "Toggle the LED on GPIO 2 and print a tick every second. The first thing to flash on any new board.",
     pins: ["2"], libs: [], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "LED and 220 Ω resistor, only if your board has no LED on GPIO 2"]],
@@ -187,7 +208,7 @@ void loop() {
     sample: ["ets Jul 29 2019 12:21:46", "rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)", "tick 1000 ms", "tick 2000 ms", "tick 3000 ms", "tick 4000 ms"]
   },
   {
-    id: "wifi-scan", name: "Wi-Fi scanner", level: "Starter", mins: 5, tags: ["no-parts", "wifi"],
+    id: "wifi-scan", needs: [], name: "Wi-Fi scanner", level: "Starter", mins: 5, tags: ["no-parts", "wifi"],
     sum: "List nearby networks with signal strength and channel every ten seconds. A quick radio health check.",
     pins: [], libs: ["WiFi (built in)"], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit]],
@@ -215,7 +236,7 @@ void loop() {
     sample: ["3 networks", " 1  workshop-2g               -48 dBm  ch  6  secured", " 2  printer-setup             -67 dBm  ch  1  open", " 3  neighbours                -81 dBm  ch 11  secured"]
   },
   {
-    id: "i2c-scan", name: "I2C bus scanner", level: "Starter", mins: 10, tags: ["sensors"],
+    id: "i2c-scan", needs: [["i2c", "oled"]], name: "I2C bus scanner", level: "Starter", mins: 10, tags: ["sensors"],
     sum: "Probe every address on the I2C bus and report what answers. Run it before trusting any sensor wiring.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: { esp32: { SDA: "21", SCL: "22" }, esp32s3: { SDA: "8", SCL: "9" }, esp32c3: { SDA: "6", SCL: "7" } },
@@ -244,7 +265,7 @@ void loop() {
     sample: ["Device at 0x3C", "Device at 0x76", "2 device(s) found", ""]
   },
   {
-    id: "dht22", name: "DHT22 climate logger", level: "Starter", mins: 15, tags: ["sensors"],
+    id: "dht22", needs: [["dht22"]], name: "DHT22 climate logger", level: "Starter", mins: 15, tags: ["sensors"],
     sum: "Read temperature and humidity every two seconds and print them as a log line.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     pins: ["3V3", "GND", "4"], libs: ["DHT sensor library (Adafruit)", "Adafruit Unified Sensor"], baud: 115200,
@@ -272,7 +293,7 @@ void loop() {
     sample: ["21.4 C  46.2 %RH", "21.4 C  46.3 %RH", "21.5 C  46.1 %RH", "Sensor read failed, check wiring", "21.5 C  46.0 %RH"]
   },
   {
-    id: "oled", name: "SSD1306 OLED status", level: "Starter", mins: 15, tags: ["display"],
+    id: "oled", needs: [["oled"]], name: "SSD1306 OLED status", level: "Starter", mins: 15, tags: ["display"],
     sum: "Drive a 128 by 64 I2C OLED and show an uptime counter. The base for any small status display.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: { esp32: { SDA: "21", SCL: "22" }, esp32s3: { SDA: "8", SCL: "9" }, esp32c3: { SDA: "6", SCL: "7" } },
@@ -309,7 +330,7 @@ void loop() {
     sample: ["Display ready"]
   },
   {
-    id: "hcsr04", name: "HC-SR04 distance", level: "Intermediate", mins: 20, tags: ["sensors"],
+    id: "hcsr04", needs: [["hcsr04"]], name: "HC-SR04 distance", level: "Intermediate", mins: 20, tags: ["sensors"],
     sum: "Measure distance with an ultrasonic sensor. The echo pin is 5 V, so it goes through a divider.",
     pins: ["5V", "GND", "5", "18"], libs: [], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "HC-SR04 ultrasonic sensor"], [1, "1 kΩ resistor"], [1, "2 kΩ resistor"], [4, "Jumper wires"]],
@@ -341,7 +362,7 @@ void loop() {
     sample: ["34.2 cm", "34.1 cm", "33.8 cm", "No echo", "12.6 cm"]
   },
   {
-    id: "deep-sleep", name: "Deep sleep, button wake", level: "Intermediate", mins: 20, tags: ["power"],
+    id: "deep-sleep", needs: [["button"]], name: "Deep sleep, button wake", level: "Intermediate", mins: 20, tags: ["power"],
     sum: "Sleep at microamp current and wake on a button press. A boot counter survives in RTC memory.",
     pins: ["3V3", "GND", "33"], libs: [], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "Push button"], [1, "10 kΩ resistor"], [3, "Jumper wires"]],
@@ -364,7 +385,7 @@ void loop() {}`,
     sample: ["rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)", "Boot 1, wake cause 0", "Sleeping. Press the button to wake.", "rst:0x5 (DEEPSLEEP_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)", "Boot 2, wake cause 2", "Sleeping. Press the button to wake."]
   },
   {
-    id: "web-led", name: "Web page LED switch", level: "Intermediate", mins: 20, tags: ["wifi"],
+    id: "web-led", needs: [], name: "Web page LED switch", level: "Intermediate", mins: 20, tags: ["wifi"],
     sum: "Join your Wi-Fi, serve a one-button page and switch GPIO 2 from any phone on the network.",
     pins: ["2"], libs: ["WiFi (built in)", "WebServer (built in)"], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "LED and 220 Ω resistor, only if your board has no LED on GPIO 2"]],
