@@ -14,6 +14,21 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-7",
+    date: "2026-11-12",
+    title: "Version 0.7: more boards, a backtrace decoder and seven new projects",
+    summary:
+      "Pinout pages for eight boards, three new browser tools and seven new projects, from over-the-air updates to an ESP32-CAM stream.",
+    items: [
+      "Boards: pinout pages for the ESP32-S2, ESP32-C6, Seeed XIAO ESP32C3 and XIAO ESP32S3, and a pin map for the AI-Thinker ESP32-CAM, each with every pin's ADC, touch, strapping and wake functions and a safe-to-use verdict. Plus a chip comparison.",
+      "Backtrace decoder: drop in your firmware's .elf and paste a crash to get function names and line numbers, without installing anything.",
+      "Flash your own firmware: pick .bin files and flash them from the browser, or erase the chip.",
+      "Partition table builder: start from the Arduino presets, edit, check it fits, and download partitions.csv.",
+      "New projects: over-the-air updates, a battery deep-sleep sensor, relay and servo control, an e-paper card, a BME280 web dashboard, a Wi-Fi setup portal and an ESP32-CAM stream.",
+    ],
+    link: "/tools/",
+  },
+  {
     id: "v0-6",
     date: "2026-11-12",
     title: "Version 0.6: install it, look up an error, start from zero",

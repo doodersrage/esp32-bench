@@ -22,6 +22,7 @@ type Section =
   | "detective"
   | "bench"
   | "errors"
+  | "tools"
   | "flames"
   | "about"
   | "none";
@@ -55,6 +56,7 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
   ["detective", "/detective/", "Detective"],
   ["bench", "/bench/", "Bench"],
   ["errors", "/errors/", "Errors"],
+  ["tools", "/tools/", "Tools"],
   ["flames", "/flames/", "Flames"],
 ];
 ---
@@ -110,7 +112,7 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
     <div class="wrap">
       <header class="top">
         <a class="brand" href={link("/")}>ESP32 <span>Bench</span></a>
-        <div class="rev">Boards: ESP32, S3, C3<br />Flash and monitor: Web Serial</div>
+        <div class="rev">Boards: ESP32, S2, S3, C3, C6<br />Flash and monitor: Web Serial</div>
         <div class="tools">
           <button class="btn sm" type="button" id="install-app" hidden>Install app</button>
           <button class="btn sm" type="button" id="theme">Theme: auto</button>

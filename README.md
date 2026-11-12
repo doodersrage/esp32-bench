@@ -2,8 +2,8 @@
 
 A project library and a serial workbench for ESP32 boards, built as a static site with [Astro 7](https://astro.build/).
 
-- **Library:** twenty-one projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
-- **Boards:** pin headers, hardware-tested pins and field notes for the ESP32-DevKitC V4, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1. Projects that support more than one board have a board switch.
+- **Library:** twenty-eight projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
+- **Boards:** a page per board with its pinout, every pin's functions and a safe-to-use verdict: ESP32-DevKitC V4, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1 (with hardware-tested pins), ESP32-S2-DevKitC-1, ESP32-C6-DevKitC-1, Seeed XIAO ESP32C3 and ESP32S3, and the AI-Thinker ESP32-CAM, plus a chip comparison. Chip data is in `src/data/chips.ts`. Projects that support more than one board have a board switch.
 - **Wire:** a wiring pad. Pick a board and parts, tap a part pin and a board pad, and each wire is checked for boot pins, input-only pins, 5 V signals and pads used twice. It can wire everything for you, and remix two projects onto one board.
 - **Detective:** flash a small helper firmware, touch a jumper from GND to any pad and watch that pad light up, with a silkscreen quiz. It also reads the chip, flash size and MAC address into a board passport you can save.
 - **Flames:** a gallery of failures with what the serial port said and what was actually wrong. Six come from ProbeHarbor's hardware test log.
@@ -11,6 +11,7 @@ A project library and a serial workbench for ESP32 boards, built as a static sit
 - **Plotter:** numbers that keep appearing in the serial output are charted live, one small chart per value.
 - **Wi-Fi radar:** the Wi-Fi scanner project's output is drawn as arches by channel and signal strength.
 - **Crash translator:** reset reasons, Guru Meditation errors and backtraces get a plain-language explanation, live or from a pasted log.
+- **Tools:** a backtrace decoder (ELF and DWARF parsed in the browser), a firmware flasher for your own .bin files (esptool-js) and a partition table builder. Tests: `node scripts/test-tools.mjs` and `node scripts/test-backtrace.mjs`.
 - **Errors:** a reference page for each common crash, reset, boot and upload error, with causes, fixes and a box to paste a log into. A build check keeps it in step with the crash translator.
 - **Start:** a getting started guide covering cables, drivers, Linux permissions, Web Serial and the Arduino IDE.
 - **App:** installs from Chrome or Edge, works offline for pages already opened, and has light and dark themes. Also an about page, a what's new page and an RSS feed.
