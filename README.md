@@ -67,9 +67,9 @@ The site is static. For Cloudflare, build with `npm run build` and serve `dist/`
 
 ## Status
 
-v0.3. Not verified yet:
+v0.3. Every push is built by the `Build` workflow in GitHub Actions. Not verified yet:
 
-- The Astro project has been written and type-checked but never built with `astro build`. The first `npm install && npm run build` is its first real test. There is no lockfile yet; commit the `package-lock.json` that `npm install` creates.
+- The site builds in CI (Astro 7.4, 12 pages), but nobody has looked at the built pages in a browser yet.
 - The eight starter sketches and the bench's serial monitor have not been run against a physical board. Only the ProbeHarbor probe carries hardware test results, and those were recorded in ProbeHarbor, not here.
 - The flash button on the probe page has not been tried from this site.
 
