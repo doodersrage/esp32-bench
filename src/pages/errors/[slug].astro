@@ -21,6 +21,12 @@ const related = e.related.map((slug) => errorBySlug(slug)!);
 // Flames whose log the translator reads as this error's main finding.
 const mainKey = e.keys?.[0];
 const flames = mainKey ? FLAMES.filter((f) => explainLog(f.log.join("\n")).some((x) => x.key === mainKey)) : [];
+// Browser tools that help with a particular error.
+const TOOL_LINKS: Record<string, [string, string]> = {
+  "sketch-too-big": ["/tools/partitions/", "Make a partition table with a bigger app partition"],
+  "decode-esp32-backtrace": ["/tools/backtrace/", "Decode a backtrace in the browser with your .elf"],
+};
+const tool = TOOL_LINKS[e.slug];
 const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.title : e.match}" means on an ESP32, and how to fix it.`;
 ---
 
@@ -54,6 +60,7 @@ const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.
       <div class="stack tight">
         <h2 class="h3">How to fix it</h2>
         <ol class="steps">{e.fixes.map((f) => <li>{f}</li>)}</ol>
+        {tool && <a class="btn sm toollink" href={link(tool[0])}>{tool[1]}</a>}
       </div>
     </div>
 
@@ -102,6 +109,7 @@ const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.
 
 <style>
   .errh { overflow-wrap: anywhere; text-transform: none; }
+  .toollink { align-self: flex-start; }
   .explainbox { width: 100%; padding: 8px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 2px; font: 400 0.8rem/1.5 var(--mono); resize: vertical; }
   ul.notes a, #explain-out :global(a) { color: var(--accent); }
 </style>

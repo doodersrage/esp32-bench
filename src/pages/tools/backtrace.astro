@@ -1,0 +1,105 @@
+---
+import Base from "../../layouts/Base.astro";
+import { link } from "../../lib/paths";
+---
+
+<Base
+  title="ESP32 backtrace decoder: crash addresses to file and line"
+  current="none"
+  description="Decode an ESP32 Guru Meditation backtrace in your browser. Drop in the firmware .elf, paste the crash, and get function names and source lines for ESP32, S3, C3 and C6. Nothing is uploaded."
+>
+  <section class="view">
+    <a class="back" href={link("/tools/")}>← All tools</a>
+    <div class="stack tight">
+      <h1 class="h2">Backtrace decoder</h1>
+      <p class="lede">
+        Turns the addresses in an ESP32 crash into function names and source lines, like the exception decoder in the
+        old Arduino IDE or <code>addr2line</code>, without installing anything. Works with Xtensa chips (ESP32, S2, S3)
+        and RISC-V chips (C3, C6, H2). Your files stay in this browser.
+      </p>
+    </div>
+
+    <div class="cols even">
+      <div class="stack tight">
+        <h2 class="h3">1. The firmware's .elf file</h2>
+        <label class="drop" id="bt-drop">
+          <input type="file" id="bt-elf" accept=".elf,application/x-elf,application/octet-stream" />
+          <span class="dropmain">Choose or drop the .elf file</span>
+          <span class="dropsub" id="bt-elf-status">It must be from the exact build that crashed.</span>
+        </label>
+        <details class="where">
+          <summary>Where is the .elf file?</summary>
+          <ul>
+            <li><strong>Arduino IDE 2:</strong> Sketch, Export Compiled Binary. The <code>build</code> folder next to your sketch then holds <code>yoursketch.ino.elf</code>.</li>
+            <li><strong>PlatformIO:</strong> <code>.pio/build/&lt;env&gt;/firmware.elf</code> in the project.</li>
+            <li><strong>ESP-IDF:</strong> <code>build/&lt;project&gt;.elf</code>.</li>
+          </ul>
+        </details>
+      </div>
+      <div class="stack tight">
+        <h2 class="h3">2. The crash output</h2>
+        <textarea id="bt-log" rows="8" spellcheck="false" placeholder="Paste from Guru Meditation Error down to the Backtrace line, or the RISC-V register dump with MEPC, RA and Stack memory."></textarea>
+        <div class="row">
+          <button class="btn go" type="button" id="bt-go">Decode</button>
+          <button class="btn" type="button" id="bt-clear">Clear</button>
+          <span class="cap left" id="bt-status" role="status"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack tight" id="bt-result" hidden>
+      <h2 class="h3">Decoded frames</h2>
+      <ul class="notes" id="bt-hints"></ul>
+      <div class="tablebox">
+        <table class="bt">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>From</th>
+              <th>Address</th>
+              <th>Function</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody id="bt-rows"></tbody>
+        </table>
+      </div>
+      <p class="cap left">
+        <span class="tag sk">Your sketch</span> rows are code you wrote; start reading there.
+        <span class="tag">Library</span> and <span class="tag">Core</span> rows are code it called. The first row is
+        where the chip was when it crashed. Stack rows on RISC-V are values on the stack that point into code: likely
+        return addresses, but not guaranteed.
+      </p>
+    </div>
+
+    <p class="cap left">
+      Need the meaning of the crash rather than the line? See the <a href={link("/errors/")}>error reference</a>. For a
+      live board, the <a href={link("/bench/")}>bench</a> explains crashes as they print.
+    </p>
+  </section>
+</Base>
+
+<style>
+  .drop { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 18px 14px; border: 2px dashed var(--line); background: var(--panel); cursor: pointer; text-align: center; }
+  .drop:hover, .drop.over { border-color: var(--accent); }
+  .drop.loaded { border-style: solid; border-color: var(--ok); }
+  .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .dropmain { font: 700 1.2rem/1.1 var(--display); text-transform: uppercase; }
+  .dropsub { font-size: 0.85rem; color: var(--muted); overflow-wrap: anywhere; }
+  .where { font-size: 0.9rem; }
+  .where summary { cursor: pointer; color: var(--muted); }
+  .where ul { margin: 8px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+  textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 2px; font: 400 0.8rem/1.5 var(--mono); resize: vertical; }
+  table.bt td { font-size: 0.85rem; }
+  table.bt td.fn { font-family: var(--mono); font-size: 0.8rem; overflow-wrap: anywhere; min-width: 14ch; }
+  table.bt td.src { font-family: var(--mono); font-size: 0.8rem; overflow-wrap: anywhere; }
+  table.bt .dim { color: var(--muted); }
+  table.bt tr.sketch td { background: var(--pad-soft); }
+  .tag.sk { border-color: var(--pad); color: var(--pad); background: var(--pad-soft); }
+  .lede a, .cap a { color: var(--accent); }
+</style>
+
+<script>
+  import "../../scripts/backtrace-page.ts";
+</script>

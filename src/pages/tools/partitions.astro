@@ -1,0 +1,132 @@
+---
+import Base from "../../layouts/Base.astro";
+import { link } from "../../lib/paths";
+import { PRESETS } from "../../lib/partitions";
+---
+
+<Base
+  title="ESP32 partition table builder: make partitions.csv"
+  current="none"
+  description="Build an ESP32 partitions.csv in the browser: start from the Arduino default, Huge APP or Minimal SPIFFS layouts, resize the app, SPIFFS or LittleFS, check alignment and overlaps, then copy or download it."
+>
+  <section class="view">
+    <a class="back" href={link("/tools/")}>← All tools</a>
+    <div class="stack tight">
+      <h1 class="h2">Partition table builder</h1>
+      <p class="lede">
+        A partition table splits the flash chip into the app, its settings (nvs), over-the-air update slots and a file
+        system. Start from an Arduino layout, change sizes, and this page keeps every offset aligned and warns about
+        mistakes before the board does.
+      </p>
+    </div>
+
+    <div class="controls">
+      <label>Start from
+        <select id="pt-preset">
+          {PRESETS.map((p) => <option value={p.id}>{p.label}</option>)}
+        </select>
+      </label>
+      <label>Flash
+        <select id="pt-flash">
+          {[2, 4, 8, 16, 32].map((n) => <option value={n} selected={n === 4}>{n} MB</option>)}
+        </select>
+      </label>
+      <label><input type="checkbox" id="pt-auto" checked /> Automatic offsets</label>
+    </div>
+
+    <div class="ptbar" id="pt-bar" aria-hidden="true"></div>
+    <p class="cap left" id="pt-summary" role="status"></p>
+
+    <div class="tablebox">
+      <table class="pt">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Subtype</th>
+            <th>Offset</th>
+            <th>Size</th>
+            <th><span class="sr">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody id="pt-rows"></tbody>
+      </table>
+    </div>
+    <div class="row">
+      <button class="btn" type="button" id="pt-add">Add partition</button>
+      <button class="btn" type="button" id="pt-fill">Grow the last partition to fill the flash</button>
+    </div>
+    <p class="cap left">
+      Sizes accept hex (0x140000), K or M (1280K, 1.25M) or bytes. App partitions start on 64 KB boundaries and the rest
+      on 4 KB, which automatic offsets handle for you.
+    </p>
+
+    <ul class="findings" id="pt-problems"></ul>
+
+    <div class="stack tight">
+      <div class="codehead">
+        <h2 class="h3 flat">partitions.csv</h2>
+        <div class="row">
+          <button class="btn sm" type="button" id="pt-copy">Copy</button>
+          <button class="btn sm go" type="button" id="pt-download">Download</button>
+        </div>
+      </div>
+      <pre class="code" id="pt-csv"></pre>
+    </div>
+
+    <details class="import">
+      <summary>Import an existing partitions.csv</summary>
+      <textarea id="pt-import" rows="7" spellcheck="false" placeholder="# Name, Type, SubType, Offset, Size, Flags"></textarea>
+      <div class="row">
+        <button class="btn sm" type="button" id="pt-import-go">Load it</button>
+        <span class="cap left" id="pt-import-status" role="status"></span>
+      </div>
+    </details>
+
+    <div class="stack tight band">
+      <h2>Use it</h2>
+      <ul class="howto">
+        <li>
+          <strong>Arduino IDE:</strong> save the file as <code>partitions.csv</code> in the sketch folder, next to the
+          .ino. Arduino-ESP32 uses it in place of the scheme under Tools, Partition Scheme. The IDE's size check still
+          uses that menu, so if it says the sketch is too big, pick a scheme with at least as much app space.
+        </li>
+        <li><strong>PlatformIO:</strong> put it in the project folder and add <code>board_build.partitions = partitions.csv</code> to <code>platformio.ini</code>.</li>
+        <li><strong>ESP-IDF:</strong> choose Custom partition table CSV in <code>idf.py menuconfig</code>, under Partition Table.</li>
+        <li>
+          LittleFS and SPIFFS in Arduino both look for a data partition named <code>spiffs</code> by default. A
+          different table only takes effect after a full flash, and it erases what the old file system held.
+        </li>
+      </ul>
+      <p class="cap left">
+        Hitting <a href={link("/errors/sketch-too-big/")}>Sketch too big</a>? Try Huge app, or remove the second OTA
+        slot if you never update over Wi-Fi.
+      </p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .tablebox { min-width: 0; max-width: 100%; }
+  .ptbar { display: flex; height: 44px; border: 1px solid var(--line); background: var(--panel); overflow: hidden; }
+  .ptbar :global(.seg) { display: flex; align-items: center; justify-content: center; min-width: 2px; font: 500 0.7rem/1.1 var(--mono); color: #fff; overflow: hidden; white-space: nowrap; border-right: 1px solid var(--panel); padding: 0 2px; }
+  .ptbar :global(.seg.app) { background: var(--accent); }
+  .ptbar :global(.seg.data) { background: var(--pad); }
+  .ptbar :global(.seg.boot) { background: var(--muted); }
+  .ptbar :global(.seg.free) { background: transparent; color: var(--muted); }
+  .ptbar :global(.seg.bad) { background: repeating-linear-gradient(45deg, var(--accent), var(--accent) 4px, var(--ink) 4px, var(--ink) 8px); }
+  table.pt :global(input), table.pt :global(select) { width: 100%; min-width: 8ch; padding: 5px 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 2px; font: 400 0.82rem/1.2 var(--mono); }
+  table.pt :global(input:disabled) { color: var(--muted); background: transparent; }
+  table.pt :global(tr.bad) :global(td) { background: var(--pad-soft); }
+  table.pt :global(td.acts) { white-space: nowrap; }
+  table.pt :global(td.acts button) { padding: 4px 8px; min-width: 2.2em; }
+  .import { background: var(--panel); border: 1px solid var(--line); padding: 10px 14px; }
+  .import summary { cursor: pointer; font-weight: 500; }
+  .import textarea { width: 100%; margin: 10px 0 8px; padding: 8px 10px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: 400 0.8rem/1.5 var(--mono); }
+  ul.howto { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; max-width: 75ch; font-size: 0.92rem; }
+  .cap a { color: var(--accent); }
+</style>
+
+<script>
+  import "../../scripts/partitions-page.ts";
+</script>

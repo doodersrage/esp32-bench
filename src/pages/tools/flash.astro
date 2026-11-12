@@ -1,0 +1,109 @@
+---
+import Base from "../../layouts/Base.astro";
+import { link } from "../../lib/paths";
+---
+
+<Base
+  title="ESP32 web flasher: flash your own .bin from the browser"
+  current="none"
+  description="Flash your own ESP32 firmware .bin files from Chrome or Edge with no install: merged images or bootloader, partitions and app at the right offsets for ESP32, S2, S3, C3 and C6. Erase the flash and read the chip, MAC and flash size."
+>
+  <section class="view">
+    <a class="back" href={link("/tools/")}>← All tools</a>
+    <div class="stack tight">
+      <h1 class="h2">Flash your own firmware</h1>
+      <p class="lede">
+        Write .bin files to an ESP32 straight from the browser, the way <code>esptool.py write_flash</code> does. Your
+        files go from this page to the board over USB and nowhere else.
+      </p>
+    </div>
+
+    <p class="notice" id="fl-unsupported" hidden>
+      <strong>This browser cannot flash.</strong> Flashing uses Web Serial, which Chrome, Edge and Opera support on desktop
+      computers. Open this page in one of those.
+    </p>
+    <p class="notice" id="fl-insecure" hidden>
+      <strong>Flashing needs a secure page.</strong> Open this site over https or from http://localhost.
+    </p>
+
+    <div class="stack tight">
+      <h2 class="h3">1. Pick the files</h2>
+      <label class="btn pick">
+        <input type="file" id="fl-files" accept=".bin,application/octet-stream" multiple />
+        Add .bin files
+      </label>
+      <p class="cap left">
+        One merged image goes at 0x0. A build in separate parts needs the bootloader, partition table and app (Arduino
+        also has boot_app0). Offsets are filled in from the file names; check them against your build output.
+      </p>
+      <div class="tablebox">
+        <table class="fl">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>What it is</th>
+              <th>Size</th>
+              <th>Offset</th>
+              <th><span class="sr">Remove</span></th>
+            </tr>
+          </thead>
+          <tbody id="fl-rows"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="fl-empty">No files yet.</p>
+      <ul class="findings" id="fl-problems"></ul>
+    </div>
+
+    <div class="stack tight">
+      <h2 class="h3">2. Connect and flash</h2>
+      <div class="controls">
+        <label>Speed
+          <select id="fl-baud">
+            <option value="115200">115200</option>
+            <option value="460800">460800</option>
+            <option value="921600" selected>921600</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="fl-erase" /> Erase the whole flash first</label>
+        <span class="sp"></span>
+        <button class="btn" type="button" id="fl-connect">Connect board</button>
+        <button class="btn go" type="button" id="fl-flash" disabled>Flash</button>
+        <button class="btn" type="button" id="fl-erase-only" disabled>Erase flash</button>
+        <button class="btn" type="button" id="fl-disconnect" disabled>Disconnect</button>
+      </div>
+      <dl class="chip" id="fl-chip" hidden></dl>
+      <div class="progress" id="fl-progress" hidden>
+        <div class="progbar"><span id="fl-progbar"></span></div>
+        <span class="cap left" id="fl-progtext"></span>
+      </div>
+      <pre class="term fllog" id="fl-log" aria-live="polite"></pre>
+      <p class="cap left">
+        If connecting stalls, hold BOOT, tap EN or RST, then let go of BOOT and try again. Close any serial monitor
+        first, including the <a href={link("/bench/")}>bench</a>: only one program can use the port.
+      </p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .btn.pick { position: relative; align-self: flex-start; }
+  .controls .btn.go:disabled { background: transparent; color: var(--muted); }
+  .btn.pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .btn.pick:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  table.fl :global(td) { font-size: 0.88rem; vertical-align: middle; }
+  table.fl :global(td.name) { font-family: var(--mono); font-size: 0.8rem; overflow-wrap: anywhere; }
+  table.fl :global(input) { width: 11ch; padding: 5px 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 400 0.82rem/1.2 var(--mono); border-radius: 2px; }
+  table.fl :global(select) { padding: 5px 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 2px; font-size: 0.85rem; }
+  dl.chip { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--pad); font-size: 0.9rem; }
+  dl.chip :global(dt) { font: 600 0.72rem/1.6 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  dl.chip :global(dd) { margin: 0; font-family: var(--mono); font-size: 0.85rem; overflow-wrap: anywhere; }
+  .progress { display: flex; flex-direction: column; gap: 6px; }
+  .progbar { height: 12px; border: 1px solid var(--line); background: var(--panel); }
+  .progbar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+  .fllog { height: 22vh; min-height: 160px; margin: 0; white-space: pre-wrap; }
+  .cap a { color: var(--accent); }
+</style>
+
+<script>
+  import "../../scripts/flash-tool.ts";
+</script>
