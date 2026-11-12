@@ -5,3 +5,6 @@ dist/
 
 # PlatformIO build output
 .pio/
+
+# Cloudflare build output
+.cloudflare/
