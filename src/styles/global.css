@@ -142,3 +142,20 @@ p.brand { max-width: none; }
 .stack.tight { gap: 8px; }
 h3.flat { margin: 0; }
 main { display: block; }
+
+/* Boards, flashing and verification */
+.tag.flash { border-color: var(--accent); color: var(--accent); }
+.tag.ok { border-color: var(--ok); color: var(--ok); }
+.tag.todo { border-style: dashed; }
+.swlabel { font: 600 0.72rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.cols.even { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.cap.left { text-align: left; max-width: 65ch; }
+ul.checks, ul.notes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; max-width: 70ch; }
+ul.checks li { display: flex; gap: 8px; align-items: baseline; font-size: 0.92rem; }
+ul.checks .tag { flex: none; }
+.when { color: var(--muted); }
+ul.notes li { padding-left: 14px; border-left: 3px solid var(--line); font-size: 0.92rem; }
+.flashbox { display: flex; flex-direction: column; gap: 8px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); }
+.flashbox .notice { margin: 0; }
+.boardcard { padding-top: 20px; border-top: 1px solid var(--line); }
+td.m a { color: var(--accent); }

@@ -1,5 +1,6 @@
 ---
-import type { Project } from "../data/projects";
+import { boardsOf, type Project } from "../data/projects";
+import { boardById } from "../data/boards";
 import { link } from "../lib/paths";
 
 interface Props {
@@ -8,9 +9,8 @@ interface Props {
 }
 
 const { project: p, number } = Astro.props;
-const extra = p.parts.length - 1;
-const partsLabel = extra ? `${extra} ${extra === 1 ? "part" : "parts"}` : "board only";
-const gpio = p.pins.filter((x) => /^\d+$/.test(x));
+const boards = boardsOf(p).map(boardById);
+const verified = (p.verified ?? []).length > 0;
 
 // Lowercased text the library search matches against.
 const haystack = [
@@ -19,7 +19,8 @@ const haystack = [
   p.level,
   p.libs.join(" "),
   p.parts.map((x) => x[1]).join(" "),
-  gpio.map((x) => `gpio ${x}`).join(" "),
+  boards.map((b) => `${b.short} ${b.name}`).join(" "),
+  p.flash ? "flash prebuilt firmware" : "",
 ]
   .join(" ")
   .toLowerCase();
@@ -32,7 +33,8 @@ const haystack = [
   <span class="meta">
     <span class="tag lvl">{p.level}</span>
     <span class="tag">{p.mins} min</span>
-    <span class="tag">{partsLabel}</span>
-    {gpio.map((x) => <span class="tag pin">GPIO {x}</span>)}
+    {boards.map((b) => <span class="tag pin">{b.short}</span>)}
+    {p.flash && <span class="tag flash">Browser flash</span>}
+    <span class:list={["tag", verified ? "ok" : "todo"]}>{verified ? "Hardware tested" : "Not hardware tested"}</span>
   </span>
 </a>

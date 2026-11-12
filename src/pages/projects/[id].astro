@@ -1,8 +1,11 @@
 ---
 import Base from "../../layouts/Base.astro";
 import Pinout from "../../components/Pinout.astro";
-import { PROJECTS, type Project } from "../../data/projects";
+import Flasher from "../../components/Flasher.astro";
+import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
+import { boardById } from "../../data/boards";
 import { link } from "../../lib/paths";
+import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
 
 export function getStaticPaths() {
   return PROJECTS.map((p) => ({ params: { id: p.id }, props: { p } }));
@@ -13,7 +16,14 @@ interface Props {
 }
 
 const { p } = Astro.props;
+const boards = boardsOf(p).map(boardById);
+const panels = boards.map((board) => ({
+  board,
+  ...forBoard(p, board.id),
+  verified: (p.verified ?? []).filter((v) => v.board === board.id),
+}));
 const needsLibraries = p.libs.some((l) => !/built in/.test(l));
+const hasBuyLinks = p.parts.some((x) => x[2]);
 const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
 ---
 
@@ -28,80 +38,159 @@ const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
         <span class="tag lvl">{p.level}</span>
         <span class="tag">{p.mins} min</span>
         <span class="tag">{p.baud} baud</span>
+        {p.flash && <span class="tag flash">Browser flash</span>}
       </div>
     </div>
 
-    <div class="cols">
-      <Pinout pins={p.pins} />
-      <div class="stack">
-        <div>
-          <h3>Wiring</h3>
-          {
-            p.wiring.length > 0 ? (
-              <div class="tablebox">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>From</th>
-                      <th>To ESP32</th>
-                      <th>Note</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {p.wiring.map(([from, to, note]) => (
-                      <tr>
-                        <td>{from}</td>
-                        <td class="m">{to}</td>
-                        <td>{note}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+    {
+      boards.length > 1 && (
+        <div class="row" id="boardswitch" role="group" aria-label="Board">
+          <span class="swlabel">Board</span>
+          {boards.map((b, i) => (
+            <button class="chip" type="button" data-board={b.id} aria-pressed={i === 0 ? "true" : "false"}>
+              {b.name}
+            </button>
+          ))}
+        </div>
+      )
+    }
+
+    {
+      panels.map((panel, i) => (
+        <div class="stack" data-panel={panel.board.id} hidden={i !== 0}>
+          <div class="cols">
+            <Pinout board={panel.board} pins={panel.pins} caption={`Fig. 1. Pins this project uses on the ${panel.board.name}. USB connector at the bottom.`} />
+            <div class="stack">
+              <div>
+                <h3>Wiring</h3>
+                {panel.wiring.length > 0 ? (
+                  <div class="tablebox">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>From</th>
+                          <th>To board</th>
+                          <th>Note</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {panel.wiring.map(([from, to, note]) => (
+                          <tr>
+                            <td>{from}</td>
+                            <td class="m">{to}</td>
+                            <td>{note}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p class="lede">Nothing to wire. This one runs on the bare board.</p>
+                )}
               </div>
-            ) : (
-              <p class="lede">Nothing to wire. This one runs on the bare board.</p>
-            )
-          }
-        </div>
-        <div>
-          <h3>Parts</h3>
-          <div class="tablebox">
-            <table>
-              <tbody>
-                {p.parts.map(([qty, what]) => (
-                  <tr>
-                    <td class="q">{qty}×</td>
-                    <td>{what}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+              <div>
+                <h3>Tested on this board</h3>
+                {panel.verified.length > 0 ? (
+                  <ul class="checks">
+                    {panel.verified.map((v) => (
+                      <li>
+                        <span class="tag ok">Tested</span>
+                        <span>{v.what}{v.when && <span class="when">{` (${v.when})`}</span>}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p class="lede">Not run on this board yet. Treat the wiring and code as a first draft.</p>
+                )}
+              </div>
+            </div>
           </div>
+
+          {panel.code !== undefined && (
+            <div class="stack tight">
+              <div class="codehead">
+                <h3 class="flat">Firmware, Arduino sketch for {panel.board.arduinoBoard}</h3>
+                <button class="btn sm" type="button" data-copy>Copy firmware</button>
+              </div>
+              <pre class="code"><code>{panel.code}</code></pre>
+            </div>
+          )}
         </div>
+      ))
+    }
+
+    <div class="cols even">
+      <div>
+        <h3>Parts</h3>
+        <div class="tablebox">
+          <table>
+            <tbody>
+              {p.parts.map(([qty, what, href]) => (
+                <tr>
+                  <td class="q">{qty}×</td>
+                  <td>{what}</td>
+                  <td class="m">{href && <a href={href} rel={shopRel(href)} target="_blank">Buy at {shopVendor(href)}</a>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {hasBuyLinks && <p class="cap left">{AFFILIATE_DISCLOSURE}</p>}
+      </div>
+      {
+        p.code !== undefined && (
+          <div>
+            <h3>Libraries</h3>
+            <p>{p.libs.length > 0 ? p.libs.join(", ") : "None beyond the ESP32 Arduino core."}</p>
+          </div>
+        )
+      }
+    </div>
+
+    {
+      p.flash ? (
+        <div class="stack tight">
+          <h3 class="flat">Load it</h3>
+          <Flasher manifest={p.flash.manifest} version={p.flash.version} />
+          <ol class="steps">
+            {p.flash.after.map((step) => <li>{step}</li>)}
+          </ol>
+          {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Firmware source on GitHub</a></p>}
+        </div>
+      ) : (
         <div>
-          <h3>Libraries</h3>
-          <p>{p.libs.length > 0 ? p.libs.join(", ") : "None beyond the ESP32 Arduino core."}</p>
+          <h3>Load it</h3>
+          <ol class="steps">
+            <li>In the Arduino IDE, install the esp32 board package and pick the board named above the sketch.</li>
+            {needsLibraries && <li>Install the libraries listed above from the Library Manager.</li>}
+            <li>Paste the sketch, choose the board's port and upload. Hold BOOT if the upload stalls at Connecting.</li>
+            <li>Close the IDE's serial monitor, then open the bench here to watch the output.</li>
+          </ol>
         </div>
-      </div>
-    </div>
+      )
+    }
 
-    <div class="stack tight">
-      <div class="codehead">
-        <h3 class="flat">Firmware, Arduino sketch</h3>
-        <button class="btn sm" type="button" id="copy">Copy firmware</button>
-      </div>
-      <pre class="code"><code id="firmware">{p.code}</code></pre>
-    </div>
+    {
+      p.notes && (
+        <div>
+          <h3>Field notes</h3>
+          <ul class="notes">
+            {p.notes.map((n) => <li>{n}</li>)}
+          </ul>
+        </div>
+      )
+    }
 
-    <div>
-      <h3>Load it</h3>
-      <ol class="steps">
-        <li>In the Arduino IDE, install the esp32 board package and pick <code>ESP32 Dev Module</code>.</li>
-        {needsLibraries && <li>Install the libraries listed above from the Library Manager.</li>}
-        <li>Paste the sketch, choose the board's port and upload. Hold BOOT if the upload stalls at Connecting.</li>
-        <li>Close the IDE's serial monitor, then open the bench here to watch the output.</li>
-      </ol>
-    </div>
+    {
+      p.open && (
+        <div>
+          <h3>Not tested yet</h3>
+          <ul class="notes">
+            {p.open.map((n) => <li>{n}</li>)}
+          </ul>
+        </div>
+      )
+    }
 
     <div class="row">
       <a class="btn go" href={benchHref}>Open the bench at {p.baud} baud</a>
@@ -110,18 +199,46 @@ const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
 </Base>
 
 <script>
-  const btn = document.getElementById("copy") as HTMLButtonElement;
-  const code = document.getElementById("firmware") as HTMLElement;
-  btn.addEventListener("click", async () => {
-    const label = btn.textContent;
-    try {
-      await navigator.clipboard.writeText(code.textContent ?? "");
-      btn.textContent = "Copied";
-    } catch {
-      btn.textContent = "Copy blocked, select the text";
-    }
-    setTimeout(() => {
-      btn.textContent = label;
-    }, 1600);
-  });
+  // Board switcher: one pre-rendered panel per board, one visible at a time.
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>("#boardswitch [data-board]")];
+  const panels = [...document.querySelectorAll<HTMLElement>("[data-panel]")];
+
+  function show(board: string) {
+    if (!panels.some((p) => p.dataset.panel === board)) return;
+    for (const p of panels) p.hidden = p.dataset.panel !== board;
+    for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.board === board));
+  }
+  for (const b of buttons) {
+    b.addEventListener("click", () => {
+      const board = b.dataset.board ?? "";
+      show(board);
+      try {
+        localStorage.setItem("bench.board", board);
+      } catch {
+        // Remembering the board is a convenience only.
+      }
+    });
+  }
+  try {
+    const saved = localStorage.getItem("bench.board");
+    if (saved) show(saved);
+  } catch {
+    // Storage unavailable: stay on the first board.
+  }
+
+  for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
+    btn.addEventListener("click", async () => {
+      const label = btn.textContent;
+      const code = btn.closest("[data-panel]")?.querySelector("pre.code code")?.textContent ?? "";
+      try {
+        await navigator.clipboard.writeText(code);
+        btn.textContent = "Copied";
+      } catch {
+        btn.textContent = "Copy blocked, select the text";
+      }
+      setTimeout(() => {
+        btn.textContent = label;
+      }, 1600);
+    });
+  }
 </script>

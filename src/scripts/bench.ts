@@ -1,5 +1,5 @@
 // Serial monitor for the bench page. Runs in the browser only.
-import { PROJECTS } from "../data/projects";
+import { PROJECTS, boardsOf, forBoard } from "../data/projects";
 
 // Minimal Web Serial types: the API is not in TypeScript's DOM library yet.
 interface SerialPortLike extends EventTarget {
@@ -31,6 +31,19 @@ const samplePick = $<HTMLSelectElement>("samplepick");
 const MAX_LINES = 1500;
 const LINE_ENDINGS: Record<string, string> = { lf: "\n", crlf: "\r\n", cr: "\r", none: "" };
 const TROUBLE = /(Guru Meditation|Brownout detector|abort\(\)|Backtrace:|assert failed|read failed|not found)/i;
+
+// Plain-language hints for lines that are easy to misread. Each prints once per
+// connection. The ProbeHarbor ones come from that project's hardware test log.
+const HINTS: [RegExp, string][] = [
+  [/Brownout detector/i, "Hint: the supply voltage dipped. Try a shorter USB cable or a powered hub."],
+  [/waiting for download/i, "Hint: the board is in download mode. Press EN or RST to run the firmware."],
+  [/USB_UART_CHIP_RESET/, "Hint: opening the native USB port reset the board. That is normal on an ESP32-S3."],
+  [/TT post -5/, "Hint: -5 means the reply was lost, not the reading. The server usually has it."],
+  [/TT sensor problem/, "Hint: a sensor that is found but will not read usually has a loose power or ground wire."],
+  [/TT no probe/, "Hint: no sensor answered. Check the data wire is on the pad marked 4 and the pull-up is fitted."],
+  [/TT setup:/, "Hint: the probe has no settings. A fresh flash erases them, so send Wi-Fi and the key again."],
+];
+const hintsShown = new Set<number>();
 
 type LineKind = "" | "sys" | "tx";
 
@@ -75,6 +88,13 @@ function addLine(text: string, kind: LineKind = "") {
   term.append(line);
   while (term.childElementCount > MAX_LINES) term.firstElementChild?.remove();
   if (follow.checked) term.scrollTop = term.scrollHeight;
+  if (!kind) {
+    const i = HINTS.findIndex(([pattern]) => pattern.test(text));
+    if (i >= 0 && !hintsShown.has(i)) {
+      hintsShown.add(i);
+      addLine(HINTS[i][1], "sys");
+    }
+  }
 }
 
 function setConnected(on: boolean) {
@@ -163,6 +183,7 @@ async function connect() {
   port = picked;
   remember("baud", String(baudRate));
   keepReading = true;
+  hintsShown.clear();
   setConnected(true);
   addLine(`Connected at ${baudRate} baud.`, "sys");
   loopDone = readLoop().then(() => {
@@ -240,16 +261,18 @@ function playSample() {
     return;
   }
   const project = PROJECTS.find((p) => p.id === samplePick.value) ?? PROJECTS[0];
+  const lines = forBoard(project, boardsOf(project)[0]).sample;
   let i = 0;
+  hintsShown.clear();
   addLine(`Sample output for ${project.name}. This is recorded text, not a board.`, "sys");
   sampleBtn.textContent = "Stop sample";
   sampleTimer = setInterval(() => {
-    if (i >= project.sample.length) {
+    if (i >= lines.length) {
       stopSample();
       addLine("End of sample.", "sys");
       return;
     }
-    addLine(project.sample[i++]);
+    addLine(lines[i++]);
   }, 450);
 }
 
