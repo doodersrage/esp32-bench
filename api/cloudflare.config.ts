@@ -19,6 +19,8 @@ export default defineConfig({
 			// 3 reports a minute per visitor address.
 			// Build reports waiting for approval, and the approved ones shown on project pages.
 			DB: bindings.d1({ id: "9fe09f5a-3e8b-40f0-8be5-6e7ca050c335", name: "esp32-bench-reports" }),
+			// Prebuilt firmware for every project, served at fw.esp32bench.dev; written by GitHub Actions.
+			FIRMWARE: bindings.r2({ name: "esp32-bench-firmware" }),
 			LIMIT: bindings.rateLimit({ namespace: "3201", simple: { limit: 3, period: 60 } }),
 			ALLOWED_ORIGINS: bindings.text("https://esp32bench.dev,https://www.esp32bench.dev"),
 			SENDER: bindings.text("reports@esp32bench.dev"),

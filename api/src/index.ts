@@ -2,12 +2,14 @@
 import { env } from "cloudflare:workers";
 import { checkReport, htmlFor, subjectFor, textFor } from "./report.ts";
 import { verifyTurnstile } from "./turnstile.ts";
+import { uploadFirmware } from "./firmware.ts";
 import { moderationPage, newToken, publicBuild, resultPage, sameHash, sha256, type BuildRow } from "./builds.ts";
 
 interface Env {
 	EMAIL: SendEmail;
 	LIMIT: RateLimit;
 	DB: D1Database;
+	FIRMWARE: R2Bucket;
 	ALLOWED_ORIGINS: string;
 	SENDER: string;
 	TURNSTILE_HOSTNAMES: string;
@@ -95,6 +97,10 @@ export default {
 		const origin = request.headers.get("Origin");
 		const headers = cors(origin);
 
+		if (url.pathname.startsWith("/fw/")) {
+			if (request.method !== "PUT") return json({ ok: false, error: "Use PUT." }, 405, { Allow: "PUT" });
+			return uploadFirmware(request, url.pathname.slice(4), config.FIRMWARE, API_ORIGIN, "doodersrage/esp32-bench");
+		}
 		if (url.pathname === "/builds" && request.method === "GET") return listBuilds(url);
 		const mod = /^\/moderate\/(\d{1,9})$/.exec(url.pathname);
 		if (mod) {
