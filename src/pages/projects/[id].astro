@@ -49,12 +49,17 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
       {
         p.tags.includes("probeharbor") && (
           <p class="phcredit">
-            {p.id === "ph-display" ? "For" : "From"} <a href={PROBEHARBOR.url}>ProbeHarbor</a>, {PROBEHARBOR.blurb}.{" "}
+            {p.probeharbor ? "For" : "From"} <a href={PROBEHARBOR.url}>ProbeHarbor</a>, {PROBEHARBOR.blurb}.{" "}
             {
-              p.id === "ph-display" ? (
+              p.probeharbor === "reads" ? (
                 <>
                   This board shows readings from your ProbeHarbor sensors through a read-only share link, made under
                   Dashboard, Share at <a href={PROBEHARBOR.url}>probeharbor.dev</a>.
+                </>
+              ) : p.probeharbor === "sends" ? (
+                <>
+                  This board sends its readings to a ProbeHarbor device; create one at{" "}
+                  <a href={PROBEHARBOR.url}>probeharbor.dev</a>.
                 </>
               ) : (
                 <>
@@ -144,6 +149,18 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
           )}
         </div>
       ))
+    }
+
+    {
+      p.extraCode && (
+        <div class="stack tight" data-code>
+          <div class="codehead">
+            <h2 class="h3">{p.extraCode.title}</h2>
+            <button class="btn sm" type="button" data-copy>Copy sketch</button>
+          </div>
+          <pre class="code"><code>{p.extraCode.code}</code></pre>
+        </div>
+      )
     }
 
     <div class="cols even">
@@ -314,7 +331,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
   for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
     btn.addEventListener("click", async () => {
       const label = btn.textContent;
-      const code = btn.closest("[data-panel]")?.querySelector("pre.code code")?.textContent ?? "";
+      const code = btn.closest("[data-code], [data-panel]")?.querySelector("pre.code code")?.textContent ?? "";
       try {
         await navigator.clipboard.writeText(code);
         btn.textContent = "Copied";
