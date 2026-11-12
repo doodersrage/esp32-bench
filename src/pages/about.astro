@@ -1,7 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
 import { link } from "../lib/paths";
-import { SITE } from "../lib/site";
 import { AFFILIATE_DISCLOSURE } from "../lib/shop";
 import { PROJECTS } from "../data/projects";
 
@@ -68,18 +67,13 @@ const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
       5 V signal into an ESP32 pin.
     </p>
 
-    {
-      SITE.repo && (
-        <>
-          <h2>Contribute</h2>
-          <p>
-            Found a wrong pin, a broken link or a bug? Every page has a "Report a mistake on this page" link at the
-            bottom, and the source is on <a href={SITE.repo}>GitHub</a>. Built a project? Its page has a link to send a
-            build report; working reports become the hardware checks shown on that page.
-          </p>
-        </>
-      )
-    }
+    <h2>Contact and corrections</h2>
+    <p>
+      Found a wrong pin, a broken link or a bug? Every page has a "Report a mistake on this page" link at the bottom.
+      Built a project? Its page has a link to send a build report; working reports become the hardware checks shown on
+      that page. Anything else, use the <a href={link("/report/?kind=message")}>contact form</a>. Everything sent
+      through these forms goes by email to the person who runs the site and is never published.
+    </p>
 
     <p class="when">See <a href={link("/changes/")}>what's new</a> for the release history.</p>
   </section>

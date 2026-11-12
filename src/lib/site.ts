@@ -11,6 +11,8 @@ export const SITE = {
   repo: "",
   /** Ahrefs Web Analytics site key. Empty turns analytics off. */
   ahrefsKey: "OCD7LFsMxlGOUms5cW+xFw",
+  /** Backend that emails reports to the site owner (api/ in this repository) */
+  reportApi: "https://api.esp32bench.dev/report",
   themeColor: "#14231f",
   background: "#f2f5f1",
 };
@@ -21,9 +23,8 @@ export function absolute(path: string, site: URL | undefined): string {
   return site ? new URL(href, site).href : href;
 }
 
-/** GitHub issue form, pre-filled. Returns "" while the repository is private. */
-export function issueUrl(template: "build-report" | "correction", fields: Record<string, string>): string {
-  if (!SITE.repo) return "";
-  const params = new URLSearchParams({ template: `${template}.yml`, ...fields });
-  return `${SITE.repo}/issues/new?${params}`;
+/** The on-site report form, pre-filled. Reports are emailed to the site owner, never published. */
+export function reportUrl(kind: "build" | "correction" | "message", fields: Record<string, string> = {}): string {
+  const params = new URLSearchParams({ kind, ...fields });
+  return `${link("/report/")}?${params}`;
 }

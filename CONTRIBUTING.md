@@ -2,11 +2,11 @@
 
 Thanks for helping. The most useful contributions, in order:
 
-1. **Build reports.** Built a project? Open a [build report](../../issues/new?template=build-report.yml)
-   with the board, core version and what the serial port printed. Passing reports
+1. **Build reports.** Built a project? Send a build report from the project's page on esp32bench.dev, or open a
+   [build report issue](../../issues/new?template=build-report.yml), with the board, core version and what the serial port printed. Passing reports
    become the "Tested on this board" entries on the project page.
-2. **Corrections.** A wrong pin, a broken link or a misleading explanation. Open an
-   issue, or use "Edit this page" at the bottom of any page.
+2. **Corrections.** A wrong pin, a broken link or a misleading explanation. Use "Report a mistake on this page" at the
+   bottom of any page, or open an issue.
 3. **Failure stories** for the Hall of Flames: what the serial port said, what it
    looked like, what was actually wrong.
 4. **New projects** and boards. Open an issue first so we can agree on scope.

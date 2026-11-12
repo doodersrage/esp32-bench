@@ -127,8 +127,21 @@ Not built yet:
 - Saving your own projects.
 - Merging sketches in a remix. It merges wiring and pin numbers only.
 
+## Report form
+
+`/report/` sends build reports, corrections and messages by email; nothing is published. The footer's "Report a mistake on this page" and each project's "Send a build report" open it pre-filled.
+
+The backend is a separate Worker in `api/` (`esp32-bench-api`, served at `api.esp32bench.dev`). It accepts JSON from esp32bench.dev only, checks a honeypot field, a minimum fill-in time and field lengths, rate-limits each visitor, and sends the report through Cloudflare Email Routing to a verified address held in the `REPORT_TO` Worker secret. Deploys keep the secret. To change the address, verify it under Email Routing first, then redeploy once with `cf deploy --secrets-file <file>` containing `{"REPORT_TO": "..."}`.
+
+```sh
+cd api
+npm ci
+node --experimental-strip-types test/report.test.ts
+cf deploy
+```
+
 ## Contributing and license
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Build reports and corrections go through the GitHub issue forms in `.github/ISSUE_TEMPLATE/`; the site links to them with the page or project filled in once `repo` is set in `src/lib/site.ts`.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Visitors send build reports and corrections through the site's report form. The GitHub issue forms in `.github/ISSUE_TEMPLATE/` are for contributors once the repository is public.
 
 Code is MIT licensed and written content is CC BY 4.0. See [LICENSE](LICENSE).

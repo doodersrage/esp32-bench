@@ -18,6 +18,7 @@ export const STATIC_PAGES = [
   "/tools/partitions/",
   "/flames/",
   "/about/",
+  "/report/",
   "/changes/",
 ];
 

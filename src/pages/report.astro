@@ -1,0 +1,135 @@
+---
+import Base from "../layouts/Base.astro";
+import { PROJECTS } from "../data/projects";
+import { BOARDS } from "../data/boards";
+import { SITE } from "../lib/site";
+import { link } from "../lib/paths";
+
+const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
+---
+
+<Base
+  title="Send a report"
+  current="report"
+  description="Send a build report, a correction or a message to ESP32 Bench. Reports are emailed to the site owner and never published."
+>
+  <section class="view">
+    <div class="stack tight">
+      <h1 class="h2">Send a report</h1>
+      <p class="lede">
+        Built a project, spotted a wrong pin, or want to say something? This goes by email to the person who runs
+        ESP32 Bench. Nothing you send here is published, and your email address is only used to reply.
+      </p>
+    </div>
+
+    <form class="reportform" id="report" data-api={SITE.reportApi} novalidate>
+      <fieldset class="kinds">
+        <legend>What is it?</legend>
+        <label><input type="radio" name="kind" value="build" checked /> Build report</label>
+        <label><input type="radio" name="kind" value="correction" /> Correction</label>
+        <label><input type="radio" name="kind" value="message" /> Message</label>
+      </fieldset>
+
+      <div class="grid2" data-for="build">
+        <label>
+          Project
+          <select name="project" required>
+            <option value="">Choose a project</option>
+            {projects.map((p) => <option value={p.id}>{p.name}</option>)}
+          </select>
+        </label>
+        <label>
+          Board
+          <select name="board" required>
+            <option value="">Choose a board</option>
+            {BOARDS.map((b) => <option value={b.name}>{b.name}</option>)}
+            <option value="Another board">Another board (say which below)</option>
+          </select>
+        </label>
+        <label>
+          Board details <span class="opt">optional</span>
+          <input name="boardDetail" maxlength="60" placeholder="e.g. N8R2 module, 30-pin clone" />
+        </label>
+        <label>
+          Arduino-ESP32 core version <span class="opt">optional</span>
+          <input name="core" maxlength="40" placeholder="e.g. 3.3.12" />
+        </label>
+        <label class="wide">
+          Did it work?
+          <select name="result" required>
+            <option value="">Choose one</option>
+            <option>Yes, as described</option>
+            <option>Yes, after a change (described below)</option>
+            <option>No</option>
+          </select>
+        </label>
+        <label class="wide">
+          Serial output <span class="opt">optional, a few lines are enough</span>
+          <textarea name="output" rows="6" maxlength="6000" spellcheck="false"></textarea>
+        </label>
+      </div>
+
+      <label class="wide" data-for="correction">
+        Page
+        <input name="page" maxlength="300" placeholder="https://esp32bench.dev/..." />
+      </label>
+
+      <label class="wide">
+        <span data-label="build">Changes and notes <span class="opt">optional</span></span>
+        <span data-label="correction" hidden>What is wrong, and what should it say?</span>
+        <span data-label="message" hidden>Message</span>
+        <textarea name="notes" rows="6" maxlength="4000"></textarea>
+      </label>
+
+      <div class="grid2">
+        <label>
+          Your name <span class="opt">optional</span>
+          <input name="name" maxlength="80" autocomplete="name" />
+        </label>
+        <label>
+          Your email <span class="opt">optional, only to reply</span>
+          <input name="email" type="email" maxlength="120" autocomplete="email" />
+        </label>
+      </div>
+
+      <!-- Left empty by people; bots fill it in. -->
+      <div class="hp" aria-hidden="true">
+        <label>Website <input name="website" tabindex="-1" autocomplete="off" /></label>
+      </div>
+
+      <div class="row">
+        <button class="btn go" type="submit" id="send">Send</button>
+        <span class="status-msg" id="report-status" role="status" aria-live="polite"></span>
+      </div>
+    </form>
+
+    <div class="thanks" id="thanks" hidden tabindex="-1">
+      <h2>Thank you</h2>
+      <p>Your report is on its way. <a href={link("/")}>Back to the library</a> or <a href="" id="again">send another</a>.</p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .reportform { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
+  .reportform label { display: flex; flex-direction: column; gap: 4px; font-size: 0.88rem; font-weight: 500; }
+  .reportform input, .reportform select, .reportform textarea {
+    padding: 8px 10px; border: 1px solid var(--line); background: var(--panel); border-radius: 2px; font: inherit; font-weight: 400; min-width: 0;
+  }
+  .reportform textarea { font-family: var(--mono); font-size: 0.85rem; resize: vertical; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+  .grid2 .wide { grid-column: 1 / -1; }
+  .opt { font-weight: 400; color: var(--muted); }
+  .kinds { border: 1px solid var(--line); padding: 10px 12px; margin: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .kinds legend { font: 600 0.72rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+  .kinds label { flex-direction: row; align-items: center; gap: 6px; font-size: 0.95rem; }
+  .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+  .status-msg { font-size: 0.92rem; font-weight: 500; }
+  .status-msg.bad { color: var(--accent); }
+  .thanks { padding: 16px; background: var(--panel); border: 1px solid var(--ok); border-left-width: 4px; display: flex; flex-direction: column; gap: 8px; max-width: 760px; }
+  .thanks a { color: var(--accent); }
+</style>
+
+<script>
+  import "../scripts/report.ts";
+</script>
