@@ -1,0 +1,408 @@
+---
+// Wiring diagram for one board, drawn at build time from the project's wiring
+// table (src/lib/wiring-diagram.ts). The table stays the text alternative; the
+// SVG is described by it. "Build it step by step" loads a small script on demand.
+import type { Board } from "../data/boards";
+import { layout, parseWiring, type Pad, type WiringRow } from "../lib/wiring-diagram";
+
+interface Props {
+  rows: readonly WiringRow[];
+  board: Board;
+  projectId: string;
+  projectName: string;
+  /** id of the wiring table that describes this diagram */
+  tableId: string;
+  benchHref: string;
+  baud: number;
+}
+
+const { rows, board, projectId, projectName, tableId, benchHref, baud } = Astro.props;
+const hasHeader = board.left.length > 0;
+const model = hasHeader && rows.length ? parseWiring(rows, board) : null;
+const lay = model && model.wires.length ? layout(model) : null;
+
+const stepOf = new Map(model?.steps.map((s, i) => [s.row, i + 1]) ?? []);
+const titleId = `wd-title-${board.id}`;
+const padText = (p: Pad) => (p.alias && p.kind === "gpio" ? `${p.label} (${p.alias})` : p.label);
+const where = (p: Pad) => `${p.side === "left" ? "L" : "R"}${p.position}`;
+const steps = model?.steps ?? [];
+const listedOther = model?.listed.filter((l) => l.why === "other-board") ?? [];
+const listedOnBoard = model?.listed.filter((l) => l.why === "on-board") ?? [];
+const listedNot = model?.listed.filter((l) => l.why === "not-wired" || l.why === "no-pad") ?? [];
+const rowText = (i: number) => `${rows[i][0]} → ${rows[i][1]}`;
+const pinText = (label: string) => (label === "pin" ? "" : label);
+---
+
+{
+  lay && model && (
+    <figure
+      class="wd"
+      data-wd
+      data-project={projectId}
+      data-board={board.id}
+      data-bench={benchHref}
+      data-baud={baud}
+      data-steps={JSON.stringify(steps)}
+    >
+      <div class="wd-scroll">
+        <svg
+          viewBox={`0 0 ${lay.width} ${lay.height}`}
+          width={lay.width}
+          height={lay.height}
+          role="img"
+          aria-labelledby={titleId}
+          aria-describedby={tableId}
+        >
+          <title id={titleId}>{`Wiring diagram for ${projectName} on the ${board.name}`}</title>
+
+          <g class="board">
+            <rect x={lay.board.x} y={lay.board.y} width={lay.board.w} height={lay.board.h} rx="6" />
+            <text class="boardname" x={lay.board.x + 10} y={lay.board.y + 18}>
+              {board.short}
+            </text>
+            {lay.pads.map(({ pad, x, y }) => (
+              <g class="pad" data-pad={pad.header}>
+                <text class="padlabel" x={x - 14} y={y + 4}>
+                  {padText(pad)}
+                </text>
+                <text class="padwhere" x={lay.board.x + 10} y={y + 4}>
+                  {where(pad)}
+                </text>
+                <circle cx={x} cy={y} r="5" />
+              </g>
+            ))}
+          </g>
+
+          {lay.wires.map(({ wire, d, resistorAt, end }) => (
+            <g class:list={["wire", wire.color, { optional: wire.optional }]} data-row={wire.row}>
+              <path d={d} />
+              {resistorAt && (
+                <g class="res" transform={`translate(${resistorAt.x} ${resistorAt.y})`}>
+                  <rect x="-15" y="-6" width="30" height="12" />
+                  <path d="M-13 0l3-5 4 10 4-10 4 10 4-10 4 10 3-5" />
+                  <text y="-8">{wire.resistor}</text>
+                </g>
+              )}
+              {wire.pull && (
+                <text class="pull" x={end.x - 20} y={end.y + 13}>
+                  {wire.pull}
+                </text>
+              )}
+            </g>
+          ))}
+
+          {lay.parts.map(({ part, x, y, w, h, pins }) => (
+            <g class="part">
+              <rect x={x} y={y} width={w} height={h} rx="4" />
+              <text class="partname" x={x + 10} y={h === 30 ? y + 19 : y + 18}>
+                {part.name}
+              </text>
+              {pins.map(({ pin, x: px, y: py }) => (
+                <g class="pin">
+                  <circle cx={px} cy={py} r="3.5" />
+                  <text class:list={["pinlabel", { right: pin.edge === "part" }]} x={pin.edge === "part" ? px - 9 : px + 9} y={py + 4}>
+                    {pinText(pin.label)}
+                  </text>
+                </g>
+              ))}
+              {part.extras.map((extra, i) => (
+                <text class="extra" x={x + 10} y={y + h - 8 - (part.extras.length - 1 - i) * 16}>
+                  {`+ ${extra}`}
+                </text>
+              ))}
+            </g>
+          ))}
+
+          {lay.wires.map(({ wire, badge }) => (
+            <g class:list={["wire", "badgeonly", wire.color]} data-row={wire.row}>
+              <g class="badge" transform={`translate(${badge.x} ${badge.y})`}>
+                <circle r={(stepOf.get(wire.row) ?? 0) >= 10 ? 9 : 7.5} />
+                <text y="3.2">{stepOf.get(wire.row)}</text>
+              </g>
+            </g>
+          ))}
+        </svg>
+      </div>
+      <figcaption class="cap left">
+        {`Fig. 2. Wiring on the ${board.name}, from the table above. Red is 3V3, orange is 5V and grey is GND; each signal has its own colour. L and R give each pad's side and position on the header, counted from the top. Numbers match the build steps.`}
+      </figcaption>
+      {(listedOnBoard.length > 0 || listedOther.length > 0 || listedNot.length > 0) && (
+        <ul class="wd-also">
+          {listedOnBoard.map((l) => (
+            <li>{`Already on the board, nothing to wire: ${rowText(l.row)}.`}</li>
+          ))}
+          {listedOther.length > 0 && <li>{`On the ${model.otherBoard ?? "other board"}, not drawn here: ${listedOther.map((l) => rowText(l.row)).join("; ")}.`}</li>}
+          {listedNot.map((l) => (
+            <li>{`${rowText(l.row)}.`}</li>
+          ))}
+        </ul>
+      )}
+      <div class="row wd-tools">
+        <button class="btn sm" type="button" data-wd-start>
+          Build it step by step
+        </button>
+        <span class="cap left">{`${steps.length} steps, power and ground first.`}</span>
+      </div>
+      <div class="wd-build" data-wd-build hidden></div>
+    </figure>
+  )
+}
+
+<script>
+  // Load the step-by-step builder only when someone asks for it.
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-wd-start]")) {
+    button.addEventListener("click", async () => {
+      const fig = button.closest<HTMLElement>("[data-wd]");
+      if (!fig) return;
+      const { startBuild } = await import("../scripts/build-mode");
+      startBuild(fig);
+    });
+  }
+</script>
+
+<style>
+  .wd {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    min-width: 0;
+    --w-3v3: #c0341a;
+    --w-5v: #c4620f;
+    --w-gnd: #3d4a46;
+    --w-s0: #1f63a8;
+    --w-s1: #1d7a4c;
+    --w-s2: #7a3fb0;
+    --w-s3: #8a6210;
+    --w-s4: #0f7676;
+    --w-s5: #b0336e;
+    --w-s6: #4b5d9b;
+    --w-s7: #6b4f1d;
+  }
+  :global(:root[data-theme="dark"]) .wd {
+    --w-3v3: #ff7058;
+    --w-5v: #ffa45c;
+    --w-gnd: #a9b8b3;
+    --w-s0: #6aa9ff;
+    --w-s1: #5fce97;
+    --w-s2: #c49bff;
+    --w-s3: #e2b755;
+    --w-s4: #4fd1d1;
+    --w-s5: #ff7fb6;
+    --w-s6: #a6b6ff;
+    --w-s7: #d6a96b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme="light"])) .wd {
+      --w-3v3: #ff7058;
+      --w-5v: #ffa45c;
+      --w-gnd: #a9b8b3;
+      --w-s0: #6aa9ff;
+      --w-s1: #5fce97;
+      --w-s2: #c49bff;
+      --w-s3: #e2b755;
+      --w-s4: #4fd1d1;
+      --w-s5: #ff7fb6;
+      --w-s6: #a6b6ff;
+      --w-s7: #d6a96b;
+    }
+  }
+  .wd-scroll {
+    overflow-x: auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 6px;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    min-width: 560px;
+    height: auto;
+    font-family: var(--mono);
+  }
+  .board rect {
+    fill: var(--term-bg);
+  }
+  .boardname {
+    fill: var(--term-ink);
+    font: 700 13px var(--display);
+    letter-spacing: 0.12em;
+    opacity: 0.8;
+  }
+  .pad circle {
+    fill: var(--pad);
+    stroke: var(--term-bg);
+    stroke-width: 1.5;
+  }
+  .padlabel {
+    fill: var(--term-ink);
+    font-size: 11px;
+    text-anchor: end;
+  }
+  .padwhere {
+    fill: var(--term-ink);
+    opacity: 0.55;
+    font-size: 9px;
+  }
+  .part rect {
+    fill: var(--paper);
+    stroke: var(--ink);
+    stroke-width: 1.2;
+  }
+  .partname {
+    fill: var(--ink);
+    font: 700 14px var(--display);
+    letter-spacing: 0.02em;
+  }
+  .pin circle {
+    fill: var(--panel);
+    stroke: var(--ink);
+    stroke-width: 1.2;
+  }
+  .pinlabel {
+    fill: var(--ink);
+    font-size: 10.5px;
+  }
+  .pinlabel.right {
+    text-anchor: end;
+  }
+  .extra {
+    fill: var(--muted);
+    font-size: 9.5px;
+  }
+  .wire {
+    color: var(--w-gnd);
+    transition: opacity 0.2s;
+  }
+  .wire path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linejoin: round;
+  }
+  .wire.optional > path {
+    stroke-dasharray: 6 4;
+  }
+  .w-3v3 { color: var(--w-3v3); }
+  .w-5v { color: var(--w-5v); }
+  .w-gnd { color: var(--w-gnd); }
+  .w-s0 { color: var(--w-s0); }
+  .w-s1 { color: var(--w-s1); }
+  .w-s2 { color: var(--w-s2); }
+  .w-s3 { color: var(--w-s3); }
+  .w-s4 { color: var(--w-s4); }
+  .w-s5 { color: var(--w-s5); }
+  .w-s6 { color: var(--w-s6); }
+  .w-s7 { color: var(--w-s7); }
+  .res rect {
+    fill: var(--panel);
+    stroke: none;
+  }
+  .res path {
+    stroke-width: 1.8;
+  }
+  .res text,
+  .pull {
+    fill: currentColor;
+    font-size: 9.5px;
+    text-anchor: middle;
+  }
+  .pull {
+    text-anchor: end;
+  }
+  .badge circle {
+    fill: currentColor;
+  }
+  .badge text {
+    fill: var(--panel);
+    font: 700 9px var(--mono);
+    text-anchor: middle;
+  }
+  .wd-also {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .wd-tools .cap {
+    margin: 0;
+  }
+  /* Build mode: the current step's wires and pads stand out, the rest fade. */
+  :global(.wd.building) .wire {
+    opacity: 0.14;
+  }
+  :global(.wd.building) .wire.now {
+    opacity: 1;
+  }
+  :global(.wd.building) .wire.now path {
+    stroke-width: 3.6;
+  }
+  :global(.wd.building) .wire.done {
+    opacity: 0.45;
+  }
+  :global(.wd.building) .pad.now circle {
+    fill: var(--accent);
+    r: 7;
+  }
+  .wd-build {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+  }
+  .wd-build:focus {
+    outline: none;
+  }
+  .wd-build :global(.wdb-head) {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .wd-build :global(.wdb-count) {
+    font: 700 1.05rem/1 var(--display);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .wd-build :global(.wdb-bar) {
+    flex: 1;
+    height: 6px;
+    background: var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .wd-build :global(.wdb-bar span) {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--ok);
+    transition: width 0.25s;
+  }
+  .wd-build :global(.wdb-text) {
+    font-weight: 500;
+  }
+  .wd-build :global(.wdb-tick) {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 0.9rem;
+  }
+  .wd-build :global(.wdb-done) {
+    font-weight: 500;
+    color: var(--ok);
+  }
+  .wd-build :global(.wdb-done a) {
+    color: var(--accent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wire,
+    .wd-build :global(.wdb-bar span) {
+      transition: none;
+    }
+  }
+</style>
