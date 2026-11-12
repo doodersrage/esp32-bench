@@ -1,6 +1,7 @@
 // Detective page: lights up the pad being touched to ground, quizzes you on
 // the silkscreen, and keeps a passport for each board you plug in.
 import { boardById, type Board, type BoardId } from "../data/boards";
+import type { ChipId } from "../data/chips";
 import { megabytes, parseLine, toPassport, type Passport } from "../lib/detective";
 import { SerialSession, getSerial } from "../lib/serial";
 
@@ -20,10 +21,13 @@ const quizText = $("d-quiztext");
 const passportBox = $("d-passport");
 const saveForm = $<HTMLFormElement>("d-save");
 const collection = $("d-collection");
+const layoutSelect = $<HTMLSelectElement>("d-layout");
 
 const STORE = "bench.boards";
+const LAYOUT_STORE = "bench.detective.layout";
 
-let boardId: BoardId = "esp32";
+let boardId: BoardId = savedLayout() ?? "esp32";
+let chip: ChipId | null = null;
 let firmware = "";
 let watched = new Set<string>();
 /** Pins already low when the firmware started: held by the board, not by a jumper. */
@@ -33,6 +37,27 @@ let passport: Passport | null = null;
 let greeted = false;
 let quizTarget: string | null = null;
 let quizScore = { right: 0, asked: 0 };
+
+function savedLayout(): BoardId | null {
+  try {
+    const id = localStorage.getItem(LAYOUT_STORE);
+    return id && [...layoutSelect.options].some((o) => o.value === id) ? (id as BoardId) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Offer only the pinouts that fit the connected chip, and keep the choice if it still fits. */
+function fitLayouts(connected: ChipId | null) {
+  for (const option of layoutSelect.options) option.hidden = connected !== null && option.dataset.chip !== connected;
+  const fits = (id: string) => connected === null || layoutSelect.querySelector<HTMLOptionElement>(`option[value="${id}"]`)?.dataset.chip === connected;
+  if (!fits(boardId)) {
+    const preferred = savedLayout();
+    const first = [...layoutSelect.options].find((o) => !o.hidden);
+    boardId = (preferred && fits(preferred) ? preferred : (first?.value ?? "esp32")) as BoardId;
+  }
+  layoutSelect.value = boardId;
+}
 
 const gpioName = (pad: string) => (/^\d+$/.test(pad) ? `GPIO ${pad}` : pad);
 
@@ -66,7 +91,8 @@ function renderBoard() {
     if (touched.has(label)) node.classList.add("on");
     else if (heldLow.has(label)) node.classList.add("held");
     else if (watched.size > 0 && !watched.has(label)) node.classList.add("blind");
-    const text = el("span", "", label);
+    const silk = b.silk?.[label];
+    const text = el("span", "", silk ? (side === "l" ? `${silk} · ${label}` : `${label} · ${silk}`) : label);
     const hole = el("i");
     node.append(...(side === "l" ? [text, hole] : [hole, text]));
     return node;
@@ -162,7 +188,8 @@ function nextQuestion() {
 
 function onTouch(pin: string) {
   const b = boardById(boardId);
-  readout.textContent = `${gpioName(pin)} is low. It is the ${whereIs(b, pin)}, labelled ${pin} on this pinout.`;
+  const silk = b.silk?.[pin];
+  readout.textContent = `${gpioName(pin)} is low. It is the ${whereIs(b, pin)}, labelled ${silk ? `${silk} on the silkscreen` : `${pin} on this pinout`}.`;
   const item = el("li", "", `${new Date().toTimeString().slice(0, 8)}  ${gpioName(pin)}`);
   history.prepend(item);
   while (history.childElementCount > 8) history.lastElementChild?.remove();
@@ -183,9 +210,11 @@ const session = new SerialSession({
     if (!event) return;
     if (event.type === "hello") {
       greeted = true;
-      boardId = event.board;
+      chip = event.chip;
+      fitLayouts(chip);
       firmware = event.firmware;
       touched = new Set();
+      if (passport) passport = { ...passport, board: boardId };
       status.textContent = `Connected: ${boardById(boardId).name}, pin detective ${firmware}. Touch a jumper from GND to any pad.`;
     } else if (event.type === "id") {
       passport = toPassport(boardId, firmware, event.fields);
@@ -206,6 +235,8 @@ const session = new SerialSession({
     renderBoard();
   },
   onClose(lost) {
+    chip = null;
+    fitLayouts(null);
     connectBtn.textContent = "Connect board";
     connectBtn.classList.add("go");
     touched = new Set();
@@ -248,6 +279,22 @@ connectBtn.addEventListener("click", async () => {
   }
 });
 
+layoutSelect.addEventListener("change", () => {
+  boardId = layoutSelect.value as BoardId;
+  try {
+    localStorage.setItem(LAYOUT_STORE, boardId);
+  } catch {
+    // The choice lasts for this page view only.
+  }
+  touched = new Set();
+  if (passport) {
+    passport = { ...passport, board: boardId };
+    renderPassport();
+  }
+  if (quizTarget !== null) nextQuestion();
+  renderBoard();
+});
+
 quizBtn.addEventListener("click", () => {
   if (quizTarget !== null) {
     quizTarget = null;
@@ -276,6 +323,7 @@ if (!getSerial()) {
   connectBtn.disabled = true;
   status.textContent = "This browser has no Web Serial. Use Chrome or Edge on a desktop to connect a board.";
 }
+fitLayouts(null);
 renderBoard();
 renderPassport();
 renderCollection();

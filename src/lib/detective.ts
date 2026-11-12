@@ -1,6 +1,7 @@
 // Parser for the pin detective firmware's serial lines, and the board passport
 // built from them. The protocol is described in firmware/pin-detective/src/main.cpp.
 import type { BoardId } from "../data/boards";
+import type { ChipId } from "../data/chips";
 
 export interface Passport {
   board: BoardId;
@@ -18,13 +19,14 @@ export interface Passport {
 }
 
 export type DetectiveEvent =
-  | { type: "hello"; board: BoardId; firmware: string }
+  | { type: "hello"; chip: ChipId; firmware: string }
   | { type: "id"; fields: Record<string, string> }
   | { type: "pins"; pins: string[] }
   | { type: "low"; pins: string[] }
   | { type: "change"; pin: string; low: boolean };
 
-const BOARD_IDS: BoardId[] = ["esp32", "esp32s3", "esp32c3"];
+/** Chips the firmware is built for. Its hello line names the chip ("board=esp32s3"). */
+export const DETECTIVE_CHIPS: ChipId[] = ["esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6"];
 
 const fields = (text: string): Record<string, string> =>
   Object.fromEntries(
@@ -47,8 +49,8 @@ export function parseLine(raw: string): DetectiveEvent | null {
 
   if (rest.startsWith("hello ")) {
     const f = fields(rest.slice(6));
-    const board = BOARD_IDS.find((id) => id === f.board);
-    return board ? { type: "hello", board, firmware: f.fw ?? "" } : null;
+    const chip = DETECTIVE_CHIPS.find((id) => id === f.board);
+    return chip ? { type: "hello", chip, firmware: f.fw ?? "" } : null;
   }
   if (rest.startsWith("id ")) return { type: "id", fields: fields(rest.slice(3)) };
   if (rest.startsWith("pins ")) return { type: "pins", pins: list(rest.slice(5)) };

@@ -1,6 +1,7 @@
 name: Firmware
 
-# Compiles the pin detective firmware for the ESP32, ESP32-S3 and ESP32-C3.
+# Compiles the pin detective firmware for the ESP32, ESP32-S2, ESP32-S3,
+# ESP32-C3 and ESP32-C6.
 # On a push, the merged images and manifest are committed to
 # public/firmware/pin-detective/ so the site can flash them from the browser.
 on:
@@ -28,10 +29,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      # Two PlatformIO homes: espressif32@7.1.3 (ESP32, S3, C3) and pioarduino
+      # (S2, C6) share package names but not versions. See scripts/build-firmware.mjs.
       - uses: actions/cache@v4
         with:
-          path: ~/.platformio
-          key: platformio-${{ hashFiles('firmware/pin-detective/platformio.ini') }}
+          path: |
+            ~/.platformio
+            ~/.platformio-core3
+          key: platformio-${{ hashFiles('firmware/pin-detective/platformio.ini', 'scripts/build-firmware.mjs') }}
 
       - run: pip install platformio
 

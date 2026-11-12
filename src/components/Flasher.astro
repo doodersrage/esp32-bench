@@ -6,9 +6,11 @@ import { link } from "../lib/paths";
 interface Props {
   manifest: string;
   version: string;
+  /** Chip families the manifest has images for, for the caption */
+  families?: string;
 }
 
-const { manifest, version } = Astro.props;
+const { manifest, version, families = "ESP32, ESP32-S3 and ESP32-C3" } = Astro.props;
 ---
 
 <div class="flashbox">
@@ -17,7 +19,7 @@ const { manifest, version } = Astro.props;
     <p slot="unsupported" class="notice"><strong>This browser cannot flash.</strong> Use Chrome or Edge on a desktop.</p>
     <p slot="not-allowed" class="notice"><strong>Flashing needs a secure page.</strong> Open this site over https or from http://localhost.</p>
   </esp-web-install-button>
-  <p class="cap left">One image per chip family: ESP32, ESP32-S3 and ESP32-C3. The installer detects which one is connected.</p>
+  <p class="cap left">One image per chip family: {families}. The installer detects which one is connected.</p>
 </div>
 
 <script>

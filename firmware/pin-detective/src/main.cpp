@@ -6,6 +6,8 @@
  * page lights that pad up, which shows whether the silkscreen tells the truth.
  * It also reports the chip's identity for the board passport.
  *
+ * Supported chips: ESP32, ESP32-S2, ESP32-S3, ESP32-C3 and ESP32-C6.
+ *
  * Serial protocol, 115200 baud, one line each:
  *   PD hello board=esp32s3 fw=0.1.0
  *   PD id chip=ESP32-S3 rev=2 cores=2 mhz=240 flash=8388608 psram=0 mac=AA:BB:CC:DD:EE:FF sdk=v4.4.7
@@ -22,28 +24,43 @@
 #define FIRMWARE_VERSION "0.1.0"
 
 /*
- * On the ESP32-S3 and ESP32-C3 the board may be plugged in by a UART bridge
- * (Serial) or by the chip's own USB port (USBSerial), so talk on both. This is
- * the same approach ProbeHarbor's probe firmware uses.
+ * A board may be plugged in by a UART bridge or by the chip's own USB port, so
+ * talk on both where the chip has native USB. This is the approach ProbeHarbor's
+ * probe firmware uses.
+ *
+ * ESP32-S3 and ESP32-C3 (core 2.0.x, USB CDC on boot off): Serial is UART0 and
+ * USBSerial is the USB serial/JTAG port.
+ * ESP32-S2 and ESP32-C6 (core 3.x, USB CDC on boot on): Serial is the native USB
+ * port and Serial0 is UART0.
  */
-#if defined(ARDUINO_USB_MODE) && ARDUINO_USB_MODE && !ARDUINO_USB_CDC_ON_BOOT
+#if defined(ARDUINO_USB_CDC_ON_BOOT) && ARDUINO_USB_CDC_ON_BOOT
+#define CONSOLE_A Serial0
+#define CONSOLE_B Serial
+#define CONSOLE_DUAL 1
+#elif defined(ARDUINO_USB_MODE) && ARDUINO_USB_MODE
+#define CONSOLE_A Serial
+#define CONSOLE_B USBSerial
+#define CONSOLE_DUAL 1
+#endif
+
+#if CONSOLE_DUAL
 class DualConsole : public Stream {
  public:
   void begin(unsigned long baud) {
-    Serial.begin(baud);
-    USBSerial.begin();
+    CONSOLE_A.begin(baud);
+    CONSOLE_B.begin();
   }
-  int available() override { return Serial.available() + USBSerial.available(); }
-  int read() override { return Serial.available() > 0 ? Serial.read() : USBSerial.read(); }
-  int peek() override { return Serial.available() > 0 ? Serial.peek() : USBSerial.peek(); }
+  int available() override { return CONSOLE_A.available() + CONSOLE_B.available(); }
+  int read() override { return CONSOLE_A.available() > 0 ? CONSOLE_A.read() : CONSOLE_B.read(); }
+  int peek() override { return CONSOLE_A.available() > 0 ? CONSOLE_A.peek() : CONSOLE_B.peek(); }
   void flush() override {
-    Serial.flush();
-    USBSerial.flush();
+    CONSOLE_A.flush();
+    CONSOLE_B.flush();
   }
   size_t write(uint8_t c) override { return write(&c, 1); }
   size_t write(const uint8_t *buffer, size_t size) override {
-    Serial.write(buffer, size);
-    USBSerial.write(buffer, size);
+    CONSOLE_A.write(buffer, size);
+    CONSOLE_B.write(buffer, size);
     return size;
   }
   using Print::write;
@@ -68,8 +85,18 @@ static const uint8_t PINS[] = {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 1
 #elif CONFIG_IDF_TARGET_ESP32C3
 #define BOARD_ID "esp32c3"
 static const uint8_t PINS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+#elif CONFIG_IDF_TARGET_ESP32S2
+// Not watched: 19 and 20 (native USB), 26 to 32 (flash and PSRAM), 33 to 37
+// (octal flash or PSRAM on some modules), 43 and 44 (UART0) and 46 (input only).
+#define BOARD_ID "esp32s2"
+static const uint8_t PINS[] = {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
+                               13, 14, 15, 16, 17, 18, 21, 38, 39, 40, 41, 42, 45};
+#elif CONFIG_IDF_TARGET_ESP32C6
+// Not watched: 12 and 13 (native USB), 16 and 17 (UART0), 24 to 30 (flash).
+#define BOARD_ID "esp32c6"
+static const uint8_t PINS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 18, 19, 20, 21, 22, 23};
 #else
-#error "Pin detective supports the ESP32, ESP32-S3 and ESP32-C3."
+#error "Pin detective supports the ESP32, ESP32-S2, ESP32-S3, ESP32-C3 and ESP32-C6."
 #endif
 
 static const size_t PIN_COUNT = sizeof(PINS) / sizeof(PINS[0]);
