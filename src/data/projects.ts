@@ -3442,7 +3442,7 @@ void loop() {
       [1, "Small DC motor (130 size) with a propeller or fan blade"],
       [1, "NPN transistor, PN2222 or 2N2222", BOM.pn2222],
       [1, "1N4001 diode", BOM.diode1n4001],
-      [1, "1 kΩ resistor, for the transistor's base"],
+      [1, "470 Ω resistor, for the transistor's base"],
       [1, "Photoresistor (light sensor)", BOM.photocell],
       [1, "10 kΩ resistor, for the light sensor"],
       [1, "Optional: DS18B20 temperature probe", BOM.ds18b20],
@@ -3452,8 +3452,8 @@ void loop() {
     wiring: [
       ["Motor +", "5V", "From USB or a separate 5 V supply, never from a GPIO pin"],
       ["Motor -", "Transistor collector", ""],
-      ["Transistor emitter", "GND", "PN2222 legs, flat side facing you: emitter, base, collector"],
-      ["Transistor base, through 1 kΩ", "GPIO %MOTOR%", ""],
+      ["Transistor emitter", "GND", "Check your transistor's pin order before wiring: a PN2222A is emitter, base, collector with the flat side facing you, but many parts sold as 2N2222 (such as P2N2222A) are collector, base, emitter"],
+      ["Transistor base, through 470 Ω", "GPIO %MOTOR%", "About 5 mA of base current, enough to switch the motor fully on"],
       ["1N4001 across the motor", "Stripe to motor +, other end to motor -", "Catches the voltage spike when the motor switches off. Backwards it shorts the supply"],
       ["Photoresistor", "3V3 to GPIO %LDR%", "One leg to 3V3, the other to the pin"],
       ["10 kΩ resistor", "GPIO %LDR% to GND", "With the photoresistor, brighter light gives a higher reading"],
@@ -3466,7 +3466,7 @@ void loop() {
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-const int MOTOR_PIN = %MOTOR%;  // to the transistor's base, through 1 kΩ
+const int MOTOR_PIN = %MOTOR%;  // to the transistor's base, through 470 Ω
 const int LDR_PIN = %LDR%;      // ADC1 pin: photoresistor and 10 kΩ divider
 const int TEMP_PIN = %OW%;      // optional DS18B20 data line (4.7 kΩ pull-up to 3V3)
 
@@ -3538,7 +3538,7 @@ void loop() {
 }`,
     open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
     notes: [
-      "Never run a motor straight from a GPIO pin. The transistor switches the motor's current from the 5 V supply; the pin only drives the transistor's base through 1 kΩ.",
+      "Never run a motor straight from a GPIO pin. The transistor switches the motor's current from the 5 V supply; the pin only drives the transistor's base through 470 Ω. With 1 kΩ the transistor may not switch fully on and runs warm.",
       "The diode matters: a motor is a coil, and when the transistor switches it off the coil kicks back a voltage spike. The diode, stripe towards 5 V, gives that spike somewhere harmless to go.",
       "A PN2222 handles a small 130 motor. A bigger motor, or one that stalls, can draw more than its 600 mA limit and get hot: use a logic-level MOSFET instead.",
       "PWM runs at 20 kHz so the motor does not whine. Below MIN_DUTY a motor hums without turning; tune it until the slowest setting still spins, and the sketch gives a stopped motor a short full-power kick.",
