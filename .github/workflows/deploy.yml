@@ -40,14 +40,14 @@ jobs:
           npm ci
           npm install --global cf@1.0.0-beta.30
 
+      - name: Build
+        run: npx astro build
+
       - name: Test the site's libraries
         run: |
           node --experimental-strip-types tests/share.test.ts
           node scripts/test-tools.mjs
           node --experimental-strip-types scripts/test-search.mjs
-
-      - name: Build
-        run: npx astro build
 
       - name: Test the report API
         working-directory: api
