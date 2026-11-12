@@ -15,6 +15,8 @@ export const SITE = {
   reportApi: "https://api.esp32bench.dev/report",
   /** Approved community build reports: GET ?project=<id> */
   buildsApi: "https://api.esp32bench.dev/builds",
+  /** Prebuilt firmware for every project (R2 bucket esp32-bench-firmware, filled by the Firmware library workflow) */
+  fwBase: "https://fw.esp32bench.dev",
   /** Public Turnstile site key for the report form (widget "esp32bench.dev report form") */
   turnstileSitekey: "0x4AAAAAAF-UtZoWkeF1Xe9G",
   /**

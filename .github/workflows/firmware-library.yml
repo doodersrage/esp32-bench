@@ -1,0 +1,75 @@
+name: Firmware library
+
+# Builds prebuilt firmware for every library project on every board it lists
+# and publishes it to https://fw.esp32bench.dev/ (an R2 bucket, written through
+# the site's API with this workflow's OIDC token; no secrets needed).
+# Runs weekly on Tuesday, after Monday's weekly check, by hand, and when the
+# projects or the build scripts change. If any sketch fails to compile, nothing
+# is uploaded: the library keeps its last good state.
+on:
+  schedule:
+    - cron: "0 7 * * 2"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - src/data/projects.ts
+      - src/data/probeharbor.ts
+      - scripts/build-firmware-library.mjs
+      - scripts/upload-firmware-library.mjs
+      - scripts/lib/sketch-build.mjs
+      - .github/workflows/firmware-library.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: firmware-library
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pioarduino-${{ hashFiles('scripts/lib/sketch-build.mjs') }}
+          restore-keys: pioarduino-
+
+      - name: Install
+        run: |
+          npm ci
+          pip install platformio
+
+      - name: Build the site with the sketch export
+        run: DUMP_SKETCHES=1 npx astro build
+
+      - name: Compile and merge every project for every board
+        run: node scripts/build-firmware-library.mjs
+
+      - name: Publish to fw.esp32bench.dev
+        run: |
+          token="$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.esp32bench.dev" | jq -r .value)"
+          if [ -z "$token" ] || [ "$token" = "null" ]; then
+            echo "::error title=No OIDC token::Could not get an id token for the upload."
+            exit 1
+          fi
+          FW_UPLOAD_TOKEN="$token" node scripts/upload-firmware-library.mjs
