@@ -188,6 +188,48 @@ export const PARTS: Part[] = [
       { name: "CATHODE", kind: "gnd" },
     ],
   },
+  {
+    id: "sharpir", name: "Sharp IR distance sensor",
+    pins: [
+      { name: "VCC", kind: "power5", note: "Needs 5 V. Put a 100 µF capacitor across VCC and GND at the sensor." },
+      { name: "GND", kind: "gnd" },
+      { name: "VO", kind: "out", note: "Analog, below about 3.1 V. Needs an ADC1 pin; on the classic ESP32 that is GPIO 32 to 39." },
+    ],
+  },
+  {
+    id: "mpu6050", name: "MPU-6050",
+    pins: [
+      { name: "VCC", kind: "power3" },
+      { name: "GND", kind: "gnd" },
+      { name: "SDA", kind: "bidir", bus: "sda" },
+      { name: "SCL", kind: "in", bus: "scl" },
+    ],
+  },
+  {
+    id: "joystick", name: "Analog joystick",
+    pins: [
+      { name: "VCC", kind: "power3", note: "3V3 even if it says +5V: at 5 V the outputs could reach 5 V." },
+      { name: "GND", kind: "gnd" },
+      { name: "VRX", kind: "out", note: "Needs an ADC1 pin. On the classic ESP32 that is GPIO 32 to 39." },
+      { name: "VRY", kind: "out", note: "Needs an ADC1 pin. On the classic ESP32 that is GPIO 32 to 39." },
+      { name: "SW", kind: "out", note: "Pulls low when pressed: use INPUT_PULLUP." },
+    ],
+  },
+  {
+    id: "pir", name: "PIR motion sensor",
+    pins: [
+      { name: "VCC", kind: "power5", note: "The HC-SR501 needs 5 V or more to run." },
+      { name: "OUT", kind: "out", note: "Goes to about 3.3 V on motion, so it is safe for the ESP32." },
+      { name: "GND", kind: "gnd" },
+    ],
+  },
+  {
+    id: "ldr", name: "Photoresistor",
+    pins: [
+      { name: "LEG A", kind: "power3", note: "3V3, with a 10 kΩ resistor from the other leg's pin to GND." },
+      { name: "LEG B", kind: "out", note: "Needs an ADC1 pin. On the classic ESP32 that is GPIO 32 to 39." },
+    ],
+  },
 ];
 
 export const partById = (id: string): Part | undefined => PARTS.find((p) => p.id === id);

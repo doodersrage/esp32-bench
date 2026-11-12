@@ -81,6 +81,15 @@ export const DRAWER = {
   buzzer: "Passive buzzer or piezo",
   pot: "10 kΩ potentiometers",
   soil: "Capacitive soil moisture sensor",
+  sharpir: "Sharp IR distance sensor",
+  mpu6050: "MPU-6050 accelerometer and gyro",
+  joystick: "Analog thumb joystick",
+  pir: "PIR motion sensor",
+  shiftreg: "74HC595 shift register",
+  sevenseg: "7-segment LED digit",
+  dcmotor: "Small DC motor",
+  transistor: "NPN transistor and diode",
+  ldr: "Photoresistor (light sensor)",
 } as const;
 export type DrawerPart = keyof typeof DRAWER;
 
@@ -2103,6 +2112,7 @@ void loop() {
       "Set SNAP to false for a smooth, swooping theremin sound instead of notes.",
       "A flat hand works better than fingers: more surface sends back a stronger echo.",
       "Open the bench at 115200 baud: the plotter charts distance_cm and freq side by side as you play.",
+      "No HC-SR04? A Sharp GP2Y0A21 IR distance sensor works too: power it from 5 V, read its output on an ADC1 pin and convert volts to cm as the IR sonar sweep project does. It only sees 10 to 80 cm.",
     ],
     sample: [
       "Theremin ready. Wave a hand 5 to 60 cm above the sensor.",
@@ -2700,6 +2710,857 @@ void loop() {
       "moisture=58% raw=1872",
       "moisture=61% raw=1824",
       "moisture=60% raw=1840",
+    ],
+  },
+  {
+    id: "ir-sweep", needs: [["sharpir"], ["servo"]], name: "IR sonar sweep", level: "Intermediate", mins: 30, tags: ["sensors", "motion"],
+    sum: "A servo swings a Sharp IR distance sensor back and forth like a radar dish. The bench charts every reading and each sweep ends with a little map of what it saw.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SERVO: "18", IR: "34" },
+      esp32s3: { SERVO: "5", IR: "2" },
+      esp32c3: { SERVO: "4", IR: "3" },
+    },
+    pins: ["5V", "GND", "%SERVO%", "%IR%"], libs: ["ESP32Servo"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Sharp GP2Y0A21YK0F IR distance sensor, 10 to 80 cm", BOM.sharpIr],
+      [1, "Micro servo, SG90 or similar", BOM.microServo],
+      [1, "100 µF electrolytic capacitor"],
+      [6, "Jumper wires"],
+    ],
+    wiring: [
+      ["Sharp VCC (red)", "5V", "The sensor needs 5 V. Its output stays below about 3.1 V, so it is safe for the ESP32"],
+      ["Sharp GND (black)", "GND", "Put the 100 µF capacitor across VCC and GND, right at the sensor"],
+      ["Sharp Vo (yellow or white)", "GPIO %IR%", "An ADC1 pin, so it keeps working if you add Wi-Fi later"],
+      ["Servo red", "5V", "One micro servo is fine from USB"],
+      ["Servo brown", "GND", ""],
+      ["Servo orange", "GPIO %SERVO%", ""],
+    ],
+    code: R`// IR sonar sweep: a servo swings a Sharp IR distance sensor from side to side
+// and maps what it sees. Open the bench: angle and cm chart live, and each sweep
+// ends with a little top-down map.
+#include <ESP32Servo.h>
+
+const int SERVO_PIN = %SERVO%;
+const int IR_PIN = %IR%;               // an ADC1 pin: the sensor's analog output
+const int STEP_DEG = 10;               // degrees per step
+const int SETTLE_MS = 60;              // let the servo arrive and the sensor update (it refreshes every ~40 ms)
+const int SAMPLES = 8;                 // readings averaged per step: the sensor is noisy
+const float MIN_CM = 10, MAX_CM = 80;  // the GP2Y0A21's useful range
+
+Servo servo;
+float distances[180 / STEP_DEG + 1];
+
+// The GP2Y0A21YK's output falls as distance rises, roughly as a power curve.
+// cm = 27.86 * V^-1.15 is a common fit to the datasheet's typical curve from
+// 10 to 80 cm. Measure a few known distances and adjust it for real accuracy.
+float readCm() {
+  uint32_t mv = 0;
+  for (int i = 0; i < SAMPLES; i++) {
+    mv += analogReadMilliVolts(IR_PIN);
+    delay(2);
+  }
+  const float volts = mv / (float)SAMPLES / 1000.0f;
+  if (volts < 0.35f) return MAX_CM + 1;  // nothing in range
+  const float cm = 27.86f * powf(volts, -1.15f);
+  return constrain(cm, MIN_CM - 1, MAX_CM + 1);
+}
+
+// A top-down map of one sweep: the sensor at the bottom middle, '*' where it saw
+// something. It contains no digits, so the bench's plotter ignores it.
+void drawMap() {
+  const int W = 41, H = 11;
+  char grid[H][W + 1];
+  for (int y = 0; y < H; y++) {
+    memset(grid[y], ' ', W);
+    grid[y][W] = 0;
+  }
+  for (int i = 0; i * STEP_DEG <= 180; i++) {
+    const float cm = distances[i];
+    if (cm > MAX_CM) continue;
+    const float a = radians(i * STEP_DEG);
+    const int x = W / 2 + (int)roundf(cosf(a) * cm / MAX_CM * (W / 2));
+    const int y = H - 1 - (int)roundf(sinf(a) * cm / MAX_CM * (H - 1));
+    if (x >= 0 && x < W && y >= 0 && y < H) grid[y][x] = '*';
+  }
+  grid[H - 1][W / 2] = 'S';
+  Serial.println("+-----------------------------------------+");
+  for (int y = 0; y < H; y++) Serial.printf("|%s|\n", grid[y]);
+  Serial.println("+-----------------------------------------+");
+}
+
+void setup() {
+  Serial.begin(115200);
+  analogSetPinAttenuation(IR_PIN, ADC_11db);  // the full 0 to 3.1 V range
+  servo.setPeriodHertz(50);
+  servo.attach(SERVO_PIN, 500, 2400);  // pulse range for SG90-class servos
+  servo.write(0);
+  delay(500);
+  Serial.println("IR sweep ready");
+}
+
+int sweep = 0;
+
+void loop() {
+  sweep++;
+  const bool forward = sweep % 2 == 1;  // sweep back and forth, so the servo never jumps
+  float nearest = MAX_CM + 1;
+  int nearestAt = -1;
+  for (int i = 0; i * STEP_DEG <= 180; i++) {
+    const int angle = forward ? i * STEP_DEG : 180 - i * STEP_DEG;
+    servo.write(angle);
+    delay(SETTLE_MS);
+    const float cm = readCm();
+    distances[angle / STEP_DEG] = cm;
+    Serial.printf("angle = %d, cm = %.1f\n", angle, cm);
+    if (cm < nearest) {
+      nearest = cm;
+      nearestAt = angle;
+    }
+  }
+  drawMap();
+  if (nearestAt >= 0 && nearest <= MAX_CM) {
+    Serial.printf("sweep = %d, nearest_cm = %.1f, nearest_angle = %d\n", sweep, nearest, nearestAt);
+  }
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Stick the IR sensor on the servo horn with tape or a dab of hot glue so it points the way the horn turns.",
+      "The Sharp sensor draws its current in short bursts, which makes its output jumpy. The 100 µF capacitor across its power pins smooths that; the sketch also averages eight readings per step.",
+      "It only measures from about 10 to 80 cm. Closer than 10 cm the reading folds back and looks farther away, so keep the first 10 cm in front of it clear.",
+      "The cm figure comes from a typical curve for the GP2Y0A21. Check it with a ruler at two or three distances and adjust the 27.86 and -1.15 in readCm() if yours reads high or low.",
+      "Dark, shiny or very angled surfaces send back less infrared light and may read farther than they are. A sheet of paper makes a good test target.",
+      "Open the bench at 115200 baud: angle and cm chart live, and each sweep prints a top-down map with the sensor at the bottom.",
+    ],
+    sample: [
+      "IR sweep ready",
+      "angle = 0, cm = 80.6",
+      "angle = 10, cm = 81.6",
+      "angle = 20, cm = 80.6",
+      "angle = 30, cm = 81.6",
+      "angle = 40, cm = 80.6",
+      "angle = 50, cm = 78.9",
+      "angle = 60, cm = 68.9",
+      "angle = 70, cm = 64.5",
+      "angle = 80, cm = 26.1",
+      "angle = 90, cm = 25.6",
+      "angle = 100, cm = 26.1",
+      "angle = 110, cm = 64.5",
+      "angle = 120, cm = 68.9",
+      "angle = 130, cm = 78.9",
+      "angle = 140, cm = 80.6",
+      "angle = 150, cm = 81.6",
+      "angle = 160, cm = 80.6",
+      "angle = 170, cm = 81.6",
+      "angle = 180, cm = 80.6",
+      "+-----------------------------------------+",
+      "|                                         |",
+      "|                                         |",
+      "|       *      *           *      *       |",
+      "|           *                 *           |",
+      "|                                         |",
+      "|                                         |",
+      "|                                         |",
+      "|                   ***                   |",
+      "|                                         |",
+      "|                                         |",
+      "|                    S                    |",
+      "+-----------------------------------------+",
+      "sweep = 1, nearest_cm = 25.6, nearest_angle = 90",
+      "angle = 180, cm = 81.3",
+      "angle = 170, cm = 81.3",
+      "angle = 160, cm = 81.3",
+      "angle = 150, cm = 81.3",
+      "angle = 140, cm = 81.3",
+      "angle = 130, cm = 78.6",
+      "angle = 120, cm = 69.6",
+      "angle = 110, cm = 64.2",
+    ],
+  },
+  {
+    id: "level-platform", needs: [["mpu6050"], ["servo"]], name: "Self-levelling platform", level: "Intermediate", mins: 45, tags: ["sensors", "motion"],
+    sum: "Tilt the base and two servos tilt the plate the other way, so a marble stays put. An MPU-6050 measures the tilt and a complementary filter keeps it steady.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SDA: "21", SCL: "22", SX: "18", SY: "19" },
+      esp32s3: { SDA: "8", SCL: "9", SX: "5", SY: "6" },
+      esp32c3: { SDA: "6", SCL: "7", SX: "4", SY: "5" },
+    },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%", "%SX%", "%SY%"], libs: ["Wire (built in)", "ESP32Servo"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "MPU-6050 accelerometer and gyro board (GY-521)"],
+      [2, "Micro servos, SG90 or similar", BOM.microServo],
+      [1, "5 V supply for the servos, such as a USB power bank or a 5 V 2 A adapter"],
+      [1, "Small plate and base: card, plywood or a 3D print"],
+      [10, "Jumper wires"],
+    ],
+    wiring: [
+      ["MPU-6050 VCC", "3V3", "The GY-521 board also accepts 5 V, but 3V3 keeps its I2C lines at the ESP32's level"],
+      ["MPU-6050 GND", "GND", ""],
+      ["MPU-6050 SDA", "GPIO %SDA%", "The board has its own pull-up resistors"],
+      ["MPU-6050 SCL", "GPIO %SCL%", ""],
+      ["Roll servo signal", "GPIO %SX%", "Tilts the plate left and right"],
+      ["Pitch servo signal", "GPIO %SY%", "Tilts the plate forward and back"],
+      ["Both servos red", "5 V supply +", "Not the ESP32's 3V3 pin. Two servos moving at once can draw an amp"],
+      ["Both servos brown, and supply -", "GND", "Join the servo supply's ground to the ESP32's GND"],
+    ],
+    code: R`// Self-levelling platform: an MPU-6050 on the base measures how far it is
+// tilted, and two servos tilt the plate the other way so it stays level.
+// Talks to the MPU-6050 directly over I2C, so no extra library is needed.
+#include <Wire.h>
+#include <ESP32Servo.h>
+
+const int SDA_PIN = %SDA%;
+const int SCL_PIN = %SCL%;
+const int SERVO_X_PIN = %SX%;  // tilts the plate left and right (roll)
+const int SERVO_Y_PIN = %SY%;  // tilts the plate forward and back (pitch)
+
+const uint8_t MPU = 0x68;      // 0x69 if the board's AD0 pin is tied high
+const float ALPHA = 0.98f;     // complementary filter: 98 % gyro, 2 % accelerometer
+const float GAIN_X = 1.0f;     // servo degrees per degree of tilt; depends on your linkage
+const float GAIN_Y = 1.0f;
+const bool INVERT_X = false;   // flip if a servo makes the tilt worse instead of better
+const bool INVERT_Y = false;
+const int CENTER = 90, TRAVEL = 45;  // servo centre and how far either way it may go
+
+Servo servoX, servoY;
+float gyroBiasX = 0, gyroBiasY = 0;
+float pitch = 0, roll = 0;          // filtered tilt, degrees
+float pitchZero = 0, rollZero = 0;  // the tilt at start-up counts as level
+unsigned long lastUs = 0;
+
+void writeReg(uint8_t reg, uint8_t value) {
+  Wire.beginTransmission(MPU);
+  Wire.write(reg);
+  Wire.write(value);
+  Wire.endTransmission();
+}
+
+// Accelerometer in g and gyro in degrees per second, from one 14-byte read.
+bool readMpu(float& ax, float& ay, float& az, float& gx, float& gy) {
+  Wire.beginTransmission(MPU);
+  Wire.write(0x3B);  // ACCEL_XOUT_H
+  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.requestFrom(MPU, (uint8_t)14) != 14) return false;
+  int16_t raw[7];
+  for (int i = 0; i < 7; i++) raw[i] = (int16_t)((Wire.read() << 8) | Wire.read());
+  ax = raw[0] / 16384.0f;  // ±2 g range
+  ay = raw[1] / 16384.0f;
+  az = raw[2] / 16384.0f;
+  gx = raw[4] / 131.0f;    // ±250 °/s range; raw[3] is temperature
+  gy = raw[5] / 131.0f;
+  return true;
+}
+
+void accelAngles(float ax, float ay, float az, float& p, float& r) {
+  p = degrees(atan2f(-ax, sqrtf(ay * ay + az * az)));
+  r = degrees(atan2f(ay, az));
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(SDA_PIN, SCL_PIN, 400000);
+  Wire.beginTransmission(MPU);
+  if (Wire.endTransmission() != 0) {
+    Serial.println("MPU-6050 not found at 0x68: check SDA, SCL, 3V3 and GND");
+    while (true) delay(1000);
+  }
+  writeReg(0x6B, 0x00);  // PWR_MGMT_1: wake up
+  writeReg(0x1A, 0x03);  // CONFIG: 44 Hz low-pass filter to calm the servos
+  writeReg(0x1B, 0x00);  // GYRO_CONFIG: ±250 °/s
+  writeReg(0x1C, 0x00);  // ACCEL_CONFIG: ±2 g
+
+  servoX.setPeriodHertz(50);
+  servoY.setPeriodHertz(50);
+  servoX.attach(SERVO_X_PIN, 500, 2400);
+  servoY.attach(SERVO_Y_PIN, 500, 2400);
+  servoX.write(CENTER);
+  servoY.write(CENTER);
+
+  // Calibrate: hold still for two seconds while the gyro's drift and the
+  // starting tilt are measured.
+  Serial.println("Calibrating: keep the base still and level");
+  delay(500);
+  float sumGx = 0, sumGy = 0, sumP = 0, sumR = 0;
+  int n = 0;
+  for (int i = 0; i < 400; i++) {
+    float ax, ay, az, gx, gy;
+    if (readMpu(ax, ay, az, gx, gy)) {
+      float p, r;
+      accelAngles(ax, ay, az, p, r);
+      sumGx += gx;
+      sumGy += gy;
+      sumP += p;
+      sumR += r;
+      n++;
+    }
+    delay(5);
+  }
+  if (n > 0) {
+    gyroBiasX = sumGx / n;
+    gyroBiasY = sumGy / n;
+    pitchZero = sumP / n;
+    rollZero = sumR / n;
+  }
+  pitch = pitchZero;
+  roll = rollZero;
+  lastUs = micros();
+  Serial.println("Levelling. Tilt the base and watch the plate.");
+}
+
+unsigned long lastPrint = 0;
+
+void loop() {
+  float ax, ay, az, gx, gy;
+  if (!readMpu(ax, ay, az, gx, gy)) {
+    Serial.println("MPU-6050 read failed");
+    delay(100);
+    return;
+  }
+  const unsigned long now = micros();
+  const float dt = (now - lastUs) / 1e6f;
+  lastUs = now;
+
+  // Complementary filter: the gyro is smooth but drifts, the accelerometer is
+  // noisy but never drifts. Mix them.
+  float ap, ar;
+  accelAngles(ax, ay, az, ap, ar);
+  roll = ALPHA * (roll + (gx - gyroBiasX) * dt) + (1 - ALPHA) * ar;
+  pitch = ALPHA * (pitch + (gy - gyroBiasY) * dt) + (1 - ALPHA) * ap;
+
+  // Tilt the plate against the base's tilt.
+  const float tiltX = roll - rollZero, tiltY = pitch - pitchZero;
+  const int sx = constrain((int)roundf(CENTER + (INVERT_X ? 1 : -1) * GAIN_X * tiltX), CENTER - TRAVEL, CENTER + TRAVEL);
+  const int sy = constrain((int)roundf(CENTER + (INVERT_Y ? 1 : -1) * GAIN_Y * tiltY), CENTER - TRAVEL, CENTER + TRAVEL);
+  servoX.write(sx);
+  servoY.write(sy);
+
+  if (millis() - lastPrint >= 100) {
+    lastPrint = millis();
+    Serial.printf("pitch = %.1f, roll = %.1f, servo_x = %d, servo_y = %d\n", tiltY, tiltX, sx, sy);
+  }
+  delay(5);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Fix the MPU-6050 to the base, not the plate. The sketch measures how far the base tilts and turns the servos the other way.",
+      "Keep the base still and level for the first two seconds after power-up: the sketch measures the gyro's drift and takes the starting position as level.",
+      "If the plate tilts the wrong way on one axis, set INVERT_X or INVERT_Y. If it under- or over-corrects, change GAIN_X and GAIN_Y: the right value depends on how far each servo arm moves the plate.",
+      "The complementary filter trusts the gyro 98 % (ALPHA) for smooth, quick moves and the accelerometer 2 % to stop the gyro drifting. Lower ALPHA if it slowly wanders, raise it if it jitters.",
+      "Many cheap MPU-6050 boards are clones. If the board is not found, run the I2C scanner project: it may answer at 0x69 if its AD0 pin is high.",
+      "Servos that jitter or reset the board are short of current. Power them from their own 5 V supply and join the grounds.",
+    ],
+    sample: [
+      "Calibrating: keep the base still and level",
+      "Levelling. Tilt the base and watch the plate.",
+      "pitch = 0.0, roll = -0.0, servo_x = 90, servo_y = 90",
+      "pitch = 2.9, roll = -3.0, servo_x = 93, servo_y = 87",
+      "pitch = 5.6, roll = -5.3, servo_x = 95, servo_y = 84",
+      "pitch = 8.0, roll = -6.4, servo_x = 96, servo_y = 82",
+      "pitch = 9.9, roll = -6.0, servo_x = 96, servo_y = 80",
+      "pitch = 11.2, roll = -4.2, servo_x = 94, servo_y = 79",
+      "pitch = 11.9, roll = -1.5, servo_x = 92, servo_y = 78",
+      "pitch = 11.9, roll = 1.5, servo_x = 88, servo_y = 78",
+      "pitch = 11.2, roll = 4.2, servo_x = 86, servo_y = 79",
+      "pitch = 9.9, roll = 6.0, servo_x = 84, servo_y = 80",
+      "pitch = 8.0, roll = 6.4, servo_x = 84, servo_y = 82",
+      "pitch = 5.6, roll = 5.3, servo_x = 85, servo_y = 84",
+      "pitch = 2.9, roll = 3.0, servo_x = 87, servo_y = 87",
+      "pitch = 0.0, roll = 0.0, servo_x = 90, servo_y = 90",
+    ],
+  },
+  {
+    id: "joystick-turret", needs: [["joystick"], ["servo"]], name: "Joystick pan-tilt turret", level: "Starter", mins: 30, tags: ["games", "motion"],
+    sum: "Steer two servos with a thumb joystick, like a camera turret. Add an MPU-6050 and a click of the stick switches to tilt steering: point your hand and the turret follows.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { JX: "34", JY: "35", JB: "27", PAN: "18", TILT: "19", SDA: "21", SCL: "22" },
+      esp32s3: { JX: "1", JY: "2", JB: "4", PAN: "5", TILT: "6", SDA: "8", SCL: "9" },
+      esp32c3: { JX: "0", JY: "1", JB: "10", PAN: "4", TILT: "5", SDA: "6", SCL: "7" },
+    },
+    pins: ["3V3", "5V", "GND", "%JX%", "%JY%", "%JB%", "%PAN%", "%TILT%"], libs: ["Wire (built in)", "ESP32Servo"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Analog thumb joystick with select button", BOM.thumbJoystick],
+      [2, "Micro servos, SG90 or similar", BOM.microServo],
+      [1, "Optional: MPU-6050 board (GY-521) for tilt steering"],
+      [1, "Optional: a pan-tilt bracket, or tape the tilt servo to the pan servo's horn"],
+      [10, "Jumper wires"],
+    ],
+    wiring: [
+      ["Joystick +5V or VCC", "3V3", "3V3, not 5 V: at 5 V the stick could send more than 3.3 V into the ESP32"],
+      ["Joystick GND", "GND", ""],
+      ["Joystick VRx", "GPIO %JX%", "An ADC1 pin"],
+      ["Joystick VRy", "GPIO %JY%", "An ADC1 pin"],
+      ["Joystick SW", "GPIO %JB%", "The internal pull-up does the rest"],
+      ["Pan servo signal", "GPIO %PAN%", ""],
+      ["Tilt servo signal", "GPIO %TILT%", ""],
+      ["Both servos red", "5V", "Fine from USB for two micro servos that move gently; use a separate 5 V supply if the board resets"],
+      ["Both servos brown", "GND", ""],
+      ["Optional MPU-6050 SDA and SCL", "GPIO %SDA% and %SCL%", "VCC to 3V3, GND to GND. Found automatically at start-up"],
+    ],
+    code: R`// Joystick pan-tilt turret: push the stick and two servos follow. Click the stick
+// to switch to tilt mode, where an MPU-6050 in your hand steers instead (if one
+// is wired; without it the button does nothing).
+#include <Wire.h>
+#include <ESP32Servo.h>
+
+const int JOY_X = %JX%;     // ADC1 pins
+const int JOY_Y = %JY%;
+const int JOY_BTN = %JB%;   // the stick's push button (SW)
+const int PAN_PIN = %PAN%;
+const int TILT_PIN = %TILT%;
+const int SDA_PIN = %SDA%;  // optional MPU-6050 for tilt mode
+const int SCL_PIN = %SCL%;
+
+const float DEADZONE = 0.08f;    // ignore the stick this close to centre (fraction of full throw)
+const float MAX_SPEED = 120.0f;  // degrees per second at full throw
+const int MIN_ANGLE = 10, MAX_ANGLE = 170;
+const float TILT_GAIN = 1.5f;    // tilt mode: servo degrees per degree of hand tilt
+const uint8_t MPU = 0x68;
+
+Servo pan, tilt;
+float panAngle = 90, tiltAngle = 90;
+int centerX = 2048, centerY = 2048;
+bool hasMpu = false, tiltMode = false;
+unsigned long lastMs = 0, lastPrint = 0;
+
+int averageRead(int pin) {
+  long sum = 0;
+  for (int i = 0; i < 16; i++) sum += analogRead(pin);
+  return sum / 16;
+}
+
+// Stick position from -1 to 1, with the dead zone removed and the rest rescaled.
+float axis(int pin, int center) {
+  const int raw = averageRead(pin);
+  const float span = raw >= center ? 4095 - center : center;
+  float v = (raw - center) / (span > 0 ? span : 1);
+  if (fabsf(v) < DEADZONE) return 0;
+  v = (fabsf(v) - DEADZONE) / (1 - DEADZONE) * (v > 0 ? 1 : -1);
+  return constrain(v, -1.0f, 1.0f);
+}
+
+bool readTilt(float& pitch, float& roll) {
+  Wire.beginTransmission(MPU);
+  Wire.write(0x3B);
+  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.requestFrom(MPU, (uint8_t)6) != 6) return false;
+  const float ax = (int16_t)((Wire.read() << 8) | Wire.read()) / 16384.0f;
+  const float ay = (int16_t)((Wire.read() << 8) | Wire.read()) / 16384.0f;
+  const float az = (int16_t)((Wire.read() << 8) | Wire.read()) / 16384.0f;
+  pitch = degrees(atan2f(-ax, sqrtf(ay * ay + az * az)));
+  roll = degrees(atan2f(ay, az));
+  return true;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(JOY_BTN, INPUT_PULLUP);
+  analogSetPinAttenuation(JOY_X, ADC_11db);
+  analogSetPinAttenuation(JOY_Y, ADC_11db);
+
+  pan.setPeriodHertz(50);
+  tilt.setPeriodHertz(50);
+  pan.attach(PAN_PIN, 500, 2400);
+  tilt.attach(TILT_PIN, 500, 2400);
+  pan.write(90);
+  tilt.write(90);
+
+  // The stick rests at its centre now: remember where that is.
+  delay(300);
+  centerX = averageRead(JOY_X);
+  centerY = averageRead(JOY_Y);
+
+  Wire.begin(SDA_PIN, SCL_PIN);
+  Wire.beginTransmission(MPU);
+  hasMpu = Wire.endTransmission() == 0;
+  if (hasMpu) {
+    Wire.beginTransmission(MPU);
+    Wire.write(0x6B);  // PWR_MGMT_1: wake up
+    Wire.write(0);
+    Wire.endTransmission();
+  }
+  Serial.printf("Turret ready. MPU-6050 %s.\n", hasMpu ? "found: click the stick for tilt mode" : "not found: stick only");
+  lastMs = millis();
+}
+
+void loop() {
+  const unsigned long now = millis();
+  const float dt = (now - lastMs) / 1000.0f;
+  lastMs = now;
+
+  // Click to switch modes, only when an MPU-6050 is there to steer with.
+  if (hasMpu && digitalRead(JOY_BTN) == LOW) {
+    tiltMode = !tiltMode;
+    Serial.println(tiltMode ? "Tilt mode: steer by tilting the MPU-6050" : "Stick mode");
+    while (digitalRead(JOY_BTN) == LOW) delay(10);
+    delay(30);  // debounce the release
+  }
+
+  float pitch, roll;
+  if (tiltMode && readTilt(pitch, roll)) {
+    panAngle = 90 + roll * TILT_GAIN;
+    tiltAngle = 90 + pitch * TILT_GAIN;
+  } else {
+    // Stick mode: the further you push, the faster it turns, and it stays put when you let go.
+    panAngle += axis(JOY_X, centerX) * MAX_SPEED * dt;
+    tiltAngle += axis(JOY_Y, centerY) * MAX_SPEED * dt;
+  }
+  panAngle = constrain(panAngle, (float)MIN_ANGLE, (float)MAX_ANGLE);
+  tiltAngle = constrain(tiltAngle, (float)MIN_ANGLE, (float)MAX_ANGLE);
+  pan.write((int)roundf(panAngle));
+  tilt.write((int)roundf(tiltAngle));
+
+  if (now - lastPrint >= 150) {
+    lastPrint = now;
+    Serial.printf("pan = %d, tilt = %d\n", (int)roundf(panAngle), (int)roundf(tiltAngle));
+  }
+  delay(15);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Leave the stick alone while the board starts: it reads the resting position as the centre, so the turret does not creep.",
+      "In stick mode the turret moves faster the further you push and stays where it is when you let go. Change MAX_SPEED to taste, and DEADZONE if it drifts with the stick at rest.",
+      "Without an MPU-6050 the stick's button does nothing. With one, a click switches to tilt mode, where the servos copy the board's tilt: hold it like a remote.",
+      "Many joystick modules are labelled +5V. Power them from 3V3 anyway: the stick is just two potentiometers, and at 5 V their outputs could reach 5 V.",
+      "On the C3 the two axes use GPIO 0 and 1, the only free ADC pins once I2C and the servos are wired.",
+    ],
+    sample: [
+      "Turret ready. MPU-6050 found: click the stick for tilt mode.",
+      "pan = 102, tilt = 90",
+      "pan = 114, tilt = 90",
+      "pan = 126, tilt = 90",
+      "pan = 138, tilt = 90",
+      "pan = 150, tilt = 90",
+      "pan = 150, tilt = 81",
+      "pan = 150, tilt = 72",
+      "pan = 150, tilt = 63",
+      "pan = 150, tilt = 54",
+      "pan = 135, tilt = 60",
+      "pan = 120, tilt = 66",
+      "pan = 105, tilt = 72",
+      "Tilt mode: steer by tilting the MPU-6050",
+      "pan = 96, tilt = 84",
+      "pan = 104, tilt = 79",
+      "pan = 111, tilt = 75",
+      "pan = 103, tilt = 88",
+    ],
+  },
+  {
+    id: "visitor-counter", needs: [["pir"], ["shiftreg"], ["sevenseg"], ["buzzer"]], name: "Visitor counter", level: "Intermediate", mins: 40, tags: ["games", "sensors"],
+    sum: "A motion sensor counts people walking past and chirps for each one. A 74HC595 shift register drives a 7-segment digit with just three wires, and the count survives a power cut.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { PIR: "27", SER: "23", CLK: "18", LATCH: "19", BUZZ: "25", BTN: "0" },
+      esp32s3: { PIR: "4", SER: "5", CLK: "6", LATCH: "7", BUZZ: "10", BTN: "0" },
+      esp32c3: { PIR: "10", SER: "4", CLK: "5", LATCH: "6", BUZZ: "7", BTN: "9" },
+    },
+    pins: ["5V", "3V3", "GND", "%PIR%", "%SER%", "%CLK%", "%LATCH%", "%BUZZ%", "%BTN%"], libs: ["Preferences (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "PIR motion sensor (HC-SR501 type)", BOM.pirSensor],
+      [1, "74HC595 shift register", BOM.shiftRegister595],
+      [1, "Single 7-segment LED digit, common cathode or common anode"],
+      [8, "330 Ω resistors, one per segment"],
+      [1, "0.1 µF ceramic capacitor"],
+      [1, "Passive buzzer or piezo", BOM.piezoBuzzer],
+      [1, "Breadboard and jumper wires"],
+    ],
+    wiring: [
+      ["PIR VCC", "5V", "The HC-SR501 needs 5 V or more, but its OUT pin only goes to 3.3 V"],
+      ["PIR GND", "GND", ""],
+      ["PIR OUT", "GPIO %PIR%", ""],
+      ["74HC595 VCC (pin 16)", "3V3", "Put the 0.1 µF capacitor from pin 16 to GND, close to the chip"],
+      ["74HC595 GND (pin 8)", "GND", ""],
+      ["74HC595 SER (pin 14)", "GPIO %SER%", "Data in"],
+      ["74HC595 SRCLK (pin 11)", "GPIO %CLK%", "Shift clock"],
+      ["74HC595 RCLK (pin 12)", "GPIO %LATCH%", "Latch: shows the new pattern"],
+      ["74HC595 OE (pin 13)", "GND", "Outputs always on"],
+      ["74HC595 MR (pin 10)", "3V3", "Never clear the register"],
+      ["74HC595 Q0 to Q6 (pins 15, 1 to 6)", "Digit segments a to g", "Each through its own 330 Ω resistor"],
+      ["74HC595 Q7 (pin 7)", "Digit decimal point", "Through 330 Ω"],
+      ["Digit common pin", "GND or 3V3", "GND for common cathode, 3V3 for common anode (then set COMMON_ANODE)"],
+      ["Buzzer +", "GPIO %BUZZ%", "Buzzer - to GND"],
+    ],
+    code: R`// Visitor counter: a PIR sensor counts people walking past, a 74HC595 shift
+// register drives a 7-segment digit, and a piezo chirps for each visitor.
+// The digit shows the last digit of the count; after each visit it spells out
+// the whole number, one digit at a time. The count survives a power cut.
+#include <Preferences.h>
+
+const int PIR_PIN = %PIR%;
+const int SER_PIN = %SER%;      // 74HC595 SER (DS), pin 14
+const int CLOCK_PIN = %CLK%;    // 74HC595 SRCLK (SHCP), pin 11
+const int LATCH_PIN = %LATCH%;  // 74HC595 RCLK (STCP), pin 12
+const int BUZZER = %BUZZ%;
+const int BUTTON = %BTN%;       // the BOOT button: hold 3 s to reset the count
+
+const bool COMMON_ANODE = false;     // set true for a common-anode digit (common pin to 3V3)
+const unsigned long WARMUP_MS = 30000;  // a PIR needs about 30 s after power-up to settle
+const unsigned long REARM_MS = 2000;    // quiet time after a visit before the next one counts
+
+// Segments a to g on the 595's outputs Q0 to Q6, the decimal point on Q7.
+const uint8_t DIGITS[10] = {
+  0b00111111, 0b00000110, 0b01011011, 0b01001111, 0b01100110,
+  0b01101101, 0b01111101, 0b00000111, 0b01111111, 0b01101111,
+};
+const uint8_t DOT = 0b10000000;
+
+Preferences prefs;
+uint32_t count = 0;
+bool wasHigh = false;
+unsigned long lastLow = 0;
+
+void show(uint8_t segments) {
+  if (COMMON_ANODE) segments = ~segments;  // a common-anode segment lights when its pin is low
+  digitalWrite(LATCH_PIN, LOW);
+  shiftOut(SER_PIN, CLOCK_PIN, MSBFIRST, segments);
+  digitalWrite(LATCH_PIN, HIGH);  // the new pattern appears on the outputs all at once
+}
+
+void showCount() {
+  show(DIGITS[count % 10]);
+}
+
+// Spell the whole count, one digit at a time, with the dot on the last one.
+void spellCount() {
+  char text[12];
+  snprintf(text, sizeof(text), "%lu", (unsigned long)count);
+  for (int i = 0; text[i]; i++) {
+    uint8_t seg = DIGITS[text[i] - '0'];
+    if (!text[i + 1]) seg |= DOT;
+    show(0);
+    delay(120);
+    show(seg);
+    delay(450);
+  }
+  showCount();
+}
+
+void chirp() {
+  tone(BUZZER, 1800, 50);
+  delay(70);
+  tone(BUZZER, 2400, 50);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(PIR_PIN, INPUT);
+  pinMode(SER_PIN, OUTPUT);
+  pinMode(CLOCK_PIN, OUTPUT);
+  pinMode(LATCH_PIN, OUTPUT);
+  pinMode(BUTTON, INPUT_PULLUP);
+
+  prefs.begin("visitors", false);
+  count = prefs.getUInt("count", 0);
+  Serial.printf("Visitor counter. Warming up the PIR for %lu s.\n", WARMUP_MS / 1000);
+
+  // Warm-up: a spinning segment, so you know it is not counting yet.
+  const uint8_t spin[] = {0b00000001, 0b00000010, 0b00000100, 0b00001000, 0b00010000, 0b00100000};
+  for (unsigned long start = millis(); millis() - start < WARMUP_MS;) {
+    show(spin[(millis() / 120) % 6]);
+    delay(20);
+  }
+  showCount();
+  lastLow = millis();
+  Serial.println("Counting.");
+}
+
+void loop() {
+  const bool motion = digitalRead(PIR_PIN) == HIGH;
+  const unsigned long now = millis();
+
+  if (!motion) {
+    if (wasHigh) lastLow = now;
+    wasHigh = false;
+  } else if (!wasHigh) {
+    wasHigh = true;
+    // A new visit only counts after REARM_MS of quiet, so one person is one count.
+    if (now - lastLow >= REARM_MS) {
+      count++;
+      prefs.putUInt("count", count);
+      Serial.printf("count = %lu\n", (unsigned long)count);
+      chirp();
+      spellCount();
+    }
+  }
+
+  // Hold BOOT for three seconds to start again from zero.
+  if (digitalRead(BUTTON) == LOW) {
+    const unsigned long pressed = now;
+    while (digitalRead(BUTTON) == LOW) {
+      if (millis() - pressed > 3000) {
+        count = 0;
+        prefs.putUInt("count", 0);
+        Serial.println("Count reset.");
+        showCount();
+        while (digitalRead(BUTTON) == LOW) delay(10);
+        break;
+      }
+      delay(10);
+    }
+  }
+  delay(20);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The shift register turns three ESP32 pins into eight outputs: the sketch clocks one byte into SER with SRCLK, then pulses RCLK so all eight segments change at once.",
+      "Not sure whether your digit is common cathode or common anode? Wire the common pin to GND and run it. If everything except the right segments lights, move the common pin to 3V3 and set COMMON_ANODE to true.",
+      "Use 330 Ω per segment, not one shared resistor: an 8 lights at once and the 74HC595 can only supply about 70 mA in total.",
+      "On the HC-SR501, turn the time knob fully anticlockwise (shortest hold) and set the jumper to single trigger (L) if it has one. The sketch also waits 2 s of quiet before counting the next visitor.",
+      "A PIR needs about 30 s after power-up to settle and may trigger at random until then. The digit spins while it warms up.",
+      "Hold BOOT for three seconds to reset the count. Do not hold it while the board starts: that puts it into download mode.",
+      "On the C3 the PIR uses GPIO 10 and the shift register GPIO 4, 5 and 6; GPIO 9 is the BOOT button itself.",
+    ],
+    sample: [
+      "Visitor counter. Warming up the PIR for 30 s.",
+      "Counting.",
+      "count = 41",
+      "count = 42",
+      "count = 43",
+      "count = 44",
+      "count = 45",
+      "count = 46",
+      "count = 47",
+    ],
+  },
+  {
+    id: "auto-fan", needs: [["dcmotor"], ["transistor"], ["ldr"]], name: "Automatic fan", level: "Intermediate", mins: 30, tags: ["sensors", "motion"],
+    sum: "A small DC motor fan that speeds up as the room gets brighter, or warmer with a DS18B20. The ESP32 drives it through a transistor with smooth, silent PWM.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { MOTOR: "25", LDR: "34", OW: "4" },
+      esp32s3: { MOTOR: "5", LDR: "2", OW: "4" },
+      esp32c3: { MOTOR: "5", LDR: "3", OW: "4" },
+    },
+    pins: ["5V", "3V3", "GND", "%MOTOR%", "%LDR%", "%OW%"], libs: ["OneWire", "DallasTemperature"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Small DC motor (130 size) with a propeller or fan blade"],
+      [1, "NPN transistor, PN2222 or 2N2222", BOM.pn2222],
+      [1, "1N4001 diode", BOM.diode1n4001],
+      [1, "1 kΩ resistor, for the transistor's base"],
+      [1, "Photoresistor (light sensor)", BOM.photocell],
+      [1, "10 kΩ resistor, for the light sensor"],
+      [1, "Optional: DS18B20 temperature probe", BOM.ds18b20],
+      [1, "Optional: 4.7 kΩ resistor for the DS18B20", BOM.resistor4k7],
+      [8, "Jumper wires"],
+    ],
+    wiring: [
+      ["Motor +", "5V", "From USB or a separate 5 V supply, never from a GPIO pin"],
+      ["Motor -", "Transistor collector", ""],
+      ["Transistor emitter", "GND", "PN2222 legs, flat side facing you: emitter, base, collector"],
+      ["Transistor base, through 1 kΩ", "GPIO %MOTOR%", ""],
+      ["1N4001 across the motor", "Stripe to motor +, other end to motor -", "Catches the voltage spike when the motor switches off. Backwards it shorts the supply"],
+      ["Photoresistor", "3V3 to GPIO %LDR%", "One leg to 3V3, the other to the pin"],
+      ["10 kΩ resistor", "GPIO %LDR% to GND", "With the photoresistor, brighter light gives a higher reading"],
+      ["Optional DS18B20 data", "GPIO %OW%", "VCC to 3V3, GND to GND, 4.7 kΩ from data to 3V3. Then set SOURCE to USE_TEMPERATURE"],
+    ],
+    code: R`// Automatic fan: a small DC motor spins faster as the light gets brighter (a
+// sunny window warms a room), or as a DS18B20 reads warmer if you wire one and
+// set SOURCE to USE_TEMPERATURE. The motor runs through an NPN transistor with
+// a flyback diode; the ESP32 pin only sends the PWM signal.
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+const int MOTOR_PIN = %MOTOR%;  // to the transistor's base, through 1 kΩ
+const int LDR_PIN = %LDR%;      // ADC1 pin: photoresistor and 10 kΩ divider
+const int TEMP_PIN = %OW%;      // optional DS18B20 data line (4.7 kΩ pull-up to 3V3)
+
+enum Source { USE_LIGHT, USE_TEMPERATURE };
+const Source SOURCE = USE_LIGHT;
+
+const int PWM_HZ = 20000;  // above hearing, so the motor does not whine
+const int PWM_BITS = 8;    // duty from 0 to 255
+const int MIN_DUTY = 90;   // below this the motor hums but does not turn; tune for yours
+
+// Light mode: fan off in the dark, full speed in bright light (percent of the ADC range).
+const int LIGHT_OFF = 20, LIGHT_FULL = 80;
+// Temperature mode: fan off below TEMP_OFF, full speed at TEMP_FULL (°C).
+const float TEMP_OFF = 24.0, TEMP_FULL = 30.0;
+
+OneWire oneWire(TEMP_PIN);
+DallasTemperature probe(&oneWire);
+int lastDuty = 0;
+
+// Duty from 0 (off) to 1 (full) for a reading between the off and full points.
+float fraction(float value, float off, float full) {
+  return constrain((value - off) / (full - off), 0.0f, 1.0f);
+}
+
+void setDuty(float f) {
+  int duty = f <= 0 ? 0 : MIN_DUTY + (int)roundf(f * (255 - MIN_DUTY));
+  if (duty > 0 && lastDuty == 0) {
+    ledcWrite(MOTOR_PIN, 255);  // a short kick gets a stopped motor turning
+    delay(150);
+  }
+  ledcWrite(MOTOR_PIN, duty);
+  lastDuty = duty;
+}
+
+void setup() {
+  Serial.begin(115200);
+  ledcAttach(MOTOR_PIN, PWM_HZ, PWM_BITS);  // Arduino-ESP32 core 3.x LEDC API
+  ledcWrite(MOTOR_PIN, 0);
+  analogSetPinAttenuation(LDR_PIN, ADC_11db);
+  if (SOURCE == USE_TEMPERATURE) {
+    probe.begin();
+    if (probe.getDeviceCount() == 0) Serial.println("No DS18B20 found: check the data wire and the 4.7 kΩ pull-up");
+  }
+  Serial.println(SOURCE == USE_LIGHT ? "Auto fan: following the light" : "Auto fan: following the temperature");
+}
+
+void loop() {
+  float f;
+  if (SOURCE == USE_LIGHT) {
+    long sum = 0;
+    for (int i = 0; i < 16; i++) sum += analogRead(LDR_PIN);
+    const int light = (int)roundf(sum / 16.0f * 100.0f / 4095.0f);
+    f = fraction(light, LIGHT_OFF, LIGHT_FULL);
+    setDuty(f);
+    Serial.printf("light = %d%%, duty = %d%%\n", light, lastDuty * 100 / 255);
+  } else {
+    probe.requestTemperatures();
+    const float c = probe.getTempCByIndex(0);
+    if (c == DEVICE_DISCONNECTED_C) {
+      setDuty(1);  // fail safe: run the fan if the sensor is lost
+      Serial.println("sensor lost: fan on full");
+    } else {
+      f = fraction(c, TEMP_OFF, TEMP_FULL);
+      setDuty(f);
+      Serial.printf("temp_c = %.1f, duty = %d%%\n", c, lastDuty * 100 / 255);
+    }
+  }
+  delay(500);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Never run a motor straight from a GPIO pin. The transistor switches the motor's current from the 5 V supply; the pin only drives the transistor's base through 1 kΩ.",
+      "The diode matters: a motor is a coil, and when the transistor switches it off the coil kicks back a voltage spike. The diode, stripe towards 5 V, gives that spike somewhere harmless to go.",
+      "A PN2222 handles a small 130 motor. A bigger motor, or one that stalls, can draw more than its 600 mA limit and get hot: use a logic-level MOSFET instead.",
+      "PWM runs at 20 kHz so the motor does not whine. Below MIN_DUTY a motor hums without turning; tune it until the slowest setting still spins, and the sketch gives a stopped motor a short full-power kick.",
+      "A 9 V battery is a poor supply for this: it sags quickly under a motor's load. A USB power bank or a 5 V adapter lasts far longer.",
+      "Light mode suits a sunny window that warms a room. For a real temperature fan, wire the DS18B20 and set SOURCE to USE_TEMPERATURE; if the sensor is lost the fan runs at full speed to be safe.",
+    ],
+    sample: [
+      "Auto fan: following the light",
+      "light = 12%, duty = 0%",
+      "light = 18%, duty = 0%",
+      "light = 26%, duty = 41%",
+      "light = 35%, duty = 51%",
+      "light = 47%, duty = 64%",
+      "light = 58%, duty = 76%",
+      "light = 66%, duty = 85%",
+      "light = 74%, duty = 93%",
+      "light = 83%, duty = 100%",
+      "light = 88%, duty = 100%",
+      "light = 71%, duty = 90%",
+      "light = 52%, duty = 69%",
+      "light = 30%, duty = 46%",
+      "light = 15%, duty = 0%",
     ],
   },
   {

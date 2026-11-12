@@ -53,4 +53,11 @@ export const BOM = {
   piezoBuzzer: "https://www.adafruit.com/product/160",
   pot10k: "https://www.adafruit.com/product/562",
   tactileButtons: "https://www.adafruit.com/product/367",
+  sharpIr: "https://www.adafruit.com/product/164",
+  pirSensor: "https://www.adafruit.com/product/189",
+  shiftRegister595: "https://www.adafruit.com/product/450",
+  pn2222: "https://www.adafruit.com/product/756",
+  diode1n4001: "https://www.adafruit.com/product/755",
+  photocell: "https://www.adafruit.com/product/161",
+  thumbJoystick: "https://www.adafruit.com/product/512",
 } as const;
