@@ -49,9 +49,21 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
       {
         p.tags.includes("probeharbor") && (
           <p class="phcredit">
-            From <a href={PROBEHARBOR.url}>ProbeHarbor</a>, {PROBEHARBOR.blurb}. This board sends its readings to a
-            ProbeHarbor device; create one at <a href={PROBEHARBOR.url}>probeharbor.dev</a>. The source is in the{" "}
-            <a href={PROBEHARBOR.repo}>ProbeHarbor repository</a>.
+            {p.id === "ph-display" ? "For" : "From"} <a href={PROBEHARBOR.url}>ProbeHarbor</a>, {PROBEHARBOR.blurb}.{" "}
+            {
+              p.id === "ph-display" ? (
+                <>
+                  This board shows readings from your ProbeHarbor sensors through a read-only share link, made under
+                  Dashboard, Share at <a href={PROBEHARBOR.url}>probeharbor.dev</a>.
+                </>
+              ) : (
+                <>
+                  This board sends its readings to a ProbeHarbor device; create one at{" "}
+                  <a href={PROBEHARBOR.url}>probeharbor.dev</a>. The source is in the{" "}
+                  <a href={PROBEHARBOR.repo}>ProbeHarbor repository</a>.
+                </>
+              )
+            }
           </p>
         )
       }

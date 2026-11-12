@@ -37,6 +37,7 @@ const LIBS = {
   "WiFiManager (tzapu)": "tzapu/WiFiManager",
   ESP32Servo: "madhephaestus/ESP32Servo",
   GxEPD2: "zinggjm/GxEPD2",
+  ArduinoJson: "bblanchon/ArduinoJson",
 };
 const BOARDS = {
   esp32: "esp32dev",

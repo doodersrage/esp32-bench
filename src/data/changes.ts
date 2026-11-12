@@ -20,6 +20,7 @@ export const CHANGES: Change[] = [
     summary:
       "Nine new projects for fun: games, toys and things to show off, with a new Games and toys filter in the library.",
     items: [
+      "ProbeHarbor readout display: your ProbeHarbor sensors on a small OLED, with a flashing warning for freezing, water or lost power. It reads a share link, so it works on the free plan.",
       "No parts needed: a reaction timer on the onboard LED and BOOT button, and a Morse code decoder that learns your speed.",
       "Games: Simon with four lights and buttons, Pong on an OLED with two knobs, and electronic dice that keep score.",
       "Toys: an ultrasonic theremin, a talking plant, a NeoPixel fire and lava lamp, and an internet clock that handles daylight saving.",

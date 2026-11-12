@@ -2702,5 +2702,419 @@ void loop() {
       "moisture=60% raw=1840",
     ],
   },
+  {
+    id: "ph-display", needs: [["oled"]], name: "ProbeHarbor readout display", level: "Intermediate", mins: 20, tags: ["probeharbor", "display", "wifi"],
+    sum: "Show your ProbeHarbor sensors on a small OLED by the door: each probe's latest reading, how old it is, and a flashing warning for freezing, water or lost power.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SDA: "21", SCL: "22", BTN: "0" },
+      esp32s3: { SDA: "8", SCL: "9", BTN: "0" },
+      esp32c3: { SDA: "6", SCL: "7", BTN: "9" },
+    },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%", "%BTN%"],
+    libs: ["ArduinoJson", "Adafruit SSD1306", "Adafruit GFX Library", "WiFi (built in)", "HTTPClient (built in)"],
+    baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "0.96 inch SSD1306 OLED, I2C, address 0x3C"],
+      [4, "Jumper wires"],
+    ],
+    wiring: [
+      ["OLED VCC", "3V3", ""],
+      ["OLED GND", "GND", ""],
+      ["OLED SDA", "GPIO %SDA%", "Same I2C pins as the other OLED projects"],
+      ["OLED SCL", "GPIO %SCL%", ""],
+      ["BOOT button", "GPIO %BTN%", "Already on the board. Press it to show the next sensor"],
+    ],
+    code: R`// ProbeHarbor readout: shows your ProbeHarbor sensors on an OLED, one per page.
+// Reads a ProbeHarbor share link (read-only, works on the free plan) once a minute.
+// Libraries: ArduinoJson, Adafruit SSD1306, Adafruit GFX.
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <ArduinoJson.h>
+#include <time.h>
+
+// ---- Your settings ----
+const char* WIFI_SSID = "your-wifi";
+const char* WIFI_PASS = "your-password";
+// ProbeHarbor: Dashboard, Share, create a live link, copy its readings address.
+const char* SHARE_URL = "https://probeharbor.dev/api/share/YOUR_SHARE_TOKEN/readings";
+const unsigned REFRESH_SECONDS = 60;  // ProbeHarbor allows 60 requests a minute per link
+const unsigned PAGE_SECONDS = 5;      // how long each sensor stays on screen
+const float FREEZE_F = 35.0;          // temperatures at or below this flash a warning
+const unsigned STALE_MINUTES = 30;    // readings older than this are marked stale
+
+// ---- Pins ----
+const int SDA_PIN = %SDA%;
+const int SCL_PIN = %SCL%;
+const int BUTTON = %BTN%;  // the BOOT button: next sensor
+
+// Root certificates for probeharbor.dev: Google Trust Services R1 and R4, and
+// Let's Encrypt ISRG X1 and X2. Cloudflare issues the site's certificate from one of these.
+const char* ROOT_CAS = R"PEM(
+-----BEGIN CERTIFICATE-----
+MIIFVzCCAz+gAwIBAgINAgPlk28xsBNJiGuiFzANBgkqhkiG9w0BAQwFADBHMQsw
+CQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEU
+MBIGA1UEAxMLR1RTIFJvb3QgUjEwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAw
+MDAwWjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZp
+Y2VzIExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjEwggIiMA0GCSqGSIb3DQEBAQUA
+A4ICDwAwggIKAoICAQC2EQKLHuOhd5s73L+UPreVp0A8of2C+X0yBoJx9vaMf/vo
+27xqLpeXo4xL+Sv2sfnOhB2x+cWX3u+58qPpvBKJXqeqUqv4IyfLpLGcY9vXmX7w
+Cl7raKb0xlpHDU0QM+NOsROjyBhsS+z8CZDfnWQpJSMHobTSPS5g4M/SCYe7zUjw
+TcLCeoiKu7rPWRnWr4+wB7CeMfGCwcDfLqZtbBkOtdh+JhpFAz2weaSUKK0Pfybl
+qAj+lug8aJRT7oM6iCsVlgmy4HqMLnXWnOunVmSPlk9orj2XwoSPwLxAwAtcvfaH
+szVsrBhQf4TgTM2S0yDpM7xSma8ytSmzJSq0SPly4cpk9+aCEI3oncKKiPo4Zor8
+Y/kB+Xj9e1x3+naH+uzfsQ55lVe0vSbv1gHR6xYKu44LtcXFilWr06zqkUspzBmk
+MiVOKvFlRNACzqrOSbTqn3yDsEB750Orp2yjj32JgfpMpf/VjsPOS+C12LOORc92
+wO1AK/1TD7Cn1TsNsYqiA94xrcx36m97PtbfkSIS5r762DL8EGMUUXLeXdYWk70p
+aDPvOmbsB4om3xPXV2V4J95eSRQAogB/mqghtqmxlbCluQ0WEdrHbEg8QOB+DVrN
+VjzRlwW5y0vtOUucxD/SVRNuJLDWcfr0wbrM7Rv1/oFB2ACYPTrIrnqYNxgFlQID
+AQABo0IwQDAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E
+FgQU5K8rJnEaK0gnhS9SZizv8IkTcT4wDQYJKoZIhvcNAQEMBQADggIBAJ+qQibb
+C5u+/x6Wki4+omVKapi6Ist9wTrYggoGxval3sBOh2Z5ofmmWJyq+bXmYOfg6LEe
+QkEzCzc9zolwFcq1JKjPa7XSQCGYzyI0zzvFIoTgxQ6KfF2I5DUkzps+GlQebtuy
+h6f88/qBVRRiClmpIgUxPoLW7ttXNLwzldMXG+gnoot7TiYaelpkttGsN/H9oPM4
+7HLwEXWdyzRSjeZ2axfG34arJ45JK3VmgRAhpuo+9K4l/3wV3s6MJT/KYnAK9y8J
+ZgfIPxz88NtFMN9iiMG1D53Dn0reWVlHxYciNuaCp+0KueIHoI17eko8cdLiA6Ef
+MgfdG+RCzgwARWGAtQsgWSl4vflVy2PFPEz0tv/bal8xa5meLMFrUKTX5hgUvYU/
+Z6tGn6D/Qqc6f1zLXbBwHSs09dR2CQzreExZBfMzQsNhFRAbd03OIozUhfJFfbdT
+6u9AWpQKXCBfTkBdYiJ23//OYb2MI3jSNwLgjt7RETeJ9r/tSQdirpLsQBqvFAnZ
+0E6yove+7u7Y/9waLd64NnHi/Hm3lCXRSHNboTXns5lndcEZOitHTtNCjv0xyBZm
+2tIMPNuzjsmhDYAPexZ3FL//2wmUspO8IFgV6dtxQ/PeEMMA3KgqlbbC1j+Qa3bb
+bP6MvPJwNQzcmRk13NfIRmPVNnGuV/u3gm3c
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD
+VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEUMBIG
+A1UEAxMLR1RTIFJvb3QgUjQwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAwMDAw
+WjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2Vz
+IExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjQwdjAQBgcqhkjOPQIBBgUrgQQAIgNi
+AATzdHOnaItgrkO4NcWBMHtLSZ37wWHO5t5GvWvVYRg1rkDdc/eJkTBa6zzuhXyi
+QHY7qca4R9gq55KRanPpsXI5nymfopjTX15YhmUPoYRlBtHci8nHc8iMai/lxKvR
+HYqjQjBAMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW
+BBSATNbrdP9JNqPV2Py1PsVq8JQdjDAKBggqhkjOPQQDAwNpADBmAjEA6ED/g94D
+9J+uHXqnLrmvT/aDHQ4thQEd0dlq7A/Cr8deVl5c1RxYIigL9zC2L7F8AjEA8GE8
+p/SgguMh1YQdc4acLa/KNJvxn7kjNuK8YAOdgLOaVsjh4rsUecrNIdSUtUlD
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICGzCCAaGgAwIBAgIQQdKd0XLq7qeAwSxs6S+HUjAKBggqhkjOPQQDAzBPMQsw
+CQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJuZXQgU2VjdXJpdHkgUmVzZWFyY2gg
+R3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBYMjAeFw0yMDA5MDQwMDAwMDBaFw00
+MDA5MTcxNjAwMDBaME8xCzAJBgNVBAYTAlVTMSkwJwYDVQQKEyBJbnRlcm5ldCBT
+ZWN1cml0eSBSZXNlYXJjaCBHcm91cDEVMBMGA1UEAxMMSVNSRyBSb290IFgyMHYw
+EAYHKoZIzj0CAQYFK4EEACIDYgAEzZvVn4CDCuwJSvMWSj5cz3es3mcFDR0HttwW
++1qLFNvicWDEukWVEYmO6gbf9yoWHKS5xcUy4APgHoIYOIvXRdgKam7mAHf7AlF9
+ItgKbppbd9/w+kHsOdx1ymgHDB/qo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0T
+AQH/BAUwAwEB/zAdBgNVHQ4EFgQUfEKWrt5LSDv6kviejM9ti6lyN5UwCgYIKoZI
+zj0EAwMDaAAwZQIwe3lORlCEwkSHRhtFcP9Ymd70/aTSVaYgLXTWNLxBo1BfASdW
+tL4ndQavEi51mI38AjEAi/V3bNTIZargCyzuFJ0nN6T5U6VR5CmD1/iQMVtCnwr1
+/q4AaOeMSQ+2b1tbFfLn
+-----END CERTIFICATE-----
+)PEM";
+
+Adafruit_SSD1306 oled(128, 64, &Wire, -1);
+
+struct Reading {
+  char device[24];
+  char label[24];
+  char kind[14];
+  char unit[10];
+  bool hasNum, hasBool;
+  float num;
+  bool flag;
+  time_t at;
+};
+const int MAX_READINGS = 16;
+Reading readings[MAX_READINGS];
+int count = 0, page = 0;
+char status[40] = "Starting";
+unsigned long lastFetch = 0, lastPage = 0, retryAfterMs = 0;
+
+// Days since 1970-01-01 for a civil date (Howard Hinnant's algorithm), so we can
+// turn "2026-11-12T15:50:44Z" into a UTC timestamp without timegm().
+long daysFromCivil(int y, unsigned m, unsigned d) {
+  y -= m <= 2;
+  const long era = (y >= 0 ? y : y - 399) / 400;
+  const unsigned yoe = (unsigned)(y - era * 400);
+  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  return era * 146097 + (long)doe - 719468;
+}
+
+time_t parseTime(const char* s) {
+  int Y, M, D, h, m, sec;
+  if (!s || sscanf(s, "%4d-%2d-%2d%*c%2d:%2d:%2d", &Y, &M, &D, &h, &m, &sec) != 6) return 0;
+  time_t t = (time_t)daysFromCivil(Y, M, D) * 86400 + h * 3600 + m * 60 + sec;
+  // Optional offset after the seconds: Z, +HH, +HH:MM, -HHMM ...
+  const char* p = s + 19;
+  while (*p == '.' || isdigit((unsigned char)*p)) p++;
+  if (*p == '+' || *p == '-') {
+    int oh = 0, om = 0;
+    sscanf(p + 1, "%2d%*[:]%2d", &oh, &om);
+    if (om == 0) sscanf(p + 1, "%2d%2d", &oh, &om);
+    const long off = oh * 3600L + om * 60L;
+    t += (*p == '+') ? -off : off;
+  }
+  return t;
+}
+
+void copyText(char* to, size_t size, const char* from) {
+  snprintf(to, size, "%s", from ? from : "");
+}
+
+// The OLED's font has no ° or µ: draw ° with the font's degree sign, spell the rest in ASCII.
+void printUnit(const char* unit) {
+  for (const char* p = unit; *p; p++) {
+    if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB0) { oled.write(248); p++; }      // °
+    else if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB5) { oled.write('u'); p++; }  // µ
+    else if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB3) { oled.write('3'); p++; }  // ³
+    else if ((uint8_t)p[0] < 0x80) oled.write(p[0]);
+  }
+}
+
+const char* boolWord(const Reading& r) {
+  if (!strcmp(r.kind, "door")) return r.flag ? "OPEN" : "CLOSED";
+  if (!strcmp(r.kind, "power")) return r.flag ? "ON" : "OFF";
+  if (!strcmp(r.kind, "flood")) return r.flag ? "WET" : "DRY";
+  if (!strcmp(r.kind, "motion")) return r.flag ? "MOTION" : "CLEAR";
+  return r.flag ? "YES" : "NO";
+}
+
+// The things ProbeHarbor exists to catch: freezing, water, lost power.
+bool alarming(const Reading& r) {
+  if (r.hasNum && !strcmp(r.kind, "temperature")) {
+    const bool celsius = strstr(r.unit, "C") != nullptr;
+    return r.num <= (celsius ? (FREEZE_F - 32) * 5 / 9 : FREEZE_F);
+  }
+  if (r.hasBool && !strcmp(r.kind, "flood")) return r.flag;
+  if (r.hasBool && !strcmp(r.kind, "power")) return !r.flag;
+  return false;
+}
+
+long ageMinutes(const Reading& r) {
+  const time_t now = time(nullptr);
+  if (now < 1700000000 || r.at == 0) return -1;  // clock not set yet
+  return (long)(now - r.at) / 60;
+}
+
+void fetchReadings() {
+  WiFiClientSecure tls;
+  tls.setCACert(ROOT_CAS);
+  HTTPClient http;
+  http.useHTTP10(true);  // a plain body, so ArduinoJson can read it as it arrives
+  const char* keep[] = {"Retry-After"};
+  http.collectHeaders(keep, 1);
+  if (!http.begin(tls, SHARE_URL)) {
+    copyText(status, sizeof(status), "Bad SHARE_URL");
+    return;
+  }
+  const int code = http.GET();
+  if (code == 200) {
+    JsonDocument filter;
+    JsonObject f = filter["readings"].add<JsonObject>();
+    for (const char* k : {"device", "label", "kind", "unit", "value_num", "value_bool", "recorded_at"}) f[k] = true;
+    JsonDocument doc;
+    const DeserializationError err = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
+    if (err) {
+      snprintf(status, sizeof(status), "Bad reply: %s", err.c_str());
+    } else {
+      count = 0;
+      for (JsonObject r : doc["readings"].as<JsonArray>()) {
+        if (count == MAX_READINGS) break;
+        Reading& x = readings[count++];
+        copyText(x.device, sizeof(x.device), r["device"] | "");
+        copyText(x.label, sizeof(x.label), r["label"] | "");
+        copyText(x.kind, sizeof(x.kind), r["kind"] | "generic");
+        copyText(x.unit, sizeof(x.unit), r["unit"] | "");
+        x.hasNum = r["value_num"].is<float>();
+        x.num = r["value_num"] | 0.0f;
+        x.hasBool = r["value_bool"].is<bool>();
+        x.flag = r["value_bool"] | false;
+        x.at = parseTime(r["recorded_at"] | "");
+      }
+      snprintf(status, sizeof(status), "%d sensors", count);
+      if (page >= count) page = 0;
+      for (int i = 0; i < count; i++) {
+        const Reading& r = readings[i];
+        // "Garage: Freezer_probe = 4.2 °F (at 15:50 UTC)": one name per sensor, so the bench plots each one.
+        char name[sizeof(r.label)];
+        copyText(name, sizeof(name), r.label);
+        for (char* c = name; *c; c++) if (!isalnum((unsigned char)*c)) *c = '_';
+        Serial.printf("%s: %s = ", r.device, name);
+        if (r.hasNum) Serial.printf("%.1f %s", r.num, r.unit);
+        else if (r.hasBool) Serial.print(boolWord(r));
+        else Serial.print("no value");
+        if (r.at) {
+          struct tm t;
+          gmtime_r(&r.at, &t);
+          Serial.printf(" (at %02d:%02d UTC)", t.tm_hour, t.tm_min);
+        }
+        Serial.println();
+        if (alarming(r)) Serial.printf("ALERT %s: %s\n", r.device, r.label);
+      }
+    }
+  } else if (code == 404) {
+    copyText(status, sizeof(status), "Link invalid or expired");
+  } else if (code == 429) {
+    retryAfterMs = 1000UL * (unsigned long)max(60L, http.header("Retry-After").toInt());
+    copyText(status, sizeof(status), "Too many requests");
+  } else {
+    snprintf(status, sizeof(status), "HTTP %d", code);
+  }
+  if (code != 200) Serial.printf("ProbeHarbor: %s\n", status);
+  http.end();
+}
+
+void draw() {
+  oled.clearDisplay();
+  oled.setTextColor(SSD1306_WHITE);
+  oled.setTextSize(1);
+  oled.setCursor(0, 0);
+  if (count == 0) {
+    oled.println("ProbeHarbor");
+    oled.println();
+    oled.println(status);
+    oled.display();
+    return;
+  }
+  const Reading& r = readings[page];
+  const bool alarm = alarming(r);
+  // Flash alarming readings by inverting the screen every other second.
+  oled.invertDisplay(alarm && (millis() / 1000) % 2);
+  oled.printf("%.21s\n%.21s\n", r.device, r.label);
+  oled.setTextSize(r.hasNum ? 3 : 2);
+  oled.setCursor(0, 24);
+  if (r.hasNum) {
+    oled.print(r.num, fabs(r.num) < 100 ? 1 : 0);
+    oled.setTextSize(1);
+    oled.print(' ');
+    printUnit(r.unit);
+  } else if (r.hasBool) {
+    oled.print(boolWord(r));
+  } else {
+    oled.print("--");
+  }
+  oled.setTextSize(1);
+  oled.setCursor(0, 56);
+  const long age = ageMinutes(r);
+  if (age >= (long)STALE_MINUTES) oled.printf("STALE %ldm", age);
+  else if (age >= 0) oled.printf("%ldm ago", age);
+  if (alarm) oled.print(strcmp(r.kind, "temperature") ? "  ALERT" : "  FREEZE");
+  oled.setCursor(104, 56);
+  oled.printf("%d/%d", page + 1, count);
+  oled.display();
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUTTON, INPUT_PULLUP);
+  Wire.begin(SDA_PIN, SCL_PIN);
+  if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) Serial.println("OLED not found at 0x3C: check SDA, SCL and power");
+  oled.cp437(true);
+  copyText(status, sizeof(status), "Joining Wi-Fi");
+  draw();
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) delay(250);
+  Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
+  configTime(0, 0, "pool.ntp.org", "time.google.com");  // UTC, for "minutes ago"
+  copyText(status, sizeof(status), "Fetching readings");
+  draw();
+}
+
+void loop() {
+  const unsigned long now = millis();
+  const unsigned long every = retryAfterMs ? retryAfterMs : REFRESH_SECONDS * 1000UL;
+  if (lastFetch == 0 || now - lastFetch >= every) {
+    lastFetch = now ? now : 1;
+    retryAfterMs = 0;
+    if (WiFi.status() == WL_CONNECTED) fetchReadings();
+    else {
+      copyText(status, sizeof(status), "Wi-Fi lost, retrying");
+      WiFi.reconnect();
+    }
+  }
+  if (digitalRead(BUTTON) == LOW) {  // next sensor
+    page = count ? (page + 1) % count : 0;
+    lastPage = now;
+    while (digitalRead(BUTTON) == LOW) delay(10);
+  }
+  if (count && now - lastPage >= PAGE_SECONDS * 1000UL) {
+    page = (page + 1) % count;
+    lastPage = now;
+  }
+  draw();
+  delay(50);
+}
+`,
+    notes: [
+      "It reads a ProbeHarbor share link, which is read-only and works on the free plan. In ProbeHarbor, open Dashboard, Share, create a live link and paste its readings address into SHARE_URL. The display can only read; it never holds a key that can change your account.",
+      "Use a live link, not a history link: a history link also sends seven days of chart points, which is far more than this board needs to download every minute.",
+      "It refreshes once a minute. ProbeHarbor allows 60 requests a minute per link, and if it ever answers 429 the sketch waits as long as the server asks.",
+      "The connection is checked against the root certificates of Google Trust Services and Let's Encrypt, which Cloudflare uses for probeharbor.dev. If ProbeHarbor ever moves to another certificate authority, the display shows an HTTP error and needs that root added.",
+      "Temperatures at or below FREEZE_F (35 °F, or the same in °C when the sensor reports Celsius), water on a flood sensor and lost power flash the screen. Readings older than STALE_MINUTES are marked stale, which usually means the probe has gone quiet.",
+      "Door, power, flood and motion sensors show OPEN or CLOSED, ON or OFF, WET or DRY and MOTION or CLEAR, as on the ProbeHarbor dashboard.",
+    ],
+    open: ["Not tested on hardware or against a real ProbeHarbor share link yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    sample: [
+      "wifi ok 192.168.1.73",
+      "Garage: Freezer_probe = 4.2 °F (at 15:49 UTC)",
+      "Garage: Garage_air = 33.8 °F (at 15:49 UTC)",
+      "ALERT Garage: Garage air",
+      "Garage: Door = CLOSED (at 15:44 UTC)",
+      "Crawlspace: Pipe_probe = 41.5 °F (at 15:48 UTC)",
+      "Crawlspace: Leak_pads = DRY (at 15:48 UTC)",
+      "Garage: Freezer_probe = 4.1 °F (at 15:51 UTC)",
+      "Garage: Garage_air = 34.4 °F (at 15:51 UTC)",
+      "ALERT Garage: Garage air",
+      "Garage: Door = CLOSED (at 15:44 UTC)",
+      "Crawlspace: Pipe_probe = 41.3 °F (at 15:50 UTC)",
+      "Crawlspace: Leak_pads = DRY (at 15:50 UTC)",
+      "Garage: Freezer_probe = 4.3 °F (at 15:51 UTC)",
+      "Garage: Garage_air = 35.1 °F (at 15:51 UTC)",
+      "Garage: Door = OPEN (at 15:52 UTC)",
+      "Crawlspace: Pipe_probe = 41.2 °F (at 15:50 UTC)",
+      "Crawlspace: Leak_pads = DRY (at 15:50 UTC)",
+      "Garage: Freezer_probe = 4.2 °F (at 15:53 UTC)",
+      "Garage: Garage_air = 35.9 °F (at 15:53 UTC)",
+      "Garage: Door = CLOSED (at 15:53 UTC)",
+      "Crawlspace: Pipe_probe = 41.0 °F (at 15:52 UTC)",
+      "Crawlspace: Leak_pads = DRY (at 15:52 UTC)",
+    ],
+  },
   ...PROBEHARBOR_SKETCHES,
 ];
