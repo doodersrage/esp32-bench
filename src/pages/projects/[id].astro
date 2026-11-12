@@ -7,6 +7,7 @@ import WiringDiagram from "../../components/WiringDiagram.astro";
 import Flasher from "../../components/Flasher.astro";
 import FirmwareLibrary from "../../components/FirmwareLibrary.astro";
 import ProbeSetup from "../../components/ProbeSetup.astro";
+import SettingsForm from "../../components/SettingsForm.astro";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
 import { boardById } from "../../data/boards";
 import { link } from "../../lib/paths";
@@ -239,11 +240,13 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
             {p.flash.after.map((step) => <li>{step}</li>)}
           </ol>
           {p.setup === "probeharbor" && <ProbeSetup />}
+          {p.settings && <SettingsForm settings={p.settings} project={p.id} baud={p.baud} />}
           {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Firmware source on GitHub</a></p>}
         </div>
       ) : (
         <div class="stack">
           {p.code !== undefined && <FirmwareLibrary projectId={p.id} boards={boards.map((b) => ({ id: b.id, name: b.name }))} />}
+          {p.settings && <SettingsForm settings={p.settings} project={p.id} baud={p.baud} />}
           <div>
             <h2 class="h3 mb">Load it</h2>
             <ol class="steps">
