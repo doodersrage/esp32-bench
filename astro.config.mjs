@@ -5,5 +5,5 @@ import { defineConfig } from "astro/config";
 // To publish under a sub-path (for example a GitHub Pages project site), also
 // set `base: "/esp32-bench"`. Internal links go through src/lib/paths.ts.
 export default defineConfig({
-  site: "https://esp32-bench.doodersrage.workers.dev",
+  site: "https://esp32bench.dev",
 });
