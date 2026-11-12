@@ -33,7 +33,7 @@ const summary = p.sum.length > 150 ? `${p.sum.slice(0, p.sum.lastIndexOf(" ", 14
 const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`;
 ---
 
-<Base title={`${p.name}: ESP32 project`} description={description} current="library">
+<Base title={`${p.name}: ESP32 project`} description={description} current="library" image={`/og/projects/${p.id}.png`}>
   <section class="view">
     <a class="back" href={link("/")}>← All projects</a>
 

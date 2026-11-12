@@ -30,7 +30,7 @@ const tool = TOOL_LINKS[e.slug];
 const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.title : e.match}" means on an ESP32, and how to fix it.`;
 ---
 
-<Base title={e.title} description={description} current="errors">
+<Base title={e.title} description={description} current="errors" image={`/og/errors/${e.slug}.png`}>
   <section class="view">
     <a class="back" href={link("/errors/")}>← All errors</a>
 
