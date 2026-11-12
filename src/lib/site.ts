@@ -19,13 +19,15 @@ export const SITE = {
   turnstileSitekey: "0x4AAAAAAF-UtZoWkeF1Xe9G",
   /**
    * Comments through GitHub Discussions (giscus) in the public, code-free repo
-   * doodersrage/esp32-bench-community. Hidden until categoryId is set.
+   * doodersrage/esp32-bench-community. Hidden until enabled is true.
    */
   giscus: {
     repo: "doodersrage/esp32-bench-community",
     repoId: "R_kgDOVsLL1A",
-    category: "Comments",
-    categoryId: "",
+    category: "Announcements",
+    categoryId: "DIC_kwDOVsLL1M4DK-8y",
+    /** Turn on once the giscus GitHub App is installed on the repository. */
+    enabled: false,
   },
   themeColor: "#14231f",
   background: "#f2f5f1",

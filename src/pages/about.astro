@@ -86,7 +86,7 @@ const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
     </p>
 
     {
-      SITE.giscus.categoryId && (
+      SITE.giscus.enabled && SITE.giscus.categoryId && (
         <>
           <h2>Comments</h2>
         <p>

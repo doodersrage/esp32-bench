@@ -1,13 +1,13 @@
 ---
 // Comments through GitHub Discussions (giscus). Loads only when scrolled near,
-// follows the site's theme, and renders nothing until SITE.giscus.categoryId is set.
+// follows the site's theme, and renders nothing until SITE.giscus.enabled is true.
 import { SITE } from "../lib/site";
 
 const g = SITE.giscus;
 ---
 
 {
-  g.categoryId && (
+  g.enabled && g.categoryId && (
     <section class="stack tight band" id="discuss">
       <h2>Discussion</h2>
       <p class="lede">

@@ -134,7 +134,7 @@ Not built yet:
 ## Community
 
 - **Published build reports:** a build report whose sender ticks "Publish it" is stored as pending in the D1 database `esp32-bench-reports` (`api/migrations/`). The report email links to `api.esp32bench.dev/moderate/<id>?t=<token>`, a confirmation page whose Approve and Reject buttons post the decision, so email link scanners cannot approve anything. Only a SHA-256 of the token is stored. Approved reports come from `GET /builds?project=<id>` and appear under Community builds on the project page. Test: `cd api && node --experimental-strip-types test/builds.test.ts`.
-- **Comments:** `src/components/Comments.astro` embeds giscus on project and error pages, backed by GitHub Discussions in the public, code-free repository `doodersrage/esp32-bench-community`. It stays hidden until `SITE.giscus.categoryId` is set in `src/lib/site.ts`.
+- **Comments:** `src/components/Comments.astro` embeds giscus on project and error pages, backed by GitHub Discussions in the public, code-free repository `doodersrage/esp32-bench-community`. It stays hidden until `SITE.giscus.enabled` is set to true in `src/lib/site.ts`, which needs the giscus GitHub App installed on that repository.
 
 ## Report form
 
