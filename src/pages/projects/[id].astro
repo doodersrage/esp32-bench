@@ -6,7 +6,7 @@ import ProbeSetup from "../../components/ProbeSetup.astro";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
 import { boardById } from "../../data/boards";
 import { link } from "../../lib/paths";
-import { PROBEHARBOR, reportUrl } from "../../lib/site";
+import { PROBEHARBOR, SITE, reportUrl } from "../../lib/site";
 import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
 
 export function getStaticPaths() {
@@ -233,6 +233,12 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
       <button class="btn" type="button" id="built" data-project={p.id} data-board={boards[0].id} aria-pressed="false">Mark as built</button>
       <span class="pickresult" id="built-note" role="status"></span>
     </div>
+    <div class="stack tight band" id="community" data-builds={SITE.buildsApi} data-project={p.id}>
+      <h2>Community builds</h2>
+      <p class="lede" data-community-status>Loading build reports from people who made this.</p>
+      <ul class="builds" data-community-list hidden></ul>
+    </div>
+
     {
       buildReportUrl && (
         <p class="cap left">
@@ -248,6 +254,10 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
   .phcredit { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--ok); font-size: 0.92rem; max-width: 75ch; }
   .phcredit a { color: var(--accent); }
 </style>
+
+<script>
+  import "../../scripts/community.ts";
+</script>
 
 <script>
   import { loadBuilt, saveBuilt } from "../../scripts/progress";

@@ -340,3 +340,11 @@ p.when { font: 500 0.78rem/1 var(--mono); }
 .sresults .sresult { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); }
 .sresults .sresult:hover, .sresults .sresult:focus-visible { border-color: var(--accent); }
 .sresults .stitle { font-size: 1rem; }
+
+/* Community build reports on project pages */
+ul.builds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.build { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--panel); border: 1px solid var(--line); min-width: 0; }
+.buildhead { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.buildby { font: 400 0.8rem/1.2 var(--mono); color: var(--muted); margin-left: auto; }
+.buildnotes, .buildresult { font-size: 0.92rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+#community .lede a { color: var(--accent); }

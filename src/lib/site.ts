@@ -13,6 +13,8 @@ export const SITE = {
   ahrefsKey: "OCD7LFsMxlGOUms5cW+xFw",
   /** Backend that emails reports to the site owner (api/ in this repository) */
   reportApi: "https://api.esp32bench.dev/report",
+  /** Approved community build reports: GET ?project=<id> */
+  buildsApi: "https://api.esp32bench.dev/builds",
   /** Public Turnstile site key for the report form (widget "esp32bench.dev report form") */
   turnstileSitekey: "0x4AAAAAAF-UtZoWkeF1Xe9G",
   themeColor: "#14231f",
