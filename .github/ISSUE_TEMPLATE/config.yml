@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Look up an error
+    url: https://esp32bench.dev/errors/
+    about: The error reference covers common crash, reset and upload errors.

@@ -6,6 +6,7 @@ import ProbeSetup from "../../components/ProbeSetup.astro";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
 import { boardById } from "../../data/boards";
 import { link } from "../../lib/paths";
+import { absolute, issueUrl } from "../../lib/site";
 import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
 
 export function getStaticPaths() {
@@ -25,6 +26,7 @@ const panels = boards.map((board) => ({
 }));
 const needsLibraries = p.libs.some((l) => !/built in/.test(l));
 const hasBuyLinks = p.parts.some((x) => x[2]);
+const reportUrl = issueUrl("build-report", { project: absolute(`/projects/${p.id}/`, Astro.site), title: `Build report: ${p.name}` });
 const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
 const boardNames = boards.map((b) => b.name).join(", ");
 const summary = p.sum.length > 150 ? `${p.sum.slice(0, p.sum.lastIndexOf(" ", 147))}...` : p.sum;
@@ -210,6 +212,14 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
       <button class="btn" type="button" id="built" data-project={p.id} data-board={boards[0].id} aria-pressed="false">Mark as built</button>
       <span class="pickresult" id="built-note" role="status"></span>
     </div>
+    {
+      reportUrl && (
+        <p class="cap left">
+          Built it? <a href={reportUrl}>Send a build report</a> with your board and what the serial port printed.
+          Working reports become the "Tested on this board" entries above.
+        </p>
+      )
+    }
   </section>
 </Base>
 

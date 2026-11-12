@@ -20,3 +20,10 @@ export function absolute(path: string, site: URL | undefined): string {
   const href = link(path);
   return site ? new URL(href, site).href : href;
 }
+
+/** GitHub issue form, pre-filled. Returns "" while the repository is private. */
+export function issueUrl(template: "build-report" | "correction", fields: Record<string, string>): string {
+  if (!SITE.repo) return "";
+  const params = new URLSearchParams({ template: `${template}.yml`, ...fields });
+  return `${SITE.repo}/issues/new?${params}`;
+}

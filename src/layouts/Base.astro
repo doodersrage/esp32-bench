@@ -12,7 +12,7 @@ import sairaSemi from "@fontsource/saira-condensed/files/saira-condensed-latin-6
 import plexSans from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2?url";
 import "../styles/global.css";
 import { link } from "../lib/paths";
-import { SITE, absolute } from "../lib/site";
+import { SITE, absolute, issueUrl } from "../lib/site";
 
 type Section =
   | "library"
@@ -45,6 +45,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const sitePath = base && Astro.url.pathname.startsWith(base) ? Astro.url.pathname.slice(base.length) : Astro.url.pathname;
 const canonical = absolute(sitePath, Astro.site);
 const imageUrl = absolute(image, Astro.site);
+const correctionUrl = noindex ? "" : issueUrl("correction", { page: canonical, title: `Correction: ${title ?? SITE.name}` });
 
 const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
   ["library", "/", "Library"],
@@ -136,6 +137,7 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
           <a href={link("/changes/")}>What's new</a>
           <a href={link("/rss.xml")}>RSS feed</a>
           {SITE.repo && <a href={SITE.repo}>Source code</a>}
+          {correctionUrl && <a href={correctionUrl}>Report a mistake on this page</a>}
         </nav>
         <p>
           {SITE.name}. Pin numbers are GPIO numbers. Check your own board's pinout before powering anything. Some buy

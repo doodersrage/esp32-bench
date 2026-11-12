@@ -1,0 +1,46 @@
+name: Build report
+description: You built a project. Tell us how it went, so it can be marked as tested.
+title: "Build report: "
+labels: ["build report"]
+body:
+  - type: input
+    id: project
+    attributes:
+      label: Project
+      description: The project's address on esp32bench.dev, e.g. https://esp32bench.dev/projects/dht22/
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Did it work?
+      options:
+        - "Yes, as described"
+        - "Yes, after a change (described below)"
+        - "No"
+    validations:
+      required: true
+  - type: input
+    id: board
+    attributes:
+      label: Board
+      description: Exact board name, e.g. ESP32-DevKitC V4, ESP32-S3-DevKitC-1 N8R2, a 30-pin clone
+    validations:
+      required: true
+  - type: input
+    id: core
+    attributes:
+      label: Arduino-ESP32 core version
+      description: Tools, Board, Boards Manager, esp32 by Espressif Systems
+      placeholder: "3.3.x"
+  - type: textarea
+    id: output
+    attributes:
+      label: Serial output
+      description: Paste what the board printed. A few lines are enough.
+      render: text
+  - type: textarea
+    id: notes
+    attributes:
+      label: Changes and notes
+      description: Different pins, a library version that mattered, wiring surprises, photos.

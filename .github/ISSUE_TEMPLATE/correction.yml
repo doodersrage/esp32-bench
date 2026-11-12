@@ -1,0 +1,24 @@
+name: Correction
+description: Something on the site is wrong or unclear.
+title: "Correction: "
+labels: ["correction"]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: The address of the page, e.g. https://esp32bench.dev/boards/
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What is wrong
+      description: Quote the text or describe the pin, link or code.
+    validations:
+      required: true
+  - type: textarea
+    id: right
+    attributes:
+      label: What it should say
+      description: A datasheet link or a photo of the board helps.

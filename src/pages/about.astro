@@ -54,6 +54,13 @@ const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
       installed app opens in its own window, and pages you have opened work without a connection.
     </p>
 
+    <h2>License</h2>
+    <p>
+      The code, including every sketch on the site, is MIT licensed. The written content and data are licensed
+      <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>: reuse them with a credit and a link to
+      esp32bench.dev.
+    </p>
+
     <h2>Safety</h2>
     <p>
       Pin numbers on this site are GPIO numbers, and boards differ. Check your own board's pinout before powering
@@ -66,8 +73,9 @@ const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
         <>
           <h2>Contribute</h2>
           <p>
-            Found a wrong pin, a broken link or a bug? The source is on <a href={SITE.repo}>GitHub</a>. Issues and pull
-            requests are welcome, especially hardware test results.
+            Found a wrong pin, a broken link or a bug? Every page has a "Report a mistake on this page" link at the
+            bottom, and the source is on <a href={SITE.repo}>GitHub</a>. Built a project? Its page has a link to send a
+            build report; working reports become the hardware checks shown on that page.
           </p>
         </>
       )

@@ -125,3 +125,9 @@ Not built yet:
 - A build pipeline that compiles the starter sketches into flashable images.
 - Saving your own projects.
 - Merging sketches in a remix. It merges wiring and pin numbers only.
+
+## Contributing and license
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Build reports and corrections go through the GitHub issue forms in `.github/ISSUE_TEMPLATE/`; the site links to them with the page or project filled in once `repo` is set in `src/lib/site.ts`.
+
+Code is MIT licensed and written content is CC BY 4.0. See [LICENSE](LICENSE).
