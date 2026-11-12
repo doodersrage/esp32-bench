@@ -30,6 +30,24 @@
           "offset": 0
         }
       ]
+    },
+    {
+      "chipFamily": "ESP32-S2",
+      "parts": [
+        {
+          "path": "pin-detective-esp32s2.bin",
+          "offset": 0
+        }
+      ]
+    },
+    {
+      "chipFamily": "ESP32-C6",
+      "parts": [
+        {
+          "path": "pin-detective-esp32c6.bin",
+          "offset": 0
+        }
+      ]
     }
   ]
 }

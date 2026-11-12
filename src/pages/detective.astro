@@ -1,6 +1,13 @@
 ---
 import Base from "../layouts/Base.astro";
 import Flasher from "../components/Flasher.astro";
+import { HEADER_BOARDS } from "../data/boards";
+import { CHIPS } from "../data/chips";
+import { DETECTIVE_CHIPS } from "../lib/detective";
+
+const boards = HEADER_BOARDS.filter((b) => DETECTIVE_CHIPS.includes(b.chip));
+const chipList = DETECTIVE_CHIPS.map((c) => CHIPS[c].name);
+const families = `${chipList.slice(0, -1).join(", ")} and ${chipList.at(-1)}`;
 ---
 
 <Base
@@ -12,14 +19,18 @@ import Flasher from "../components/Flasher.astro";
     <h1 class="h2">Pin detective</h1>
     <p class="lede">
       Find out which pad is which. Flash the helper firmware, then touch a jumper wire from GND to any header pad and
-      watch it light up here. Useful for clone boards with a wrong or missing silkscreen.
+      watch it light up here. Useful for clone boards with a wrong or missing silkscreen. Works on the {families},
+      including the Seeed XIAO ESP32C3 and ESP32S3.
     </p>
 
     <div class="stack tight">
       <h2 class="h3">1. Flash the helper</h2>
-      <Flasher manifest="/firmware/pin-detective/manifest.json" version="0.1.0" />
+      <Flasher manifest="/firmware/pin-detective/manifest.json" version="0.1.0" families={families} />
       <p class="cap left">
-        This replaces whatever firmware is on the board. Flash your own project again when you are done.
+        This replaces whatever firmware is on the board. Flash your own project again when you are done. The ESP32,
+        S3 and C3 images use the same build settings as ProbeHarbor's probe firmware, which has run on all three
+        chips. The S2 and C6 images are new and have not been run on hardware yet. On boards with two USB ports,
+        either port works.
       </p>
     </div>
 
@@ -27,8 +38,16 @@ import Flasher from "../components/Flasher.astro";
       <h2 class="h3">2. Connect and touch pads</h2>
       <div class="row">
         <button class="btn go" type="button" id="d-connect">Connect board</button>
+        <label class="swlabel" for="d-layout">Pinout</label>
+        <select id="d-layout">
+          {boards.map((b) => <option value={b.id} data-chip={b.chip}>{b.name}</option>)}
+        </select>
         <span class="pickresult" id="d-status" role="status"></span>
       </div>
+      <p class="cap left">
+        The firmware reports the chip, not the board. If your board shares a chip with another one here, such as a
+        XIAO ESP32S3 and an ESP32-S3-DevKitC-1, pick its pinout from the list.
+      </p>
     </div>
 
     <div class="cols">
@@ -71,6 +90,10 @@ import Flasher from "../components/Flasher.astro";
     </div>
   </section>
 </Base>
+
+<style>
+  #d-layout { padding: 7px 8px; border: 1px solid var(--line); background: var(--panel); border-radius: 2px; min-width: 0; max-width: 100%; }
+</style>
 
 <script>
   import "../scripts/detective.ts";
