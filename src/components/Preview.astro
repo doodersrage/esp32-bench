@@ -1,0 +1,91 @@
+---
+// "Try it": an in-browser simulation of what a project does. The preview's code
+// is imported only after the page has loaded and the section is near the screen,
+// and the section reserves its height so the page does not move.
+import { PREVIEWS } from "../data/previews";
+
+interface Props {
+  id: string;
+}
+
+const { id } = Astro.props;
+const info = PREVIEWS[id];
+---
+
+{
+  info && (
+    <section class="tryit" id="try-it" data-preview={id} aria-labelledby="try-it-title">
+      <div class="tryhead">
+        <h2 id="try-it-title" class="h3">Try it in your browser</h2>
+        <span class="tag">Simulation</span>
+        {info.sound && (
+          <label class="trysound">
+            <input type="checkbox" data-sound checked /> Sound
+          </label>
+        )}
+      </div>
+      <p class="tryhint">{info.hint}</p>
+      <div class="tryhost" data-host style={`min-height:${info.height}px`}>
+        <button class="btn" type="button" data-start>
+          Start the simulation
+        </button>
+      </div>
+      <p class="trystatus" data-status aria-live="polite" />
+      <p class="trynote">
+        A simulation running the sketch's logic in this page. Nothing here talks to a board, and real parts behave a
+        little differently.
+      </p>
+    </section>
+  )
+}
+
+<style>
+  .tryit { display: flex; flex-direction: column; gap: 8px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--pad); min-width: 0; }
+  .tryhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .tryhead h2 { margin: 0; }
+  .trysound { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: 500 0.78rem/1 var(--mono); color: var(--muted); }
+  .tryhint { font-size: 0.92rem; max-width: 70ch; }
+  .tryhost { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 10px; min-width: 0; }
+  .trystatus { font: 500 0.85rem/1.4 var(--mono); min-height: 1.4em; overflow-wrap: anywhere; }
+  .trynote { font: 400 0.72rem/1.4 var(--mono); color: var(--muted); }
+
+  /* Shared pieces the preview modules build */
+  .tryhost :global(.oled) { width: min(100%, 400px); height: auto; image-rendering: pixelated; background: #060a0e; border: 8px solid #1d2a2e; border-radius: 4px; box-sizing: border-box; touch-action: none; }
+  .tryhost :global(.ledstrip) { width: 100%; max-width: 720px; height: auto; border-radius: 3px; }
+  .tryhost :global(.tryrow) { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .tryhost :global(.tryrow label) { font: 500 0.78rem/1 var(--mono); color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .tryhost :global(.readout) { font: 500 0.85rem/1.4 var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .tryhost :global(.stage) { width: min(100%, 420px); height: auto; display: block; touch-action: none; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); }
+  .tryhost :global(.stage:focus-visible), .tryhost :global(.oled:focus-visible) { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* Simon */
+  .tryhost :global(.simonboard) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; width: min(100%, 300px); aspect-ratio: 1; }
+  .tryhost :global(.simonpad) { border: 0; border-radius: 12px; cursor: pointer; transition: filter 0.08s; touch-action: manipulation; }
+  .tryhost :global(.simonpad.lit) { filter: brightness(1.15); box-shadow: 0 0 18px 2px rgba(255, 255, 255, 0.35); }
+  .tryhost :global(.simonpad:focus-visible) { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+  /* Reaction timer */
+  .tryhost :global(.rstage) { display: flex; align-items: center; gap: 28px; padding: 18px 10px; }
+  .tryhost :global(.rled) { width: 64px; height: 64px; border-radius: 50%; background: #2a3a34; border: 4px solid #1b2622; }
+  .tryhost :global(.rled.on) { background: #3ddc6e; box-shadow: 0 0 28px 6px rgba(61, 220, 110, 0.6); }
+  .tryhost :global(.rbutton) { min-width: 120px; min-height: 64px; font-size: 1.1rem; touch-action: manipulation; }
+
+  /* Morse */
+  .tryhost :global(.morsetext) { display: block; width: 100%; min-height: 3.2em; padding: 10px 12px; background: var(--term-bg); color: var(--term-ink); font: 500 1.4rem/1.3 var(--mono); letter-spacing: 0.08em; overflow-wrap: anywhere; border-radius: 2px; }
+  .tryhost :global(.morsekey) { min-width: 140px; min-height: 64px; font-size: 1.1rem; touch-action: none; user-select: none; }
+  .tryhost :global(.morsekey.down) { filter: brightness(0.85); transform: translateY(1px); }
+  .tryhost :global(.morsesym) { min-width: 7ch; font-size: 1.2rem; }
+
+  /* 7-segment digit */
+  .tryhost :global(.segstage) { padding: 12px 18px; background: #0d0f10; border-radius: 4px; }
+  .tryhost :global(.sevenseg) { width: 96px; height: 134px; display: block; }
+  .tryhost :global(.sevenseg path), .tryhost :global(.sevenseg circle) { fill: #3a1512; transition: fill 0.05s; }
+  .tryhost :global(.sevenseg .on) { fill: #ff4a3a; }
+</style>
+
+<script>
+  import { mountPreview } from "../scripts/preview-loader";
+
+  const section = document.querySelector<HTMLElement>("#try-it");
+  if (section) mountPreview(section);
+</script>
