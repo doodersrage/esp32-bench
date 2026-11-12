@@ -58,6 +58,7 @@ jobs:
           node --experimental-strip-types test/report.test.ts
           node --experimental-strip-types test/turnstile.test.ts
           node --experimental-strip-types test/builds.test.ts
+          node --experimental-strip-types test/oidc.test.ts
 
       - name: Deploy to Cloudflare
         env:
