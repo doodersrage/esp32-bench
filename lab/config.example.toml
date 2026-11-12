@@ -1,0 +1,45 @@
+# ESP32 Bench lab runner configuration. Copy to config.toml and edit.
+# config.toml holds the lab token and your Wi-Fi password: keep it private
+# (chmod 600) and never commit it.
+
+api_url = "https://api.esp32bench.dev"
+firmware_url = "https://fw.esp32bench.dev"
+site_url = "https://esp32bench.dev"
+
+# Shown nowhere public; only in the database, to tell rigs apart.
+runner = "garage-pi"
+
+# Generate with: openssl rand -base64 32   (see README for the Worker side)
+lab_token = ""
+
+# Where downloaded firmware is cached (reused when unchanged).
+cache_dir = "~/.cache/esp32-bench-lab"
+log_file = "~/esp32-bench-lab/runs.log"
+
+# Settings sent over USB to projects that ask for them (Wi-Fi projects).
+# Keys match the project's settings form on the site. Leave a key out to skip it.
+[settings]
+wifi_ssid = "lab-network"
+wifi_pass = "change-me"
+# share_url = "https://probeharbor.dev/api/share/.../readings"
+# ingest_url = "https://probeharbor.dev/api/ingest/..."
+
+# Projects never to run on this rig (e.g. ones that need parts you have not wired).
+skip = ["esp32-cam-stream"]
+
+# The boards plugged into this computer. Use the by-id path so the port does not
+# change between boots: ls -l /dev/serial/by-id/
+[[boards]]
+label = "esp32-devkit"
+port = "/dev/serial/by-id/usb-Silicon_Labs_CP2102N_USB_to_UART_Bridge_Controller_XXXX-if00-port0"
+board = "esp32"
+
+[[boards]]
+label = "c3-devkit"
+port = "/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_XXXX-if00"
+board = "esp32c3"
+
+[[boards]]
+label = "s3-devkit"
+port = "/dev/serial/by-id/usb-Silicon_Labs_CP2102N_USB_to_UART_Bridge_Controller_YYYY-if00-port0"
+board = "esp32s3"

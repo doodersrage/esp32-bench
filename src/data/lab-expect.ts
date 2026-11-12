@@ -1,0 +1,116 @@
+// What the hardware lab expects each project to print. The lab (lab/runner.py)
+// flashes a project's prebuilt firmware onto a bare board, captures the serial
+// output for `seconds`, and passes the project when every pattern matches.
+//
+// Patterns are regular expression sources matched against the whole capture
+// (multiline). They are chosen so a board with NO parts attached still passes
+// when the firmware boots and the sketch runs: where a sketch prints a
+// "not found" line without its sensor, the pattern accepts that line too.
+// `needs` says what a full check would require beyond a bare board.
+
+export type LabNeeds = "none" | "wifi" | "parts";
+
+export interface LabExpect {
+  /** Regex sources that must all match the captured output */
+  patterns: string[];
+  /** How long to capture after the board resets */
+  seconds: number;
+  /** What the rig must provide for the patterns that matter */
+  needs: LabNeeds;
+  /** Setting keys the runner sends over USB before the capture (SET/SAVE protocol) */
+  settings?: string[];
+  /** What a pass proves, and what it does not */
+  notes?: string;
+}
+
+const BOOT_ONLY = "Only the boot banner is checked: a pass proves the firmware boots and the sketch starts.";
+const WIFI_FROM_LAB = "The lab sends its Wi-Fi name and password over USB first.";
+
+export const LAB_EXPECT: Record<string, LabExpect> = {
+  blink: { patterns: ["tick \\d+ ms"], seconds: 8, needs: "none" },
+  "wifi-scan": { patterns: ["\\d+ networks?"], seconds: 25, needs: "none", notes: "A scan runs without credentials; zero networks still counts." },
+  "i2c-scan": { patterns: ["\\d+ device\\(s\\) found"], seconds: 15, needs: "none", notes: "A bare board reports 0 devices, which is correct." },
+  dht22: { patterns: ["(Sensor read failed, check wiring|-?\\d+\\.\\d C  \\d+\\.\\d %RH)"], seconds: 15, needs: "parts", notes: "Without a DHT22 the sketch reports a failed read; with one wired it prints readings." },
+  oled: { patterns: ["(Display ready|SSD1306 not found at 0x3C)"], seconds: 10, needs: "parts", notes: "Without the OLED the sketch stops after SSD1306 not found." },
+  hcsr04: { patterns: ["(No echo|\\d+\\.\\d cm)"], seconds: 15, needs: "parts", notes: "Without the sensor every reading is No echo." },
+  "deep-sleep": { patterns: ["Boot \\d+, wake cause \\d+", "Sleeping\\. Press the button to wake\\."], seconds: 15, needs: "none" },
+  "web-led": { patterns: ["Open http://\\d+\\.\\d+\\.\\d+\\.\\d+"], seconds: 45, needs: "wifi", settings: ["wifi_ssid", "wifi_pass"], notes: WIFI_FROM_LAB },
+  "touch-piano": { patterns: ["key \\d+ on GPIO \\d+: baseline \\d+", "Touch a key"], seconds: 10, needs: "none" },
+  "esp-now": { patterns: ["esp-now ready on channel \\d+, this board is [AB], MAC", "tx [AB] #\\d+ sent"], seconds: 15, needs: "none", notes: "A broadcast send succeeds with no partner board; received packets are not checked." },
+  neopixel: { patterns: ["\\d+ LEDs on GPIO \\d+", "effect: color wipe"], seconds: 12, needs: "none", notes: "The strip itself is not checked, only that the effects run." },
+  "mqtt-ha": { patterns: ["wifi joining", "wifi ok \\d+\\.\\d+\\.\\d+\\.\\d+", "mqtt connecting to"], seconds: 45, needs: "wifi", settings: ["wifi_ssid", "wifi_pass"], notes: `${WIFI_FROM_LAB} There is no MQTT broker in the lab, so only the connection attempt is checked.` },
+  "ble-scan": { patterns: ["\\d+ devices?"], seconds: 25, needs: "none" },
+  ota: { patterns: ["wifi joining", "ota ready: .+ at \\d+\\.\\d+\\.\\d+\\.\\d+"], seconds: 45, needs: "wifi", settings: ["wifi_ssid", "wifi_pass"], notes: WIFI_FROM_LAB },
+  "battery-sensor": {
+    patterns: ["boot \\d+, woke by", "(temp -?\\d+\\.\\d+ C|no probe: check the data wire)", "battery \\d+\\.\\d+ V", "awake \\d+ ms, sleeping \\d+ min"],
+    seconds: 20,
+    needs: "parts",
+    notes: "Without the probe the sketch prints no probe and still reports the battery and sleeps.",
+  },
+  "relay-servo": { patterns: ["relay off", "ready: type angle 0 to 180"], seconds: 10, needs: "none", notes: "The servo and relay are not checked, only that the command prompt comes up." },
+  epaper: { patterns: ["(temp -?\\d+\\.\\d+ C|no probe: check the data wire)"], seconds: 20, needs: "parts", notes: "Without the probe the sketch prints no probe; the panel is not checked." },
+  "bme280-web": { patterns: ["(wifi joining|BME280 not found at 0x76 or 0x77)"], seconds: 20, needs: "parts", notes: "Without the sensor the sketch stops after BME280 not found; with it wired, the lab's Wi-Fi is needed for the dashboard line." },
+  "wifi-portal": { patterns: ["hold BOOT now to forget the saved network", "(portal up: join|wifi joining)"], seconds: 20, needs: "none", notes: "A bare board opens its own setup network, which needs no credentials." },
+  "esp32-cam-stream": { patterns: ["(Camera ready|Camera init failed)"], seconds: 20, needs: "parts", notes: "Needs an ESP32-CAM; without a working camera the sketch reports the init error." },
+  "reaction-timer": { patterns: ["Reaction timer\\. Press BOOT when the LED lights\\.", "get ready\\.\\.\\."], seconds: 12, needs: "none" },
+  "morse-decoder": { patterns: ["Morse decoder\\. Key with the BOOT button"], seconds: 5, needs: "none", notes: BOOT_ONLY },
+  simon: { patterns: ["Simon\\. Press any button to start\\."], seconds: 5, needs: "parts", notes: BOOT_ONLY },
+  theremin: { patterns: ["Theremin ready", "distance_cm=\\d+\\.\\d, freq=\\d+"], seconds: 10, needs: "none", notes: "Without the sensor the distance reads 0; the buzzer is not checked." },
+  "oled-pong": { patterns: ["(Pong ready|SSD1306 not found at 0x3C)"], seconds: 10, needs: "parts", notes: "Without the OLED the sketch stops after SSD1306 not found." },
+  dice: { patterns: ["(Dice ready|SSD1306 not found at 0x3C)"], seconds: 10, needs: "parts", notes: "Without the OLED the sketch stops after SSD1306 not found." },
+  "ntp-clock": {
+    patterns: ["(wifi joining|SSD1306 not found at 0x3C)"],
+    seconds: 20,
+    needs: "parts",
+    settings: ["wifi_ssid", "wifi_pass"],
+    notes: `Without the OLED the sketch stops after SSD1306 not found. With one wired, ${WIFI_FROM_LAB.toLowerCase()}`,
+  },
+  "fire-lamp": { patterns: ["\\d+ LEDs on GPIO \\d+", "mode: fire", "fps=\\d+"], seconds: 12, needs: "none", notes: "The strip itself is not checked." },
+  "talking-plant": { patterns: ["Talking plant\\. Calibrate", "moisture=\\d+% raw=\\d+"], seconds: 10, needs: "none", notes: "A bare analog pin gives a reading; the value means nothing without the sensor." },
+  "ir-sweep": { patterns: ["IR sweep ready", "angle = \\d+, cm = \\d+\\.\\d"], seconds: 15, needs: "none", notes: "The servo and sensor are not checked, only the sweep loop." },
+  "level-platform": { patterns: ["(Calibrating: keep the base still and level|MPU-6050 not found at 0x68)"], seconds: 10, needs: "parts", notes: "Without the MPU-6050 the sketch stops after MPU-6050 not found." },
+  "joystick-turret": { patterns: ["Turret ready\\. MPU-6050 (found|not found)", "pan = \\d+, tilt = \\d+"], seconds: 10, needs: "none", notes: "The servos are not checked; a floating stick still prints angles." },
+  "visitor-counter": { patterns: ["Visitor counter\\. Warming up the PIR for \\d+ s\\.", "Counting\\."], seconds: 40, needs: "parts", notes: "Counting starts after the 30 s warm-up even with no PIR; counts need one." },
+  "auto-fan": { patterns: ["Auto fan: following the (light|temperature)", "light = \\d+%, duty = \\d+%"], seconds: 10, needs: "none", notes: "In light mode a bare analog pin gives a reading; the motor is not checked." },
+  "ph-display": {
+    patterns: ["wifi ok \\d+\\.\\d+\\.\\d+\\.\\d+", "(ProbeHarbor: |\\w+: \\w+ = )"],
+    seconds: 60,
+    needs: "wifi",
+    settings: ["wifi_ssid", "wifi_pass", "share_url"],
+    notes: `${WIFI_FROM_LAB} Without a share link the display reports Link invalid or expired, which counts as a pass of the firmware.`,
+  },
+  "ph-lcd": {
+    patterns: ["wifi ok \\d+\\.\\d+\\.\\d+\\.\\d+", "(ProbeHarbor: |\\w+: \\w+ = )"],
+    seconds: 60,
+    needs: "wifi",
+    settings: ["wifi_ssid", "wifi_pass", "share_url"],
+    notes: `${WIFI_FROM_LAB} The LCD cannot be checked over serial.`,
+  },
+  "ph-motion": {
+    patterns: ["wifi ok \\d+\\.\\d+\\.\\d+\\.\\d+", "posted (motion|quiet) (ok|FAILED)"],
+    seconds: 60,
+    needs: "wifi",
+    settings: ["wifi_ssid", "wifi_pass", "ingest_url"],
+    notes: `${WIFI_FROM_LAB} Without a device key the post fails, which still shows the sketch runs.`,
+  },
+  "nrf24-link": { patterns: ["(radio listening|nRF24 not found)"], seconds: 15, needs: "parts", notes: "Without the radio the sketch stops after nRF24 not found." },
+  "ph-ds18b20": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in, which the lab cannot set; only the boot line is checked." },
+  "ph-ds18b20-portal": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "Opens a setup portal on first boot; only the boot line is checked." },
+  "ph-door": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in; only the boot line is checked." },
+  "ph-leak": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in; only the boot line is checked." },
+  "ph-power": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in; only the boot line is checked." },
+  "ph-max31855": { patterns: ["(MAX31855 not found|WiFi ok)"], seconds: 10, needs: "parts", notes: "Without the module the sketch stops after MAX31855 not found." },
+  "ph-max6675": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in; only the boot line is checked." },
+};
+
+/** Chip name for esptool, from a board id. */
+export const CHIP_FOR_BOARD: Record<string, string> = {
+  esp32: "esp32",
+  esp32s3: "esp32s3",
+  esp32c3: "esp32c3",
+  esp32s2: "esp32s2",
+  esp32c6: "esp32c6",
+  "xiao-esp32c3": "esp32c3",
+  "xiao-esp32s3": "esp32s3",
+  "esp32-cam": "esp32",
+};
