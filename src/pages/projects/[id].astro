@@ -6,7 +6,7 @@ import ProbeSetup from "../../components/ProbeSetup.astro";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
 import { boardById } from "../../data/boards";
 import { link } from "../../lib/paths";
-import { reportUrl } from "../../lib/site";
+import { PROBEHARBOR, reportUrl } from "../../lib/site";
 import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
 
 export function getStaticPaths() {
@@ -46,6 +46,15 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
         <span class="tag">{p.baud} baud</span>
         {p.flash && <span class="tag flash">Browser flash</span>}
       </div>
+      {
+        p.tags.includes("probeharbor") && (
+          <p class="phcredit">
+            From <a href={PROBEHARBOR.url}>ProbeHarbor</a>, {PROBEHARBOR.blurb}. This board sends its readings to a
+            ProbeHarbor device; create one at <a href={PROBEHARBOR.url}>probeharbor.dev</a>. The source is in the{" "}
+            <a href={PROBEHARBOR.repo}>ProbeHarbor repository</a>.
+          </p>
+        )
+      }
     </div>
 
     {
@@ -222,6 +231,11 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     }
   </section>
 </Base>
+
+<style>
+  .phcredit { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--ok); font-size: 0.92rem; max-width: 75ch; }
+  .phcredit a { color: var(--accent); }
+</style>
 
 <script>
   import { loadBuilt, saveBuilt } from "../../scripts/progress";

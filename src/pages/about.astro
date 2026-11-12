@@ -1,6 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import { link } from "../lib/paths";
+import { PROBEHARBOR } from "../lib/site";
 import { AFFILIATE_DISCLOSURE } from "../lib/shop";
 import { PROJECTS } from "../data/projects";
 
@@ -51,6 +52,13 @@ const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
     <p>
       In Chrome or Edge, use the Install app button in the header, or the install icon in the address bar. The
       installed app opens in its own window, and pages you have opened work without a connection.
+    </p>
+
+    <h2>ProbeHarbor</h2>
+    <p>
+      The hardware-tested pins, the probe firmware, the ProbeHarbor sketches and several failures in the Hall of
+      Flames come from <a href={PROBEHARBOR.url}>ProbeHarbor</a>, {PROBEHARBOR.blurb}. Its code is on
+      <a href={PROBEHARBOR.repo}>GitHub</a>.
     </p>
 
     <h2>License</h2>

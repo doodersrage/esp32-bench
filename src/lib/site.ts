@@ -19,6 +19,13 @@ export const SITE = {
   background: "#f2f5f1",
 };
 
+/** ProbeHarbor: the sister project behind the tested boards, the probe firmware and the ProbeHarbor sketches. */
+export const PROBEHARBOR = {
+  url: "https://probeharbor.dev/",
+  repo: "https://github.com/doodersrage/probeharbor",
+  blurb: "open-source freeze and flood monitoring for garages, workshops, attics and crawlspaces, with live charts and alerts",
+};
+
 /** Absolute URL for a site path, for canonical links, feeds and previews. */
 export function absolute(path: string, site: URL | undefined): string {
   const href = link(path);

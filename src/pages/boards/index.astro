@@ -1,5 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
+import { PROBEHARBOR } from "../../lib/site";
 import { BOARDS } from "../../data/boards";
 import { CHIPS } from "../../data/chips";
 import { PROJECTS, boardsOf } from "../../data/projects";
@@ -30,7 +31,7 @@ const cards = BOARDS.map((b) => {
       <p class="lede">
         Every pin of each board: its GPIO number, what the chip can do on it and whether it is safe to use. Header
         layouts come from the vendors' documentation. The three DevKits marked as tested were also flashed and run with
-        real sensors in ProbeHarbor's hardware tests.
+        real sensors in <a href={PROBEHARBOR.url}>ProbeHarbor</a>'s hardware tests.
       </p>
       <p class="lede"><a href={link("/boards/compare/")}>Compare the ESP32 chips side by side</a>.</p>
     </div>

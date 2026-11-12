@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import { PROBEHARBOR } from "../lib/site";
 import { FLAMES } from "../data/flames";
 import { explainLog } from "../lib/crash";
 
@@ -15,7 +16,7 @@ const fromTests = FLAMES.filter((f) => f.source === "probeharbor").length;
     <h1 class="h2">Hall of flames</h1>
     <p class="lede">
       Failures worth remembering: what the serial port said, what it is easy to mistake that for, and what was
-      actually wrong. {fromTests} of these come from ProbeHarbor's hardware test log and use the status lines recorded
+      actually wrong. {fromTests} of these come from <a href={PROBEHARBOR.url}>ProbeHarbor</a>'s hardware test log and use the status lines recorded
       there. The rest are common ESP32 failures, shown with typical output.
     </p>
 
