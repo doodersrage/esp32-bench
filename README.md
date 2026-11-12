@@ -131,12 +131,13 @@ Not built yet:
 
 `/report/` sends build reports, corrections and messages by email; nothing is published. The footer's "Report a mistake on this page" and each project's "Send a build report" open it pre-filled.
 
-The backend is a separate Worker in `api/` (`esp32-bench-api`, served at `api.esp32bench.dev`). It accepts JSON from esp32bench.dev only, checks a honeypot field, a minimum fill-in time and field lengths, rate-limits each visitor, and sends the report through Cloudflare Email Routing to a verified address held in the `REPORT_TO` Worker secret. Deploys keep the secret. To change the address, verify it under Email Routing first, then redeploy once with `cf deploy --secrets-file <file>` containing `{"REPORT_TO": "..."}`.
+The backend is a separate Worker in `api/` (`esp32-bench-api`, served at `api.esp32bench.dev`). It accepts JSON from esp32bench.dev only, requires a Cloudflare Turnstile token (verified with siteverify for action `report` and hostname `esp32bench.dev`; the widget secret is the `TURNSTILE_SECRET` Worker secret), checks a honeypot field, a minimum fill-in time and field lengths, rate-limits each visitor, and sends the report through Cloudflare Email Routing to a verified address held in the `REPORT_TO` Worker secret. Deploys keep the secret. To change the address, verify it under Email Routing first, then redeploy once with `cf deploy --secrets-file <file>` containing `{"REPORT_TO": "..."}`.
 
 ```sh
 cd api
 npm ci
 node --experimental-strip-types test/report.test.ts
+node --experimental-strip-types test/turnstile.test.ts
 cf deploy
 ```
 

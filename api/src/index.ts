@@ -1,12 +1,15 @@
 // esp32-bench-api: POST /report from esp32bench.dev, emailed to the owner.
 import { env } from "cloudflare:workers";
 import { checkReport, htmlFor, subjectFor, textFor } from "./report.ts";
+import { verifyTurnstile } from "./turnstile.ts";
 
 interface Env {
 	EMAIL: SendEmail;
 	LIMIT: RateLimit;
 	ALLOWED_ORIGINS: string;
 	SENDER: string;
+	TURNSTILE_HOSTNAMES: string;
+	TURNSTILE_SECRET?: string;
 	/** Verified Email Routing destination, set as a Worker secret */
 	REPORT_TO?: string;
 }
@@ -64,6 +67,15 @@ export default {
 			return json({ ok: false, error: checked.error }, checked.status, headers);
 		}
 		if (!config.REPORT_TO) return json({ ok: false, error: "Reports are not set up yet." }, 503, headers);
+
+		const human = await verifyTurnstile({
+			secret: config.TURNSTILE_SECRET,
+			token: (body as { turnstile?: unknown }).turnstile,
+			ip,
+			expectedAction: "report",
+			expectedHostnames: new Set(config.TURNSTILE_HOSTNAMES.split(",").map((h) => h.trim()).filter(Boolean)),
+		});
+		if (!human) return json({ ok: false, error: "The human check failed or expired. Please complete it again and press Send." }, 403, headers);
 
 		const r = checked.report;
 		const text = textFor(r, {

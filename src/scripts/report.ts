@@ -3,6 +3,17 @@
 import { PROJECTS } from "../data/projects";
 
 type Kind = "build" | "correction" | "message";
+
+interface Turnstile {
+  render(el: HTMLElement, options: Record<string, unknown>): string;
+  getResponse(id: string): string | undefined;
+  reset(id: string): void;
+}
+declare global {
+  interface Window {
+    turnstile?: Turnstile;
+  }
+}
 const KINDS: Kind[] = ["build", "correction", "message"];
 
 const form = document.querySelector<HTMLFormElement>("#report");
@@ -12,6 +23,25 @@ const send = document.querySelector<HTMLButtonElement>("#send");
 
 if (form && status && thanks && send) {
   const api = form.dataset.api ?? "";
+  const sitekey = form.dataset.sitekey ?? "";
+  const human = document.querySelector<HTMLElement>("#human");
+  let widgetId: string | null = null;
+
+  // Render the human check once Turnstile's script has loaded. Explicit rendering
+  // keeps the widget id, so it can be reset after each attempt (tokens work once).
+  function renderHuman(tries = 0): void {
+    if (widgetId !== null || !human) return;
+    if (!window.turnstile) {
+      if (tries < 50) setTimeout(() => renderHuman(tries + 1), 200);
+      else human.textContent = "The human check could not load. Check your connection or turn off blockers for this page.";
+      return;
+    }
+    widgetId = window.turnstile.render(human, { sitekey, action: "report", theme: "auto" });
+  }
+  renderHuman();
+  const resetHuman = () => {
+    if (widgetId !== null) window.turnstile?.reset(widgetId);
+  };
   let shownAt = Date.now();
   const field = <T extends HTMLElement = HTMLInputElement>(name: string) => form.elements.namedItem(name) as T | null;
 
@@ -69,6 +99,11 @@ if (form && status && thanks && send) {
       email.focus();
       return;
     }
+    const token = widgetId !== null ? window.turnstile?.getResponse(widgetId) ?? "" : "";
+    if (!token) {
+      fail("Please complete the human check above the Send button.");
+      return;
+    }
     if (!navigator.onLine) {
       fail("You are offline. Connect again and press Send.");
       return;
@@ -93,6 +128,7 @@ if (form && status && thanks && send) {
       name: value("name"),
       email: value("email"),
       website: field("website")!.value,
+      turnstile: token,
       t: shownAt,
     };
 
@@ -116,6 +152,7 @@ if (form && status && thanks && send) {
       fail("The report could not be sent. Check your connection and try again.");
     } finally {
       send.disabled = false;
+      resetHuman();
     }
   });
 
@@ -124,6 +161,7 @@ if (form && status && thanks && send) {
     form.reset();
     setKind("build");
     shownAt = Date.now();
+    resetHuman();
     status.textContent = "";
     thanks.hidden = true;
     form.hidden = false;

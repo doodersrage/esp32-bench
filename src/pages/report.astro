@@ -22,7 +22,7 @@ const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
       </p>
     </div>
 
-    <form class="reportform" id="report" data-api={SITE.reportApi} novalidate>
+    <form class="reportform" id="report" data-api={SITE.reportApi} data-sitekey={SITE.turnstileSitekey} novalidate>
       <fieldset class="kinds">
         <legend>What is it?</legend>
         <label><input type="radio" name="kind" value="build" checked /> Build report</label>
@@ -97,6 +97,8 @@ const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
         <label>Website <input name="website" tabindex="-1" autocomplete="off" /></label>
       </div>
 
+      <div id="human" class="human"></div>
+
       <div class="row">
         <button class="btn go" type="submit" id="send">Send</button>
         <span class="status-msg" id="report-status" role="status" aria-live="polite"></span>
@@ -123,6 +125,7 @@ const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
   .kinds { border: 1px solid var(--line); padding: 10px 12px; margin: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; }
   .kinds legend { font: 600 0.72rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
   .kinds label { flex-direction: row; align-items: center; gap: 6px; font-size: 0.95rem; }
+  .human { min-height: 65px; }
   .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
   .status-msg { font-size: 0.92rem; font-weight: 500; }
   .status-msg.bad { color: var(--accent); }
@@ -130,6 +133,7 @@ const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
   .thanks a { color: var(--accent); }
 </style>
 
+<script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <script>
   import "../scripts/report.ts";
 </script>
