@@ -14,6 +14,20 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-9",
+    date: "2026-11-12",
+    title: "Version 0.9: games and toys",
+    summary:
+      "Nine new projects for fun: games, toys and things to show off, with a new Games and toys filter in the library.",
+    items: [
+      "No parts needed: a reaction timer on the onboard LED and BOOT button, and a Morse code decoder that learns your speed.",
+      "Games: Simon with four lights and buttons, Pong on an OLED with two knobs, and electronic dice that keep score.",
+      "Toys: an ultrasonic theremin, a talking plant, a NeoPixel fire and lava lamp, and an internet clock that handles daylight saving.",
+      "The theremin, the talking plant and the dice print numbers the bench plotter charts live; play their sample output to see it.",
+    ],
+    link: "/",
+  },
+  {
     id: "v0-8",
     date: "2026-11-12",
     title: "Version 0.8: search everything, share a log, detect pins on the S2 and C6",

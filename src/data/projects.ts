@@ -2,7 +2,7 @@ import type { BoardId } from "./boards";
 import { BOM } from "../lib/shop";
 import { PROBEHARBOR_SKETCHES } from "./probeharbor";
 
-export type Tag = "motion" | "no-parts" | "sensors" | "display" | "lights" | "wifi" | "bluetooth" | "power" | "flash" | "probeharbor";
+export type Tag = "games" | "motion" | "no-parts" | "sensors" | "display" | "lights" | "wifi" | "bluetooth" | "power" | "flash" | "probeharbor";
 
 /** A check done on real hardware. `board` says which board it was done on. */
 export interface Verified {
@@ -77,6 +77,10 @@ export const DRAWER = {
   servo: "Hobby servo (SG90 or similar)",
   relay: "Relay module",
   epaper: "SPI e-paper display",
+  led: "LEDs and 220 Ω resistors",
+  buzzer: "Passive buzzer or piezo",
+  pot: "10 kΩ potentiometers",
+  soil: "Capacitive soil moisture sensor",
 } as const;
 export type DrawerPart = keyof typeof DRAWER;
 
@@ -85,6 +89,7 @@ export const TAGS: [Tag | "all", string][] = [
   ["flash", "Browser flash"],
   ["probeharbor", "ProbeHarbor"],
   ["no-parts", "No extra parts"],
+  ["games", "Games and toys"],
   ["sensors", "Sensors"],
   ["display", "Display"],
   ["lights", "Lights"],
@@ -1658,6 +1663,1043 @@ void loop() {
       "Camera ready",
       "Joining Wi-Fi......",
       "Stream ready: open http://192.168.1.48/ in a browser",
+    ],
+  },
+  {
+    id: "reaction-timer", needs: [], name: "Reaction timer", level: "Starter", mins: 5, tags: ["games", "no-parts"],
+    sum: "How fast are you? The onboard LED lights after a random wait and you slap the BOOT button. Your best time survives a power cut.",
+    boards: ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32s3"],
+    vars: {
+      esp32: { LED: "2", BTN: "0", RGB: "false", ON: "HIGH" },
+      esp32s3: { LED: "38", BTN: "0", RGB: "true", ON: "HIGH" },
+      esp32c3: { LED: "8", BTN: "9", RGB: "true", ON: "HIGH" },
+      esp32s2: { LED: "18", BTN: "0", RGB: "true", ON: "HIGH" },
+      esp32c6: { LED: "8", BTN: "9", RGB: "true", ON: "HIGH" },
+      "xiao-esp32s3": { LED: "21", BTN: "0", RGB: "false", ON: "LOW" },
+    },
+    pins: ["%LED%", "%BTN%"], libs: ["Preferences (built in)"], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "LED and 220 Ω resistor, only on a board without its own LED"]],
+    wiring: [
+      ["Onboard LED", "GPIO %LED%", "Already on the board. On the classic ESP32 DevKitC, add an LED and 220 Ω from GPIO 2 to GND"],
+      ["BOOT button", "GPIO %BTN%", "Already on the board"],
+    ],
+    code: R`// Reaction timer: the LED lights after a random wait, press BOOT as fast as you can.
+#include <Preferences.h>
+
+const int LED = %LED%;          // the board's LED
+const bool LED_IS_RGB = %RGB%;  // an addressable RGB LED rather than a plain one
+const int LED_ON = %ON%;        // the level that lights a plain LED
+const int BUTTON = %BTN%;       // the BOOT button
+
+Preferences prefs;
+unsigned long best = 0;  // best time in ms, 0 until the first round
+
+void led(bool on) {
+  if (LED_IS_RGB) rgbLedWrite(LED, 0, on ? 64 : 0, 0);  // green
+  else digitalWrite(LED, on ? LED_ON : !LED_ON);
+}
+
+bool pressed() {
+  return digitalRead(BUTTON) == LOW;
+}
+
+void waitForRelease() {
+  while (pressed()) delay(5);
+  delay(30);  // let the contacts settle
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  pinMode(BUTTON, INPUT_PULLUP);
+  if (!LED_IS_RGB) pinMode(LED, OUTPUT);
+  led(false);
+  prefs.begin("reaction", false);
+  best = prefs.getULong("best", 0);
+  randomSeed(esp_random());
+  Serial.println("Reaction timer. Press BOOT when the LED lights.");
+  if (best) Serial.printf("best so far: %lu ms\n", best);
+}
+
+void loop() {
+  Serial.println("get ready...");
+  waitForRelease();
+  unsigned long wait = random(1500, 5000);
+  unsigned long start = millis();
+  while (millis() - start < wait) {
+    if (pressed()) {
+      Serial.println("false start! wait for the light");
+      for (int i = 0; i < 6; i++) {
+        led(i % 2 == 0);
+        delay(80);
+      }
+      led(false);
+      waitForRelease();
+      delay(1000);
+      return;
+    }
+    delay(1);
+  }
+
+  led(true);
+  unsigned long lit = micros();
+  while (!pressed()) {
+    if (micros() - lit > 3000000UL) {
+      led(false);
+      Serial.println("too slow, try again");
+      delay(1000);
+      return;
+    }
+  }
+  unsigned long ms = (micros() - lit) / 1000;
+  led(false);
+  Serial.printf("reaction=%lu ms\n", ms);
+  if (best == 0 || ms < best) {
+    best = ms;
+    prefs.putULong("best", best);
+    Serial.printf("new best: %lu ms\n", best);
+  }
+  waitForRelease();
+  delay(1500);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The classic ESP32-DevKitC V4 has no user LED. Many 30-pin clones have one on GPIO 2; otherwise add an LED and a 220 Ω resistor from GPIO 2 to GND.",
+      "The S3, C3, S2 and C6 DevKits have an addressable RGB LED instead, driven with rgbLedWrite(). On the first S3-DevKitC-1 revision it is on GPIO 48, not 38.",
+      "The XIAO ESP32S3's LED lights when its pin is low, which is why LED_ON is LOW there.",
+      "Do not hold BOOT while the board resets: that puts it in download mode. Start pressing once it prints 'get ready'.",
+      "The best time is kept with Preferences, so it survives a power cut. Erasing the whole flash clears it.",
+      "Most people land between 200 and 300 ms. Under 150 ms is usually a lucky guess.",
+    ],
+    sample: [
+      "Reaction timer. Press BOOT when the LED lights.",
+      "get ready...", "reaction=312 ms", "new best: 312 ms",
+      "get ready...", "reaction=287 ms", "new best: 287 ms",
+      "get ready...", "false start! wait for the light",
+      "get ready...", "reaction=301 ms",
+      "get ready...", "reaction=264 ms", "new best: 264 ms",
+      "get ready...", "reaction=279 ms",
+    ],
+  },
+  {
+    id: "morse-decoder", needs: [], name: "Morse code decoder", level: "Starter", mins: 10, tags: ["games", "no-parts"],
+    sum: "Tap Morse on the BOOT button and watch it turn into letters. It learns your speed as you go, and a buzzer adds a sidetone if you have one.",
+    boards: ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32c3", "xiao-esp32s3"],
+    vars: {
+      esp32: { BTN: "0", BUZZ: "25" },
+      esp32s3: { BTN: "0", BUZZ: "15" },
+      esp32c3: { BTN: "9", BUZZ: "4" },
+      esp32s2: { BTN: "0", BUZZ: "15" },
+      esp32c6: { BTN: "9", BUZZ: "21" },
+      "xiao-esp32c3": { BTN: "9", BUZZ: "4" },
+      "xiao-esp32s3": { BTN: "0", BUZZ: "4" },
+    },
+    pins: ["%BTN%", "%BUZZ%", "GND"], libs: [], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "Optional passive buzzer or piezo", BOM.piezoBuzzer]],
+    wiring: [
+      ["BOOT button", "GPIO %BTN%", "Already on the board. It is the Morse key"],
+      ["Buzzer +", "GPIO %BUZZ%", "Optional sidetone. A passive buzzer or piezo"],
+      ["Buzzer -", "GND", ""],
+    ],
+    code: R`// Morse code decoder. The BOOT button is the key: short press = dot, long press = dash.
+const int KEY = %BTN%;      // the BOOT button
+const int BUZZER = %BUZZ%;  // optional sidetone, leave unconnected if you have no buzzer
+const int TONE_HZ = 650;
+
+const char* LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const char* CODES[] = {
+  ".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
+  "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
+  "-----", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----.",
+};
+
+float unit = 120;      // length of one dot in ms; adapts to your speed
+String symbol;         // dots and dashes of the letter being keyed
+bool keyDown = false;
+bool inWord = false;
+unsigned long changedAt = 0;
+
+char decode(const String& s) {
+  for (int i = 0; i < 36; i++) {
+    if (s == CODES[i]) return LETTERS[i];
+  }
+  return '?';
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  pinMode(KEY, INPUT_PULLUP);
+  Serial.println("Morse decoder. Key with the BOOT button: short press = dot, long press = dash.");
+}
+
+void loop() {
+  bool down = digitalRead(KEY) == LOW;
+  unsigned long now = millis();
+  unsigned long held = now - changedAt;
+
+  if (down != keyDown && held > 15) {  // 15 ms debounce
+    if (keyDown) {
+      // Key released: was it a dot or a dash?
+      noTone(BUZZER);
+      if (held < 2 * unit) {
+        symbol += '.';
+        unit = (unit * 3 + held) / 4;
+      } else {
+        symbol += '-';
+        unit = (unit * 3 + held / 3.0f) / 4;
+      }
+      unit = constrain(unit, 40.0f, 400.0f);
+    } else {
+      tone(BUZZER, TONE_HZ);
+    }
+    keyDown = down;
+    changedAt = now;
+    return;
+  }
+
+  if (!keyDown) {
+    if (symbol.length() > 0 && held > 3 * unit) {
+      Serial.print(decode(symbol));  // gap between letters
+      symbol = "";
+      inWord = true;
+    } else if (inWord && held > 7 * unit) {
+      Serial.printf("  wpm=%d\n", (int)(1200 / unit));  // gap between words
+      inWord = false;
+    }
+  }
+  delay(2);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Start slowly and evenly. The decoder takes a dash as anything longer than two dots, and adjusts the dot length after every symbol.",
+      "A gap of three dots ends a letter and seven dots ends a word, as in real Morse. Speed is printed as words per minute at the end of each word.",
+      "Do not hold BOOT while the board resets, or it enters download mode.",
+      "Try SOS (... --- ...), then your name. A real Morse key or any push button wired from the BOOT pin to GND works too.",
+    ],
+    sample: [
+      "Morse decoder. Key with the BOOT button: short press = dot, long press = dash.",
+      "SOS  wpm=9",
+      "HELLO  wpm=11",
+      "ESP32  wpm=12",
+      "BENCH  wpm=13",
+    ],
+  },
+  {
+    id: "simon", needs: [["led"], ["button"], ["buzzer"]], name: "Simon memory game", level: "Intermediate", mins: 40, tags: ["games"],
+    sum: "Four lights, four buttons, four tones. Repeat the growing pattern for as long as you can; the high score is saved.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { LA: "16", LB: "17", LC: "18", LD: "19", KA: "25", KB: "26", KC: "27", KD: "32", BUZZ: "23" },
+      esp32s3: { LA: "4", LB: "5", LC: "6", LD: "7", KA: "15", KB: "16", KC: "17", KD: "18", BUZZ: "10" },
+      esp32c3: { LA: "0", LB: "1", LC: "3", LD: "4", KA: "2", KB: "5", KC: "7", KD: "10", BUZZ: "6" },
+    },
+    pins: ["%LA%", "%LB%", "%LC%", "%LD%", "%KA%", "%KB%", "%KC%", "%KD%", "%BUZZ%", "GND"], libs: ["Preferences (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [4, "LEDs: green, red, yellow and blue"],
+      [4, "220 Ω resistors"],
+      [4, "Push buttons", BOM.tactileButtons],
+      [1, "Passive buzzer or piezo", BOM.piezoBuzzer],
+      [16, "Jumper wires"],
+    ],
+    wiring: [
+      ["Green LED, through 220 Ω", "GPIO %LA%", "LED cathodes to GND"],
+      ["Red LED, through 220 Ω", "GPIO %LB%", ""],
+      ["Yellow LED, through 220 Ω", "GPIO %LC%", ""],
+      ["Blue LED, through 220 Ω", "GPIO %LD%", ""],
+      ["Green button", "GPIO %KA%", "Other side of each button to GND. The internal pull-ups do the rest"],
+      ["Red button", "GPIO %KB%", ""],
+      ["Yellow button", "GPIO %KC%", ""],
+      ["Blue button", "GPIO %KD%", ""],
+      ["Buzzer +", "GPIO %BUZZ%", "Buzzer - to GND"],
+    ],
+    code: R`// Simon: repeat the growing sequence of lights and tones.
+#include <Preferences.h>
+
+const int LEDS[] = {%LA%, %LB%, %LC%, %LD%};     // green, red, yellow, blue
+const int BUTTONS[] = {%KA%, %KB%, %KC%, %KD%};  // in the same order
+const int BUZZER = %BUZZ%;
+const int TONES[] = {415, 310, 252, 209};       // the classic Simon pitches
+const int MAX_STEPS = 64;
+
+Preferences prefs;
+int sequence[MAX_STEPS];
+int length = 0;
+int best = 0;
+
+void show(int i, int ms) {
+  digitalWrite(LEDS[i], HIGH);
+  tone(BUZZER, TONES[i]);
+  delay(ms);
+  noTone(BUZZER);
+  digitalWrite(LEDS[i], LOW);
+}
+
+// Wait for one button press and release. Returns the button, or -1 after 4 s.
+int readButton() {
+  unsigned long start = millis();
+  while (millis() - start < 4000) {
+    for (int i = 0; i < 4; i++) {
+      if (digitalRead(BUTTONS[i]) == LOW) {
+        digitalWrite(LEDS[i], HIGH);
+        tone(BUZZER, TONES[i]);
+        delay(30);
+        while (digitalRead(BUTTONS[i]) == LOW) delay(5);
+        noTone(BUZZER);
+        digitalWrite(LEDS[i], LOW);
+        delay(30);
+        return i;
+      }
+    }
+    delay(2);
+  }
+  return -1;
+}
+
+void gameOver(int score) {
+  tone(BUZZER, 110, 800);
+  for (int k = 0; k < 3; k++) {
+    for (int i = 0; i < 4; i++) digitalWrite(LEDS[i], HIGH);
+    delay(150);
+    for (int i = 0; i < 4; i++) digitalWrite(LEDS[i], LOW);
+    delay(150);
+  }
+  if (score > best) {
+    best = score;
+    prefs.putInt("best", best);
+  }
+  Serial.printf("score=%d  best=%d\n", score, best);
+  Serial.println("Press any button to start.");
+  length = 0;
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  for (int i = 0; i < 4; i++) {
+    pinMode(LEDS[i], OUTPUT);
+    pinMode(BUTTONS[i], INPUT_PULLUP);
+  }
+  prefs.begin("simon", false);
+  best = prefs.getInt("best", 0);
+  randomSeed(esp_random());
+  Serial.println("Simon. Press any button to start.");
+}
+
+void loop() {
+  if (length == 0) {
+    while (readButton() < 0) {
+    }
+    delay(600);
+  }
+  if (length == MAX_STEPS) {
+    Serial.println("You beat the game!");
+    gameOver(MAX_STEPS);
+    return;
+  }
+  sequence[length++] = random(4);
+  Serial.printf("round=%d\n", length);
+  int speed = max(150, 450 - length * 15);  // it speeds up as you go
+  for (int i = 0; i < length; i++) {
+    show(sequence[i], speed);
+    delay(speed / 2);
+  }
+  for (int i = 0; i < length; i++) {
+    int pressed = readButton();
+    if (pressed != sequence[i]) {
+      Serial.println(pressed < 0 ? "too slow! game over" : "wrong button! game over");
+      gameOver(length - 1);
+      return;
+    }
+  }
+  delay(700);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The buttons use the chip's internal pull-ups, so each one only needs a wire to its GPIO and one to GND.",
+      "On the C3 the red button is on GPIO 2, a strapping pin that must be high at reset. An open button does not change that; just do not hold it while the board starts.",
+      "Use a passive buzzer or piezo. An active buzzer plays one fixed pitch whatever tone() asks for.",
+      "The high score is kept with Preferences and survives a power cut.",
+    ],
+    sample: [
+      "Simon. Press any button to start.",
+      "round=1", "round=2", "round=3", "round=4", "round=5", "round=6", "round=7",
+      "wrong button! game over",
+      "score=6  best=6",
+      "Press any button to start.",
+    ],
+  },
+  {
+    id: "theremin", needs: [["hcsr04"], ["buzzer"]], name: "Ultrasonic theremin", level: "Intermediate", mins: 20, tags: ["games", "sensors"],
+    sum: "Play music by waving your hand over an ultrasonic sensor. Closer is higher. Open the bench to watch distance and pitch chart live.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { TRIG: "5", ECHO: "18", BUZZ: "25" },
+      esp32s3: { TRIG: "4", ECHO: "5", BUZZ: "6" },
+      esp32c3: { TRIG: "4", ECHO: "5", BUZZ: "10" },
+    },
+    pins: ["5V", "GND", "%TRIG%", "%ECHO%", "%BUZZ%"], libs: [], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "HC-SR04 ultrasonic sensor"],
+      [1, "1 kΩ resistor"],
+      [1, "2 kΩ resistor"],
+      [1, "Passive buzzer or piezo", BOM.piezoBuzzer],
+      [7, "Jumper wires"],
+    ],
+    wiring: [
+      ["HC-SR04 VCC", "5V", ""],
+      ["HC-SR04 GND", "GND", ""],
+      ["HC-SR04 TRIG", "GPIO %TRIG%", ""],
+      ["HC-SR04 ECHO, through 1 kΩ", "GPIO %ECHO%", "Add 2 kΩ from GPIO %ECHO% to GND to drop the 5 V echo to 3.3 V"],
+      ["Buzzer +", "GPIO %BUZZ%", "Buzzer - to GND"],
+    ],
+    code: R`// Ultrasonic theremin: hand distance sets the pitch. Closer is higher.
+const int TRIG = %TRIG%;
+const int ECHO = %ECHO%;
+const int BUZZER = %BUZZ%;
+
+const float NEAR_CM = 5;    // highest note here
+const float FAR_CM = 60;    // lowest note here; further away is silence
+const float LOW_HZ = 220;   // A3
+const int OCTAVES = 3;      // up to A6
+const bool SNAP = true;     // round to the nearest semitone, so it plays in tune
+
+float readCm() {
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+  unsigned long us = pulseIn(ECHO, HIGH, 25000);  // about 4 m round trip
+  return us == 0 ? -1 : us * 0.0343f / 2;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+  Serial.println("Theremin ready. Wave a hand 5 to 60 cm above the sensor.");
+}
+
+void loop() {
+  float cm = readCm();
+  int hz = 0;
+  if (cm >= NEAR_CM && cm <= FAR_CM) {
+    float f = LOW_HZ * powf(2.0f, (FAR_CM - cm) / (FAR_CM - NEAR_CM) * OCTAVES);
+    if (SNAP) f = 440.0f * powf(2.0f, roundf(12 * log2f(f / 440.0f)) / 12.0f);
+    hz = (int)(f + 0.5f);
+    tone(BUZZER, hz);
+  } else {
+    noTone(BUZZER);
+  }
+  Serial.printf("distance_cm=%.1f, freq=%d\n", cm < 0 ? 0.0f : cm, hz);
+  delay(60);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The HC-SR04's echo pin is 5 V. The 1 kΩ and 2 kΩ divider brings it down to about 3.3 V, the same as the HC-SR04 distance project.",
+      "Set SNAP to false for a smooth, swooping theremin sound instead of notes.",
+      "A flat hand works better than fingers: more surface sends back a stronger echo.",
+      "Open the bench at 115200 baud: the plotter charts distance_cm and freq side by side as you play.",
+    ],
+    sample: [
+      "Theremin ready. Wave a hand 5 to 60 cm above the sensor.",
+      "distance_cm=42.3, freq=440",
+      "distance_cm=35.8, freq=554",
+      "distance_cm=28.4, freq=740",
+      "distance_cm=21.0, freq=988",
+      "distance_cm=15.6, freq=1175",
+      "distance_cm=11.2, freq=1397",
+      "distance_cm=8.9, freq=1480",
+      "distance_cm=12.7, freq=1319",
+      "distance_cm=19.5, freq=1047",
+      "distance_cm=30.2, freq=698",
+      "distance_cm=0.0, freq=0",
+    ],
+  },
+  {
+    id: "oled-pong", needs: [["oled"], ["pot"]], name: "OLED Pong", level: "Intermediate", mins: 30, tags: ["games", "display"],
+    sum: "Classic Pong on a tiny OLED with two knobs as paddles. Play a friend, or set one side to the computer.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SDA: "21", SCL: "22", PA: "34", PB: "35" },
+      esp32s3: { SDA: "8", SCL: "9", PA: "1", PB: "2" },
+      esp32c3: { SDA: "6", SCL: "7", PA: "0", PB: "1" },
+    },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%", "%PA%", "%PB%"], libs: ["Adafruit SSD1306", "Adafruit GFX Library"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "0.96 inch SSD1306 OLED, I2C, address 0x3C"],
+      [2, "10 kΩ potentiometers", BOM.pot10k],
+      [10, "Jumper wires"],
+    ],
+    wiring: [
+      ["OLED VCC", "3V3", ""],
+      ["OLED GND", "GND", ""],
+      ["OLED SDA", "GPIO %SDA%", ""],
+      ["OLED SCL", "GPIO %SCL%", ""],
+      ["Left knob, middle pin", "GPIO %PA%", "Outer pins of each knob to 3V3 and GND, never 5V"],
+      ["Right knob, middle pin", "GPIO %PB%", "Skip it and set TWO_PLAYERS to false to play the computer"],
+    ],
+    code: R`// Pong on a 128 x 64 SSD1306 with two potentiometers as paddles.
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+const int KNOB_LEFT = %PA%;    // ADC1 pins
+const int KNOB_RIGHT = %PB%;
+const bool TWO_PLAYERS = true;  // false: the right paddle plays itself
+const int WIN_SCORE = 7;
+
+const int W = 128, H = 64, PADDLE_H = 14, PADDLE_W = 3;
+Adafruit_SSD1306 display(W, H, &Wire, -1);
+
+float ballX, ballY, velX, velY;
+float leftY = 25, rightY = 25;
+int scoreLeft = 0, scoreRight = 0;
+
+void serve(int direction) {
+  ballX = W / 2;
+  ballY = H / 2;
+  velX = 1.6f * direction;
+  velY = random(-10, 11) / 10.0f;
+}
+
+float knobToY(int pin, float current) {
+  float target = analogRead(pin) * (H - PADDLE_H) / 4095.0f;
+  return current + (target - current) * 0.5f;  // a little smoothing
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(%SDA%, %SCL%);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("SSD1306 not found at 0x3C");
+    for (;;) delay(1000);
+  }
+  analogReadResolution(12);
+  randomSeed(esp_random());
+  serve(1);
+  Serial.printf("Pong ready. Left paddle: GPIO %d, right paddle: %s\n", KNOB_LEFT, TWO_PLAYERS ? "knob" : "computer");
+}
+
+void loop() {
+  leftY = knobToY(KNOB_LEFT, leftY);
+  if (TWO_PLAYERS) {
+    rightY = knobToY(KNOB_RIGHT, rightY);
+  } else {
+    float aim = ballY - PADDLE_H / 2;
+    rightY += constrain(aim - rightY, -1.3f, 1.3f);  // beatable on purpose
+    rightY = constrain(rightY, 0.0f, (float)(H - PADDLE_H));
+  }
+
+  ballX += velX;
+  ballY += velY;
+  if (ballY <= 0 || ballY >= H - 2) velY = -velY;
+
+  // Paddles: the bounce angle depends on where the ball hits.
+  if (velX < 0 && ballX <= 4 && ballY + 2 >= leftY && ballY <= leftY + PADDLE_H) {
+    velX = -velX * 1.05f;
+    velY = (ballY - (leftY + PADDLE_H / 2)) / 4;
+  }
+  if (velX > 0 && ballX >= W - 6 && ballY + 2 >= rightY && ballY <= rightY + PADDLE_H) {
+    velX = -velX * 1.05f;
+    velY = (ballY - (rightY + PADDLE_H / 2)) / 4;
+  }
+  velX = constrain(velX, -4.0f, 4.0f);
+
+  if (ballX < 0 || ballX > W) {
+    bool leftScored = ballX > W;
+    if (leftScored) scoreLeft++;
+    else scoreRight++;
+    Serial.printf("point to %s, score %d-%d\n", leftScored ? "left" : "right", scoreLeft, scoreRight);
+    if (scoreLeft == WIN_SCORE || scoreRight == WIN_SCORE) {
+      Serial.printf("%s wins %d-%d\n", scoreLeft > scoreRight ? "left" : "right", scoreLeft, scoreRight);
+      display.clearDisplay();
+      display.setTextSize(2);
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(10, 24);
+      display.print(scoreLeft > scoreRight ? "LEFT WINS" : "RIGHT WINS");
+      display.display();
+      delay(3000);
+      scoreLeft = scoreRight = 0;
+    }
+    serve(leftScored ? -1 : 1);
+    delay(500);
+  }
+
+  display.clearDisplay();
+  for (int y = 0; y < H; y += 6) display.drawFastVLine(W / 2, y, 3, SSD1306_WHITE);
+  display.fillRect(1, (int)leftY, PADDLE_W, PADDLE_H, SSD1306_WHITE);
+  display.fillRect(W - 1 - PADDLE_W, (int)rightY, PADDLE_W, PADDLE_H, SSD1306_WHITE);
+  display.fillRect((int)ballX, (int)ballY, 2, 2, SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(W / 2 - 18, 0);
+  display.print(scoreLeft);
+  display.setCursor(W / 2 + 13, 0);
+  display.print(scoreRight);
+  display.display();
+  delay(16);  // about 60 frames a second
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The knobs are on ADC1 pins. On the classic ESP32 those are GPIO 32 to 39; GPIO 34 and 35 are input only, which is all a knob needs.",
+      "Wire the knobs' outer pins to 3V3 and GND. Using 5V would put 5 V on the GPIO when the knob is turned all the way.",
+      "No second knob? Set TWO_PLAYERS to false and the right paddle plays itself. It is slow on purpose, so you can win.",
+      "If a paddle jitters, add a 100 nF capacitor from the knob's middle pin to GND.",
+    ],
+    sample: [
+      "Pong ready. Left paddle: GPIO %PA%, right paddle: knob",
+      "point to left, score 1-0",
+      "point to right, score 1-1",
+      "point to left, score 2-1",
+      "point to left, score 3-1",
+      "point to right, score 3-2",
+      "point to left, score 4-2",
+    ],
+  },
+  {
+    id: "dice", needs: [["oled"], ["button"]], name: "Electronic dice", level: "Starter", mins: 20, tags: ["games", "display"],
+    sum: "Press a button to roll two dice on an OLED, with a tumbling animation. The serial port keeps score, so you can check how fair the dice are.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SDA: "21", SCL: "22", BTN: "4" },
+      esp32s3: { SDA: "8", SCL: "9", BTN: "4" },
+      esp32c3: { SDA: "6", SCL: "7", BTN: "4" },
+    },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%", "%BTN%"], libs: ["Adafruit SSD1306", "Adafruit GFX Library"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "0.96 inch SSD1306 OLED, I2C, address 0x3C"],
+      [1, "Push button", BOM.tactileButtons],
+      [6, "Jumper wires"],
+    ],
+    wiring: [
+      ["OLED VCC", "3V3", ""],
+      ["OLED GND", "GND", ""],
+      ["OLED SDA", "GPIO %SDA%", ""],
+      ["OLED SCL", "GPIO %SCL%", ""],
+      ["Button", "GPIO %BTN%", "Other side to GND. The internal pull-up does the rest"],
+    ],
+    code: R`// Electronic dice on an SSD1306. Press the button to roll.
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+const int BUTTON = %BTN%;
+const int DICE = 2;  // 1 or 2
+
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+int counts[13];  // how often each total came up
+int rolls = 0;
+
+void drawDie(int x, int y, int value) {
+  const int S = 44, R = 4;
+  display.drawRoundRect(x, y, S, S, 6, SSD1306_WHITE);
+  int a = x + 11, b = x + S / 2, c = x + S - 11;  // pip columns
+  int d = y + 11, e = y + S / 2, f = y + S - 11;  // pip rows
+  if (value % 2 == 1) display.fillCircle(b, e, R, SSD1306_WHITE);
+  if (value >= 2) {
+    display.fillCircle(a, d, R, SSD1306_WHITE);
+    display.fillCircle(c, f, R, SSD1306_WHITE);
+  }
+  if (value >= 4) {
+    display.fillCircle(c, d, R, SSD1306_WHITE);
+    display.fillCircle(a, f, R, SSD1306_WHITE);
+  }
+  if (value == 6) {
+    display.fillCircle(a, e, R, SSD1306_WHITE);
+    display.fillCircle(c, e, R, SSD1306_WHITE);
+  }
+}
+
+void showDice(int one, int two) {
+  display.clearDisplay();
+  if (DICE == 1) {
+    drawDie(42, 10, one);
+  } else {
+    drawDie(12, 10, one);
+    drawDie(72, 10, two);
+  }
+  display.display();
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUTTON, INPUT_PULLUP);
+  Wire.begin(%SDA%, %SCL%);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("SSD1306 not found at 0x3C");
+    for (;;) delay(1000);
+  }
+  showDice(6, 6);
+  Serial.println("Dice ready. Press the button to roll.");
+}
+
+void loop() {
+  if (digitalRead(BUTTON) == HIGH) return;
+
+  // Tumble: quick random faces that slow down, like a die settling.
+  int one = 1, two = 1;
+  for (int wait = 30; wait < 220; wait += 20) {
+    one = 1 + esp_random() % 6;
+    two = 1 + esp_random() % 6;
+    showDice(one, two);
+    delay(wait);
+  }
+  int total = DICE == 1 ? one : one + two;
+  counts[total]++;
+  rolls++;
+  if (DICE == 1) Serial.printf("die1=%d\n", one);
+  else Serial.printf("die1=%d die2=%d sum=%d\n", one, two, total);
+
+  if (rolls % 12 == 0) {
+    Serial.printf("after %d rolls:", rolls);
+    for (int t = DICE; t <= DICE * 6; t++) Serial.printf(" %d:%d", t, counts[t]);
+    Serial.println();
+  }
+  while (digitalRead(BUTTON) == LOW) delay(10);
+  delay(50);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "esp_random() uses the chip's hardware random number generator, which is truly random while the radio is on and plenty good for dice when it is off.",
+      "With two dice, 7 should come up most often: about one roll in six. The summary every 12 rolls lets you watch that happen.",
+      "Set DICE to 1 for a single die in the middle of the screen.",
+    ],
+    sample: [
+      "Dice ready. Press the button to roll.",
+      "die1=4 die2=3 sum=7",
+      "die1=6 die2=2 sum=8",
+      "die1=1 die2=5 sum=6",
+      "die1=3 die2=3 sum=6",
+      "die1=5 die2=6 sum=11",
+      "die1=2 die2=1 sum=3",
+      "die1=6 die2=1 sum=7",
+      "die1=4 die2=4 sum=8",
+      "die1=3 die2=6 sum=9",
+      "die1=5 die2=2 sum=7",
+      "die1=1 die2=1 sum=2",
+      "die1=4 die2=5 sum=9",
+      "after 12 rolls: 2:1 3:1 4:0 5:0 6:2 7:3 8:2 9:2 10:0 11:1 12:0",
+    ],
+  },
+  {
+    id: "ntp-clock", needs: [["oled"]], name: "NTP internet clock", level: "Starter", mins: 20, tags: ["display", "wifi"],
+    sum: "A desk clock that sets itself from the internet and handles daylight saving on its own. Big digits and the date on a small OLED.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { SDA: "21", SCL: "22" }, esp32s3: { SDA: "8", SCL: "9" }, esp32c3: { SDA: "6", SCL: "7" } },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%"], libs: ["WiFi (built in)", "Adafruit SSD1306", "Adafruit GFX Library"], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "0.96 inch SSD1306 OLED, I2C, address 0x3C"], [4, "Jumper wires"]],
+    wiring: [["OLED VCC", "3V3", ""], ["OLED GND", "GND", ""], ["OLED SDA", "GPIO %SDA%", ""], ["OLED SCL", "GPIO %SCL%", ""]],
+    code: R`// NTP clock: Wi-Fi sets the time, the TZ rule handles daylight saving.
+#include <WiFi.h>
+#include <Wire.h>
+#include <time.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+const char* WIFI_SSID = "your-network";
+const char* WIFI_PASS = "your-password";
+// POSIX time zone rule. US Eastern shown; more examples in the project notes.
+const char* TZ_RULE = "EST5EDT,M3.2.0,M11.1.0";
+
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+int lastMinute = -1;
+
+void message(const char* text) {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 28);
+  display.print(text);
+  display.display();
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(%SDA%, %SCL%);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("SSD1306 not found at 0x3C");
+    for (;;) delay(1000);
+  }
+  message("Joining Wi-Fi...");
+  Serial.printf("wifi joining %s\n", WIFI_SSID);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) delay(250);
+  Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
+
+  message("Setting the time...");
+  configTzTime(TZ_RULE, "pool.ntp.org", "time.google.com");
+  struct tm now;
+  while (!getLocalTime(&now, 10000)) Serial.println("waiting for NTP");
+  char text[48];
+  strftime(text, sizeof text, "%a %d %b %Y %H:%M:%S %Z", &now);
+  Serial.printf("time synced: %s\n", text);
+}
+
+void loop() {
+  struct tm now;
+  if (!getLocalTime(&now, 100)) return;
+
+  char hhmm[6], ss[3], date[20];
+  strftime(hhmm, sizeof hhmm, "%H:%M", &now);
+  strftime(ss, sizeof ss, "%S", &now);
+  strftime(date, sizeof date, "%a %d %b %Y", &now);
+
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(3);
+  display.setCursor(4, 12);
+  display.print(hhmm);
+  display.setTextSize(2);
+  display.setCursor(100, 19);
+  display.print(ss);
+  display.setTextSize(1);
+  display.setCursor(4, 50);
+  display.print(date);
+  if (WiFi.status() != WL_CONNECTED) display.print(" *");  // still keeping time, just not syncing
+  display.display();
+
+  if (now.tm_min != lastMinute) {
+    lastMinute = now.tm_min;
+    char line[48];
+    strftime(line, sizeof line, "%H:%M:%S %a %d %b %Y %Z", &now);
+    Serial.println(line);
+  }
+  delay(200);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Change TZ_RULE for your time zone. Examples: Central US \"CST6CDT,M3.2.0,M11.1.0\", Pacific US \"PST8PDT,M3.2.0,M11.1.0\", UK \"GMT0BST,M3.5.0/1,M10.5.0\", Central Europe \"CET-1CEST,M3.5.0,M10.5.0/3\", Japan \"JST-9\".",
+      "The ESP32 re-syncs with the time servers about once an hour. If Wi-Fi drops, the clock keeps running on its own crystal and a * appears after the date.",
+      "Set WIFI_SSID and WIFI_PASS first. The ESP32 only joins 2.4 GHz networks.",
+    ],
+    sample: [
+      "wifi joining your-network",
+      "wifi ok 192.168.1.42",
+      "time synced: Thu 12 Nov 2026 10:41:07 EST",
+      "10:42:00 Thu 12 Nov 2026 EST",
+      "10:43:00 Thu 12 Nov 2026 EST",
+      "10:44:00 Thu 12 Nov 2026 EST",
+    ],
+  },
+  {
+    id: "fire-lamp", needs: [["neopixel"]], name: "NeoPixel fire and lava lamp", level: "Starter", mins: 15, tags: ["lights"],
+    sum: "A flickering fire on a strip of NeoPixels, and a slow lava-lamp glow. The BOOT button switches between them.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { PIX: "16", BTN: "0" }, esp32s3: { PIX: "5", BTN: "0" }, esp32c3: { PIX: "4", BTN: "9" } },
+    pins: ["5V", "GND", "%PIX%", "%BTN%"], libs: ["Adafruit NeoPixel"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "WS2812B strip, 30 LEDs, or a NeoPixel Stick", BOM.neopixelStick],
+      [1, "330 Ω resistor"],
+      [1, "Optional 74AHCT125 level shifter", BOM.levelShifter],
+      [3, "Jumper wires"],
+    ],
+    wiring: [
+      ["Strip 5V or VDC", "5V", "Fine for a short strip at this brightness. Longer strips need their own 5 V supply"],
+      ["Strip GND", "GND", "Join the grounds if the strip has its own supply"],
+      ["Strip DIN, through 330 Ω", "GPIO %PIX%", "The resistor goes next to the strip"],
+      ["BOOT button", "GPIO %BTN%", "Already on the board. Press it to switch effects"],
+    ],
+    code: R`// Fire and lava lamp on a NeoPixel strip. BOOT switches the effect.
+#include <Adafruit_NeoPixel.h>
+
+const int PIN = %PIX%;
+const int COUNT = 30;       // LEDs on your strip
+const int BUTTON = %BTN%;   // the BOOT button
+const int COOLING = 55;     // fire: higher makes shorter flames
+const int SPARKING = 120;   // fire: higher makes a busier fire
+
+Adafruit_NeoPixel strip(COUNT, PIN, NEO_GRB + NEO_KHZ800);
+uint8_t heat[COUNT];
+bool lava = false;
+int lastButton = HIGH;
+unsigned long frames = 0, reportAt = 0;
+
+// Black, red, orange, yellow, white as heat rises.
+uint32_t heatColor(uint8_t t) {
+  uint8_t scaled = (t * 191) / 255;  // 0 to 191, three bands of 64
+  uint8_t ramp = (scaled & 63) << 2;
+  if (scaled > 127) return strip.Color(255, 255, ramp);
+  if (scaled > 63) return strip.Color(255, ramp, 0);
+  return strip.Color(ramp, 0, 0);
+}
+
+void fire() {
+  // The classic Fire2012 idea: each cell cools, heat drifts up, new sparks at the bottom.
+  for (int i = 0; i < COUNT; i++) {
+    int cool = random(0, ((COOLING * 10) / COUNT) + 2);
+    heat[i] = heat[i] > cool ? heat[i] - cool : 0;
+  }
+  for (int k = COUNT - 1; k >= 2; k--) heat[k] = (heat[k - 1] + 2 * heat[k - 2]) / 3;
+  if (random(255) < SPARKING) {
+    int y = random(min(7, COUNT));
+    heat[y] = min(255, heat[y] + (int)random(160, 255));
+  }
+  for (int j = 0; j < COUNT; j++) strip.setPixelColor(j, heatColor(heat[j]));
+}
+
+void lavaLamp() {
+  // Two slow waves of warm colour drifting past each other.
+  float t = millis() / 1000.0f;
+  for (int i = 0; i < COUNT; i++) {
+    float a = (sinf(i * 0.35f + t * 0.6f) + 1) / 2;
+    float b = (sinf(i * 0.17f - t * 0.4f + 2) + 1) / 2;
+    uint16_t hue = 60000 + (uint16_t)(a * 9000);  // magenta through red to orange
+    uint8_t value = 60 + (uint8_t)(b * 195);
+    strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(hue, 255, value)));
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUTTON, INPUT_PULLUP);
+  strip.begin();
+  strip.setBrightness(60);  // about a quarter: easy on USB power
+  strip.show();
+  randomSeed(esp_random());
+  Serial.printf("%d LEDs on GPIO %d. Press BOOT to switch effects.\n", COUNT, PIN);
+  Serial.println("mode: fire");
+}
+
+void loop() {
+  int button = digitalRead(BUTTON);
+  if (lastButton == HIGH && button == LOW) {
+    lava = !lava;
+    Serial.println(lava ? "mode: lava lamp" : "mode: fire");
+    delay(30);
+  }
+  lastButton = button;
+
+  if (lava) lavaLamp();
+  else fire();
+  strip.show();
+  frames++;
+
+  if (millis() - reportAt >= 5000) {
+    Serial.printf("fps=%lu\n", frames * 1000 / (millis() - reportAt));
+    frames = 0;
+    reportAt = millis();
+  }
+  delay(lava ? 30 : 16);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Each LED can draw about 60 mA at full white. Thirty LEDs at this brightness are fine on USB; at full brightness use a separate 5 V supply and a 1000 µF capacitor across it.",
+      "WS2812B LEDs on 5 V expect data near 5 V. Most accept 3.3 V; if the first LED flickers or stays dark, put a 74AHCT125 level shifter in the data line.",
+      "Hang the strip vertically for the fire: the flames rise from LED 0. A paper tube or a frosted jar over it makes it look far better.",
+      "Tune COOLING and SPARKING to change the fire. The fps lines on the bench show how fast the strip is updating.",
+    ],
+    sample: [
+      "30 LEDs on GPIO %PIX%. Press BOOT to switch effects.",
+      "mode: fire",
+      "fps=58",
+      "fps=57",
+      "fps=58",
+      "mode: lava lamp",
+      "fps=31",
+      "fps=31",
+      "mode: fire",
+      "fps=58",
+    ],
+  },
+  {
+    id: "talking-plant", needs: [["soil"]], name: "Talking plant", level: "Starter", mins: 15, tags: ["games", "sensors"],
+    sum: "Give a house plant a voice. A soil moisture sensor tells you when it is thirsty, and the plant says so on the serial port.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { SOIL: "34" }, esp32s3: { SOIL: "2" }, esp32c3: { SOIL: "3" } },
+    pins: ["3V3", "GND", "%SOIL%"], libs: [], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Capacitive soil moisture sensor, v1.2 or similar, with analog output"],
+      [3, "Jumper wires"],
+    ],
+    wiring: [
+      ["Sensor VCC", "3V3", "3.3 V keeps the analog output inside the ESP32's range"],
+      ["Sensor GND", "GND", ""],
+      ["Sensor AOUT", "GPIO %SOIL%", "An ADC1 pin"],
+    ],
+    code: R`// Talking plant: a capacitive soil sensor gives the plant a voice.
+const int SOIL = %SOIL%;       // an ADC1 pin
+// Calibrate: read the raw value with the sensor in dry air, then in a glass of water.
+const int AIR_RAW = 2800;
+const int WATER_RAW = 1200;
+const unsigned long EVERY_MS = 10000;
+
+enum Mood { PARCHED, THIRSTY, HAPPY, SOGGY, UNKNOWN };
+Mood mood = UNKNOWN;
+
+int readRaw() {
+  long sum = 0;
+  for (int i = 0; i < 16; i++) {
+    sum += analogRead(SOIL);
+    delay(5);
+  }
+  return sum / 16;
+}
+
+Mood moodFor(int pct) {
+  // A few percent of slack around the extremes, so the plant does not dither.
+  const int slack = 3;
+  if (mood == PARCHED && pct < 20 + slack) return PARCHED;
+  if (mood == SOGGY && pct > 85 - slack) return SOGGY;
+  if (pct < 20) return PARCHED;
+  if (pct < 40) return THIRSTY;
+  if (pct <= 85) return HAPPY;
+  return SOGGY;
+}
+
+void say(Mood next) {
+  if (next == HAPPY && (mood == PARCHED || mood == THIRSTY)) Serial.println("Plant: Ahh, that's better. Thank you!");
+  else if (next == HAPPY) Serial.println("Plant: Feeling good.");
+  else if (next == THIRSTY) Serial.println("Plant: I could use a drink soon.");
+  else if (next == PARCHED) Serial.println("Plant: I'm parched! Water, please.");
+  else Serial.println("Plant: Glub. That's plenty, my roots need air too.");
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  analogReadResolution(12);
+  Serial.println("Talking plant. Calibrate AIR_RAW and WATER_RAW in the sketch for your sensor.");
+}
+
+void loop() {
+  int raw = readRaw();
+  int pct = constrain(map(raw, AIR_RAW, WATER_RAW, 0, 100), 0, 100);
+  Serial.printf("moisture=%d%% raw=%d\n", pct, raw);
+  Mood next = moodFor(pct);
+  if (next != mood) {
+    say(next);
+    mood = next;
+  }
+  delay(EVERY_MS);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Every sensor reads a little differently. Set AIR_RAW and WATER_RAW to the raw values you see in dry air and in a glass of water, and the percentages start to mean something.",
+      "Wetter soil gives a lower raw number on capacitive sensors, which is why WATER_RAW is the smaller one.",
+      "Only push the sensor in up to the line printed on it. The electronics at the top are not waterproof; a coat of nail varnish or hot glue on the edges helps it last.",
+      "On a battery, read once and go to deep sleep for half an hour with esp_sleep_enable_timer_wakeup() and esp_deep_sleep_start(). Power the sensor from a GPIO so it is off while the board sleeps.",
+      "The sensor is on an ADC1 pin, so the same wiring keeps working if you add Wi-Fi later.",
+    ],
+    sample: [
+      "Talking plant. Calibrate AIR_RAW and WATER_RAW in the sketch for your sensor.",
+      "moisture=18% raw=2512",
+      "Plant: I'm parched! Water, please.",
+      "moisture=17% raw=2528",
+      "moisture=17% raw=2531",
+      "moisture=52% raw=1968",
+      "Plant: Ahh, that's better. Thank you!",
+      "moisture=58% raw=1872",
+      "moisture=61% raw=1824",
+      "moisture=60% raw=1840",
     ],
   },
   ...PROBEHARBOR_SKETCHES,

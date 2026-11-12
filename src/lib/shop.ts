@@ -50,4 +50,7 @@ export const BOM = {
   levelShifter: "https://www.adafruit.com/product/1787",
   microServo: "https://www.adafruit.com/product/169",
   miniRelay: "https://www.adafruit.com/product/4409",
+  piezoBuzzer: "https://www.adafruit.com/product/160",
+  pot10k: "https://www.adafruit.com/product/562",
+  tactileButtons: "https://www.adafruit.com/product/367",
 } as const;

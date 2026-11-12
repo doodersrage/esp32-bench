@@ -24,7 +24,7 @@ export interface PartPin {
 }
 
 export interface Part {
-  id: DrawerPart | "led";
+  id: DrawerPart;
   name: string;
   pins: PartPin[];
 }
@@ -156,6 +156,29 @@ export const PARTS: Part[] = [
       { name: "DC", kind: "in" },
       { name: "RST", kind: "in" },
       { name: "BUSY", kind: "out" },
+    ],
+  },
+  {
+    id: "buzzer", name: "Passive buzzer",
+    pins: [
+      { name: "+", kind: "in", note: "A passive buzzer or piezo plays tones with tone(). An active buzzer only beeps at one pitch." },
+      { name: "-", kind: "gnd" },
+    ],
+  },
+  {
+    id: "pot", name: "Potentiometer",
+    pins: [
+      { name: "END A", kind: "power3", note: "3V3, never 5 V: the wiper would put 5 V on the GPIO." },
+      { name: "WIPER", kind: "out", note: "Needs an ADC1 pin. On the classic ESP32 that is GPIO 32 to 39." },
+      { name: "END B", kind: "gnd" },
+    ],
+  },
+  {
+    id: "soil", name: "Soil moisture sensor",
+    pins: [
+      { name: "VCC", kind: "power3", note: "Capacitive v1.2 boards run on 3.3 V, which also keeps AOUT below 3.3 V." },
+      { name: "GND", kind: "gnd" },
+      { name: "AOUT", kind: "out", note: "Needs an ADC1 pin. On the classic ESP32 that is GPIO 32 to 39." },
     ],
   },
   {
