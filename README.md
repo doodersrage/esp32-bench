@@ -26,10 +26,10 @@ npm install
 npm run dev      # http://localhost:4321
 npm run build    # static site in dist/
 npm run preview  # serve the built site
-npm run deploy   # build and upload to Cloudflare Workers (needs `npm i -g cf` and `cf auth login`)
+npm run deploy   # build, upload to Cloudflare Workers and ping IndexNow (needs `npm i -g cf` and `cf auth login`)
 ```
 
-The public address is `site` in `astro.config.mjs`. Canonical links, link previews, the sitemap, the RSS feed and robots.txt are built from it. `cloudflare.config.ts` makes Cloudflare serve `404.html` for unknown paths, and `public/_headers` keeps the service worker uncached.
+The public address is `site` in `astro.config.mjs`. Canonical links, link previews, the sitemap, the RSS feed and robots.txt are built from it. `cloudflare.config.ts` makes Cloudflare serve `404.html` for unknown paths, and `public/_headers` keeps the service worker uncached. Pushes to `main` also deploy through `.github/workflows/deploy.yml` once the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets are set.
 
 Web Serial needs a secure page, so use `localhost` or HTTPS. Flashing and connecting a board need Chrome or Edge on a desktop. The library, boards and sample output work in any browser.
 
