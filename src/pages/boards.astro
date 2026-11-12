@@ -8,7 +8,11 @@ import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../lib/shop";
 const countFor = (id: string) => PROJECTS.filter((p) => boardsOf(p).some((b) => b === id)).length;
 ---
 
-<Base title="Boards" current="boards">
+<Base
+  title="ESP32, ESP32-S3 and ESP32-C3 pinouts"
+  current="boards"
+  description="Pin headers, hardware-tested pins and field notes for the ESP32-DevKitC V4, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1: boot pins, input-only pins and safe GPIOs."
+>
   <section class="view">
     <h1 class="h2">Boards</h1>
     <p class="lede">

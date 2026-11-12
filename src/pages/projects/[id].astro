@@ -26,9 +26,12 @@ const panels = boards.map((board) => ({
 const needsLibraries = p.libs.some((l) => !/built in/.test(l));
 const hasBuyLinks = p.parts.some((x) => x[2]);
 const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
+const boardNames = boards.map((b) => b.name).join(", ");
+const summary = p.sum.length > 150 ? `${p.sum.slice(0, p.sum.lastIndexOf(" ", 147))}...` : p.sum;
+const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`;
 ---
 
-<Base title={p.name} current="library">
+<Base title={`${p.name}: ESP32 project`} description={description} current="library">
   <section class="view">
     <a class="back" href={link("/")}>← All projects</a>
 

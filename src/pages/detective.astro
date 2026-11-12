@@ -3,7 +3,11 @@ import Base from "../layouts/Base.astro";
 import Flasher from "../components/Flasher.astro";
 ---
 
-<Base title="Detective" current="detective">
+<Base
+  title="Pin detective: find any ESP32 pad's GPIO number"
+  current="detective"
+  description="Flash a helper firmware from the browser, touch a jumper from GND to any pad and see its GPIO number light up. Also reads the chip, flash size and MAC address."
+>
   <section class="view">
     <h1 class="h2">Pin detective</h1>
     <p class="lede">

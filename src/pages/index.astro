@@ -3,11 +3,21 @@ import Base from "../layouts/Base.astro";
 import ProjectCard from "../components/ProjectCard.astro";
 import { DRAWER, PROJECTS, TAGS } from "../data/projects";
 import { BADGES } from "../scripts/progress";
+import { SITE } from "../lib/site";
 
 const parts = Object.entries(DRAWER);
 ---
 
-<Base current="library">
+<Base
+  current="library"
+  jsonLd={{
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE.name,
+    description: SITE.description,
+    url: Astro.site?.href,
+  }}
+>
   <section class="view">
     <h1 class="sr">Project library</h1>
     <p class="lede">

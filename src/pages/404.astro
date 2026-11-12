@@ -1,0 +1,19 @@
+---
+import Base from "../layouts/Base.astro";
+import { link } from "../lib/paths";
+---
+
+<Base title="Page not found" current="none" noindex description="This page does not exist on ESP32 Bench.">
+  <section class="view">
+    <h1 class="h2">No such pad</h1>
+    <p class="lede">
+      Nothing is wired to this address. The page may have moved, or the link has a typo. Try one of these instead:
+    </p>
+    <ul class="jump">
+      <li><a href={link("/")}>Project library</a> <span>Every project, with pinouts and sketches</span></li>
+      <li><a href={link("/start/")}>Getting started</a> <span>Drivers, browsers and a first flash</span></li>
+      <li><a href={link("/errors/")}>Error reference</a> <span>Look up a crash or upload error</span></li>
+      <li><a href={link("/bench/")}>Serial bench</a> <span>Connect a board and watch it talk</span></li>
+    </ul>
+  </section>
+</Base>

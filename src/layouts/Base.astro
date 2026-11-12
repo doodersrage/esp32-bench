@@ -1,14 +1,50 @@
 ---
 import "../styles/global.css";
 import { link } from "../lib/paths";
+import { SITE, absolute } from "../lib/site";
+
+type Section =
+  | "library"
+  | "start"
+  | "boards"
+  | "wire"
+  | "detective"
+  | "bench"
+  | "errors"
+  | "flames"
+  | "about"
+  | "none";
 
 interface Props {
   title?: string;
-  current: "library" | "boards" | "wire" | "detective" | "bench" | "flames";
+  /** One or two sentences for search results and link previews */
+  description?: string;
+  current: Section;
+  /** Site path of a 1200x630 preview image */
+  image?: string;
+  /** Structured data for search engines */
+  jsonLd?: Record<string, unknown>;
+  /** Keep the page out of search results, e.g. the 404 page */
+  noindex?: boolean;
 }
 
-const { title, current } = Astro.props;
-const pageTitle = title ? `${title} | ESP32 Bench` : "ESP32 Bench";
+const { title, description = SITE.description, current, image = "/og.png", jsonLd, noindex = false } = Astro.props;
+const pageTitle = title ? `${title} | ${SITE.name}` : `${SITE.name}: ${SITE.tagline}`;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const sitePath = base && Astro.url.pathname.startsWith(base) ? Astro.url.pathname.slice(base.length) : Astro.url.pathname;
+const canonical = absolute(sitePath, Astro.site);
+const imageUrl = absolute(image, Astro.site);
+
+const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
+  ["library", "/", "Library"],
+  ["start", "/start/", "Start"],
+  ["boards", "/boards/", "Boards"],
+  ["wire", "/wire/", "Wire"],
+  ["detective", "/detective/", "Detective"],
+  ["bench", "/bench/", "Bench"],
+  ["errors", "/errors/", "Errors"],
+  ["flames", "/flames/", "Flames"],
+];
 ---
 
 <!doctype html>
@@ -16,9 +52,36 @@ const pageTitle = title ? `${title} | ESP32 Bench` : "ESP32 Bench";
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="ESP32 project library and Web Serial workbench." />
-    <link rel="icon" type="image/svg+xml" href={link("/favicon.svg")} />
     <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:title" content={title ?? SITE.name} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" type="image/svg+xml" href={link("/favicon.svg")} />
+    <link rel="apple-touch-icon" href={link("/icons/apple-touch-icon.png")} />
+    <link rel="manifest" href={link("/manifest.webmanifest")} />
+    <meta name="theme-color" content={SITE.themeColor} />
+    <link rel="alternate" type="application/rss+xml" title={`${SITE.name}: what's new`} href={link("/rss.xml")} />
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+
+    <script is:inline>
+      // Apply the saved theme before first paint so the page does not flash.
+      try {
+        const t = localStorage.getItem("bench.theme");
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -27,23 +90,47 @@ const pageTitle = title ? `${title} | ESP32 Bench` : "ESP32 Bench";
     />
   </head>
   <body>
+    <a class="skip" href="#main">Skip to content</a>
     <div class="wrap">
       <header class="top">
-        <p class="brand">ESP32 <span>Bench</span></p>
+        <a class="brand" href={link("/")}>ESP32 <span>Bench</span></a>
         <div class="rev">Boards: ESP32, S3, C3<br />Flash and monitor: Web Serial</div>
-        <nav class="tabs" aria-label="Views">
-          <a href={link("/")} aria-current={current === "library" ? "page" : undefined}>Library</a>
-          <a href={link("/boards/")} aria-current={current === "boards" ? "page" : undefined}>Boards</a>
-          <a href={link("/wire/")} aria-current={current === "wire" ? "page" : undefined}>Wire</a>
-          <a href={link("/detective/")} aria-current={current === "detective" ? "page" : undefined}>Detective</a>
-          <a href={link("/bench/")} aria-current={current === "bench" ? "page" : undefined}>Bench</a>
-          <a href={link("/flames/")} aria-current={current === "flames" ? "page" : undefined}>Flames</a>
+        <div class="tools">
+          <button class="btn sm" type="button" id="install-app" hidden>Install app</button>
+          <button class="btn sm" type="button" id="theme">Theme: auto</button>
+        </div>
+        <nav class="tabs" aria-label="Sections">
+          {
+            NAV.map(([id, href, label]) => (
+              <a href={link(href)} aria-current={current === id ? "page" : undefined}>
+                {label}
+              </a>
+            ))
+          }
         </nav>
       </header>
-      <main>
+      <p class="offline-note" id="offline-note" role="status" hidden>
+        You are offline. Pages you have opened before still work. Flashing, fonts and buy links need a connection.
+      </p>
+      <main id="main">
         <slot />
       </main>
-      <footer>ESP32 Bench v0.5. Pin numbers are GPIO numbers. Check your own board's pinout before powering anything.</footer>
+      <footer>
+        <nav class="footnav" aria-label="Site">
+          <a href={link("/about/")} aria-current={current === "about" ? "page" : undefined}>About</a>
+          <a href={link("/changes/")}>What's new</a>
+          <a href={link("/rss.xml")}>RSS feed</a>
+          {SITE.repo && <a href={SITE.repo}>Source code</a>}
+        </nav>
+        <p>
+          {SITE.name}. Pin numbers are GPIO numbers. Check your own board's pinout before powering anything. Some buy
+          links earn a commission; see <a href={link("/about/#affiliate")}>About</a>.
+        </p>
+      </footer>
     </div>
   </body>
 </html>
+
+<script>
+  import "../scripts/shell.ts";
+</script>

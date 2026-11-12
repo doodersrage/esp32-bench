@@ -8,7 +8,11 @@ const remixable = PROJECTS.filter((p) => p.needs.length > 0);
 const needsAttr = (needs: string[][]) => needs.map((group) => group.join("|")).join(" ");
 ---
 
-<Base title="Wire" current="wire">
+<Base
+  title="ESP32 wiring checker"
+  current="wire"
+  description="Wire sensors and displays to an ESP32 on screen. Every wire is checked for boot pins, input-only pins, 5 V signals and clashes, and two projects can be remixed onto one board."
+>
   <section class="view">
     <h1 class="h2">Wiring pad</h1>
     <p class="lede">

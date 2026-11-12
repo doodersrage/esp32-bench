@@ -1,0 +1,20 @@
+---
+import Base from "../layouts/Base.astro";
+import { link } from "../lib/paths";
+---
+
+<Base title="Offline" current="none" noindex description="You are offline.">
+  <section class="view">
+    <h1 class="h2">You are offline</h1>
+    <p class="lede">
+      This page has not been saved for offline use yet. Pages you have opened before still work, and so do the ones
+      below. Connect again to load the rest.
+    </p>
+    <ul class="jump">
+      <li><a href={link("/")}>Project library</a></li>
+      <li><a href={link("/start/")}>Getting started</a></li>
+      <li><a href={link("/boards/")}>Boards</a></li>
+      <li><a href={link("/bench/")}>Serial bench</a> <span>Web Serial works offline once the page is loaded</span></li>
+    </ul>
+  </section>
+</Base>

@@ -1,0 +1,38 @@
+---
+import Base from "../layouts/Base.astro";
+import { CHANGES } from "../data/changes";
+import { link } from "../lib/paths";
+
+const fmt = (d: string) =>
+  new Date(`${d}T12:00:00Z`).toLocaleDateString("en", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+---
+
+<Base
+  title="What's new"
+  current="none"
+  description="Release notes for ESP32 Bench: new projects, tools and fixes, newest first. Also available as an RSS feed."
+>
+  <section class="view">
+    <div class="stack tight">
+      <h1 class="h2">What's new</h1>
+      <p class="lede">
+        Newest first. Follow along with the <a href={link("/rss.xml")}>RSS feed</a>.
+      </p>
+    </div>
+    {
+      CHANGES.map((c) => (
+        <article class="change band" id={c.id}>
+          <p class="when"><time datetime={c.date}>{fmt(c.date)}</time></p>
+          <h2>{c.title}</h2>
+          <p>{c.summary}</p>
+          <ul>
+            {c.items.map((i) => (
+              <li>{i}</li>
+            ))}
+          </ul>
+          <a class="btn sm" href={link(c.link)}>Try it</a>
+        </article>
+      ))
+    }
+  </section>
+</Base>

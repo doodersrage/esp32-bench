@@ -1,0 +1,77 @@
+---
+import Base from "../layouts/Base.astro";
+import { link } from "../lib/paths";
+import { SITE } from "../lib/site";
+import { AFFILIATE_DISCLOSURE } from "../lib/shop";
+import { PROJECTS } from "../data/projects";
+
+const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
+---
+
+<Base
+  title="About"
+  current="about"
+  description="What ESP32 Bench is, how projects are tested, what is stored in your browser, and how buy links work."
+>
+  <section class="view prose">
+    <h1 class="h2">About ESP32 Bench</h1>
+    <p class="lede">
+      ESP32 Bench is a free workbench for ESP32 boards that runs in your browser. Pick a project, see exactly which pins
+      it uses on your board, copy the sketch or flash prebuilt firmware, then watch the board talk on the serial bench.
+      When something breaks, the crash translator and the error reference explain what the board is saying.
+    </p>
+
+    <h2>How projects are tested</h2>
+    <p>
+      Each project page says how far it has been checked. {tested} of the {PROJECTS.length} projects {tested === 1 ? "has" : "have"} checks
+      done on real hardware, listed with the board and the firmware they were run on. The others say "Not hardware tested":
+      their sketches follow the documented Arduino-ESP32 APIs but nobody has watched them run on a bench yet. If you
+      build one, the serial output it prints is the best test there is.
+    </p>
+
+    <h2>What stays in your browser</h2>
+    <p>
+      There are no accounts and no analytics. Your bench log, badges, saved board passports, theme and serial settings
+      are kept in this browser's local storage and never leave it. Serial data goes from the board to this page and
+      nowhere else. Fonts load from Google Fonts. Wi-Fi details you type into a probe's settings form are sent to the
+      board over USB only.
+    </p>
+
+    <h2 id="affiliate">Buy links</h2>
+    <p>{AFFILIATE_DISCLOSURE} Prices and stock are whatever the shop says on the day; the parts lists name the part, so any equivalent will do.</p>
+
+    <h2>Browsers</h2>
+    <p>
+      Reading projects works everywhere. Connecting to a board, flashing and the detective use Web Serial, which Chrome,
+      Edge and Opera support on desktop computers. Firefox and Safari do not support it. The
+      <a href={link("/start/")}>getting started guide</a> covers drivers and permissions.
+    </p>
+
+    <h2>Install it</h2>
+    <p>
+      In Chrome or Edge, use the Install app button in the header, or the install icon in the address bar. The
+      installed app opens in its own window, and pages you have opened work without a connection.
+    </p>
+
+    <h2>Safety</h2>
+    <p>
+      Pin numbers on this site are GPIO numbers, and boards differ. Check your own board's pinout before powering
+      anything, keep mains voltage out of hobby projects unless you know exactly what you are doing, and never feed a
+      5 V signal into an ESP32 pin.
+    </p>
+
+    {
+      SITE.repo && (
+        <>
+          <h2>Contribute</h2>
+          <p>
+            Found a wrong pin, a broken link or a bug? The source is on <a href={SITE.repo}>GitHub</a>. Issues and pull
+            requests are welcome, especially hardware test results.
+          </p>
+        </>
+      )
+    }
+
+    <p class="when">See <a href={link("/changes/")}>what's new</a> for the release history.</p>
+  </section>
+</Base>

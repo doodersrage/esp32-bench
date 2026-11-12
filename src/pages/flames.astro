@@ -6,7 +6,11 @@ import { explainLog } from "../lib/crash";
 const fromTests = FLAMES.filter((f) => f.source === "probeharbor").length;
 ---
 
-<Base title="Flames" current="flames">
+<Base
+  title="Hall of flames: real ESP32 failures"
+  current="flames"
+  description="ESP32 failures with the exact serial output, what they are easy to mistake for, what was actually wrong and how it was fixed."
+>
   <section class="view">
     <h1 class="h2">Hall of flames</h1>
     <p class="lede">
