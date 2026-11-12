@@ -1,0 +1,64 @@
+---
+// Sends a project's settings (Wi-Fi and the like) to the board over USB, for
+// firmware flashed from the page or a sketch pasted in unchanged. The board side
+// is the "ESP32 Bench settings block" in the sketch; the wire format is in
+// src/lib/settings-protocol.ts. Nothing typed here is stored by the site.
+import type { Setting } from "../data/bench-settings";
+import { link } from "../lib/paths";
+
+interface Props {
+  settings: Setting[];
+  project: string;
+  baud: number;
+}
+
+const { settings, project, baud } = Astro.props;
+const benchHref = `${link("/bench/")}?baud=${baud}&sample=${project}`;
+---
+
+<div class="flashbox settingsbox" data-settings-form data-settings={JSON.stringify(settings)} data-bench={benchHref}>
+  <h3 class="flat">Settings over USB</h3>
+  <p>
+    This sketch keeps its settings in the board's flash. Fill in what you want to change, keep the board on USB and
+    press Send: the page restarts the board, sends the settings and restarts it again. Fields left empty keep what is
+    already stored, or the sketch's own default. Nothing is stored by this site.
+  </p>
+  <form class="setupform" data-form novalidate>
+    {
+      settings.map((s) => (
+        <label for={`setting-${s.key}`} class={s.kind === "url" ? "wide" : undefined}>
+          {s.label}
+          {s.required ? "" : <span class="opt">optional</span>}
+          <input
+            id={`setting-${s.key}`}
+            name={s.key}
+            type={s.kind === "password" ? "password" : s.kind === "number" ? "number" : s.kind === "url" ? "url" : "text"}
+            autocomplete="off"
+            spellcheck="false"
+            maxlength="240"
+            inputmode={s.kind === "number" ? "numeric" : undefined}
+          />
+          <span class="hint" data-hint={s.key}>{s.hint ?? ""}</span>
+        </label>
+      ))
+    }
+    <div class="wide row">
+      <button class="btn go" type="submit" data-send>Send settings to the board</button>
+      <span class="setupstatus" data-status role="status" aria-live="polite"></span>
+    </div>
+  </form>
+  <pre class="code" data-log hidden></pre>
+  <p class="row" data-after hidden>
+    <a class="btn" data-bench-link href={benchHref}>Open the bench to watch it start</a>
+  </p>
+</div>
+
+<style>
+  .settingsbox h3 { margin-bottom: 4px; }
+  .opt { font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .hint.stored { color: var(--ok); }
+</style>
+
+<script>
+  import "../scripts/settings-form.ts";
+</script>

@@ -1,6 +1,8 @@
 import type { BoardId } from "./boards";
 import { BOM } from "../lib/shop";
 import { PROBEHARBOR_SKETCHES } from "./probeharbor";
+import { WIFI, benchSettings, type Setting } from "./bench-settings";
+export type { Setting } from "./bench-settings";
 
 export type Tag = "games" | "motion" | "no-parts" | "sensors" | "display" | "lights" | "wifi" | "bluetooth" | "power" | "flash" | "probeharbor";
 
@@ -50,6 +52,12 @@ export interface Project {
   flash?: { manifest: string; version: string; after: string[] };
   /** Show the form that sends ProbeHarbor settings to the board over USB */
   setup?: "probeharbor";
+  /**
+   * Settings the sketch reads from flash (its "ESP32 Bench settings block"), so
+   * prebuilt firmware works without editing code. The project page's settings
+   * form sends them over USB. Keys must match the sketch's BENCH_KEYS.
+   */
+  settings?: Setting[];
   /**
    * ProbeHarbor projects written here rather than copied from ProbeHarbor:
    * "reads" shows readings from a share link, "sends" posts to a push device.
@@ -446,9 +454,11 @@ void loop() {}`,
 const char* WIFI_NAME = "your-network";
 const char* WIFI_PASS = "your-password";
 const int LED = 2;
+${benchSettings(["wifi_ssid", "wifi_pass"])}
 
 WebServer server(80);
 bool on = false;
+String wifiName, wifiPass;
 
 void page() {
   String h = "<!doctype html><meta name=viewport content='width=device-width'>";
@@ -461,7 +471,11 @@ void page() {
 void setup() {
   Serial.begin(115200);
   pinMode(LED, OUTPUT);
-  WiFi.begin(WIFI_NAME, WIFI_PASS);
+  benchSettingsBoot();
+  wifiName = benchSetting("wifi_ssid", WIFI_NAME);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  benchNeeds("Wi-Fi name", wifiName, "your-network", "WIFI_NAME");
+  WiFi.begin(wifiName.c_str(), wifiPass.c_str());
   while (WiFi.status() != WL_CONNECTED) {
     delay(300);
     Serial.print(".");
@@ -479,9 +493,11 @@ void setup() {
 }
 
 void loop() {
+  benchSettingsPoll();
   server.handleClient();
 }`,
-    sample: [".......", "Open http://192.168.1.57"]
+    settings: WIFI,
+    sample: ["SETTINGS\twifi_ssid=set\twifi_pass=set", ".......", "Open http://192.168.1.57"]
   },
   {
     id: "touch-piano", needs: [], name: "Touch piano", level: "Starter", mins: 10, tags: ["no-parts", "sensors"],
@@ -770,7 +786,10 @@ const char* MQTT_HOST = "192.168.1.10";  // your broker, often the Home Assistan
 const int MQTT_PORT = 1883;
 const char* MQTT_USER = "";  // leave empty if the broker allows anonymous clients
 const char* MQTT_PASS = "";
+${benchSettings(["wifi_ssid", "wifi_pass", "mqtt_host", "mqtt_port", "mqtt_user", "mqtt_pass"])}
 
+String wifiName, wifiPass, mqttHost, mqttUser, mqttPass;
+int mqttPort = MQTT_PORT;
 OneWire oneWire(4);
 DallasTemperature probes(&oneWire);
 WiFiClient net;
@@ -792,10 +811,11 @@ void announce() {
 }
 
 void connectMqtt() {
-  const char* user = strlen(MQTT_USER) > 0 ? MQTT_USER : nullptr;
-  const char* pass = strlen(MQTT_PASS) > 0 ? MQTT_PASS : nullptr;
+  const char* user = mqttUser.length() > 0 ? mqttUser.c_str() : nullptr;
+  const char* pass = mqttPass.length() > 0 ? mqttPass.c_str() : nullptr;
   while (!mqtt.connected()) {
-    Serial.printf("mqtt connecting to %s\n", MQTT_HOST);
+    benchSettingsPoll();
+    Serial.printf("mqtt connecting to %s\n", mqttHost.c_str());
     // The last will marks the sensor unavailable if the board drops off.
     if (mqtt.connect(id.c_str(), user, pass, statusTopic.c_str(), 1, true, "offline")) {
       mqtt.publish(statusTopic.c_str(), "online", true);
@@ -811,10 +831,19 @@ void connectMqtt() {
 void setup() {
   Serial.begin(115200);
   probes.begin();
+  benchSettingsBoot();
+  wifiName = benchSetting("wifi_ssid", WIFI_NAME);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  mqttHost = benchSetting("mqtt_host", MQTT_HOST);
+  mqttPort = benchSetting("mqtt_port", String(MQTT_PORT).c_str()).toInt();
+  mqttUser = benchSetting("mqtt_user", MQTT_USER);
+  mqttPass = benchSetting("mqtt_pass", MQTT_PASS);
+  benchNeeds("Wi-Fi name", wifiName, "your-network", "WIFI_NAME");
+  benchNeeds("MQTT broker", mqttHost, "", "MQTT_HOST");
 
-  Serial.printf("wifi joining %s\n", WIFI_NAME);
+  Serial.printf("wifi joining %s\n", wifiName.c_str());
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_NAME, WIFI_PASS);
+  WiFi.begin(wifiName.c_str(), wifiPass.c_str());
   while (WiFi.status() != WL_CONNECTED) delay(300);
   Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
 
@@ -825,11 +854,12 @@ void setup() {
   stateTopic = String("esp32bench/") + id + "/temperature";
   statusTopic = String("esp32bench/") + id + "/status";
 
-  mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  mqtt.setServer(mqttHost.c_str(), mqttPort);
   mqtt.setBufferSize(512);  // the discovery message is longer than the 256-byte default
 }
 
 void loop() {
+  benchSettingsPoll();
   if (!mqtt.connected()) connectMqtt();
   mqtt.loop();
 
@@ -853,6 +883,13 @@ void loop() {
       "mqtt failed, state -2 means the broker could not be reached: check MQTT_HOST and that port 1883 is open. State 4 or 5 means the user name or password was refused.",
       "The sketch raises PubSubClient's buffer to 512 bytes. With the default 256 the discovery message is silently dropped and nothing appears in Home Assistant.",
       "The device id comes from the board's MAC address, so each board shows up as its own device.",
+    ],
+    settings: [
+      ...WIFI,
+      { key: "mqtt_host", label: "MQTT broker address", kind: "text", hint: "Often the Home Assistant machine, e.g. 192.168.1.10.", required: true },
+      { key: "mqtt_port", label: "MQTT port", kind: "number", hint: "1883 unless you changed it." },
+      { key: "mqtt_user", label: "MQTT user name", kind: "text", hint: "Leave empty for a broker that allows anonymous clients." },
+      { key: "mqtt_pass", label: "MQTT password", kind: "password" },
     ],
     sample: [
       "wifi joining your-network",
@@ -930,32 +967,42 @@ const char* WIFI_NAME = "your-network";
 const char* WIFI_PASS = "your-password";
 const char* OTA_NAME = "esp32-bench";  // the board appears as esp32-bench.local
 const char* OTA_PASS = "change-me";    // asked for on every network upload
+${benchSettings(["wifi_ssid", "wifi_pass", "ota_name", "ota_pass"])}
 
+String wifiName, wifiPass, otaName, otaPass;
 unsigned long lastBeat = 0;
 
 void setup() {
   Serial.begin(115200);
+  benchSettingsBoot();
+  wifiName = benchSetting("wifi_ssid", WIFI_NAME);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  otaName = benchSetting("ota_name", OTA_NAME);
+  otaPass = benchSetting("ota_pass", OTA_PASS);
+  benchNeeds("Wi-Fi name", wifiName, "your-network", "WIFI_NAME");
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_NAME, WIFI_PASS);
-  Serial.printf("wifi joining %s\n", WIFI_NAME);
+  WiFi.begin(wifiName.c_str(), wifiPass.c_str());
+  Serial.printf("wifi joining %s\n", wifiName.c_str());
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("wifi failed, retrying in 5 s");
     delay(5000);
-    WiFi.begin(WIFI_NAME, WIFI_PASS);
+    benchSettingsPoll();
+    WiFi.begin(wifiName.c_str(), wifiPass.c_str());
   }
 
-  ArduinoOTA.setHostname(OTA_NAME);
-  ArduinoOTA.setPassword(OTA_PASS);
+  ArduinoOTA.setHostname(otaName.c_str());
+  ArduinoOTA.setPassword(otaPass.c_str());
   ArduinoOTA
     .onStart([]() { Serial.printf("ota start: %s\n", ArduinoOTA.getCommand() == U_FLASH ? "sketch" : "filesystem"); })
     .onProgress([](unsigned int done, unsigned int total) { Serial.printf("ota %u percent\r", done * 100 / total); })
     .onEnd([]() { Serial.println("\nota done, restarting"); })
     .onError([](ota_error_t error) { Serial.printf("ota error %u\n", error); });
   ArduinoOTA.begin();
-  Serial.printf("ota ready: %s.local at %s\n", OTA_NAME, WiFi.localIP().toString().c_str());
+  Serial.printf("ota ready: %s.local at %s\n", otaName.c_str(), WiFi.localIP().toString().c_str());
 }
 
 void loop() {
+  benchSettingsPoll();
   ArduinoOTA.handle();  // call often: uploads only happen while this runs
 
   if (millis() - lastBeat > 10000) {
@@ -971,6 +1018,11 @@ void loop() {
       "Your computer and the board must be on the same network, and some guest or mesh networks block the mDNS lookups the IDE uses to find the board.",
       "In PlatformIO, set upload_protocol = espota, upload_port = esp32-bench.local and upload_flags = --auth=change-me.",
       "To update from a browser instead, the core's HTTPUpdateServer example serves an upload page for the compiled .bin file.",
+    ],
+    settings: [
+      ...WIFI,
+      { key: "ota_name", label: "Board name", kind: "text", hint: "The board appears as <name>.local on your network." },
+      { key: "ota_pass", label: "OTA password", kind: "password", hint: "Asked for on every network upload." },
     ],
     sample: [
       "wifi joining your-network",
@@ -1300,6 +1352,7 @@ const char* WIFI_PASS = "your-password";
 
 Adafruit_BME280 bme;
 WebServer server(80);
+String wifiName, wifiPass;
 unsigned long lastLog = 0;
 
 const char PAGE[] = R"html(<!doctype html>
@@ -1334,6 +1387,8 @@ function tick() {
 tick(); setInterval(tick, 2000);
 </script></body></html>)html";
 
+${benchSettings(["wifi_ssid", "wifi_pass"])}
+
 void sendData() {
   char json[96];
   snprintf(json, sizeof json, "{\"t\":%.2f,\"h\":%.1f,\"p\":%.1f}",
@@ -1349,9 +1404,13 @@ void setup() {
     for (;;) delay(1000);
   }
 
+  benchSettingsBoot();
+  wifiName = benchSetting("wifi_ssid", WIFI_NAME);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  benchNeeds("Wi-Fi name", wifiName, "your-network", "WIFI_NAME");
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_NAME, WIFI_PASS);
-  Serial.printf("wifi joining %s\n", WIFI_NAME);
+  WiFi.begin(wifiName.c_str(), wifiPass.c_str());
+  Serial.printf("wifi joining %s\n", wifiName.c_str());
   while (WiFi.status() != WL_CONNECTED) delay(300);
 
   server.on("/", []() { server.send(200, "text/html", PAGE); });
@@ -1361,6 +1420,7 @@ void setup() {
 }
 
 void loop() {
+  benchSettingsPoll();
   server.handleClient();
   if (millis() - lastLog > 10000) {
     lastLog = millis();
@@ -1374,6 +1434,9 @@ void loop() {
       "Address 0x76 or 0x77 depends on the board's SDO pin; the sketch tries both. Run the I2C scanner project if neither answers.",
       "The BME280 warms itself a little when read constantly. Readings every two seconds are fine; for accurate room temperature, keep the sensor away from the ESP32's own heat.",
       "/data.json is plain JSON, so Home Assistant's REST sensor or a script can read it too.",
+    ],
+    settings: [
+      ...WIFI,
     ],
     sample: [
       "wifi joining your-network",
@@ -1398,8 +1461,10 @@ void loop() {
 
 const int BOOT_BUTTON = %BOOT%;     // the board's BOOT button
 const char* AP_PASS = "bench1234";  // password for the setup network, at least 8 characters
+${benchSettings(["ap_pass"])}
 
 Preferences prefs;
+String apPass;
 WebServer server(80);
 DNSServer dns;
 bool portal = false;
@@ -1449,7 +1514,7 @@ void startPortal() {
 
   char name[24];
   snprintf(name, sizeof name, "ESP32-Setup-%04x", (unsigned)(ESP.getEfuseMac() >> 32) & 0xffff);
-  WiFi.softAP(name, AP_PASS);
+  WiFi.softAP(name, apPass.c_str());
   delay(100);
   dns.start(53, "*", WiFi.softAPIP());  // answer every name with the board, so phones open the page
 
@@ -1460,13 +1525,16 @@ void startPortal() {
     server.send(302, "text/plain", "");
   });
   server.begin();
-  Serial.printf("portal up: join %s (password %s), then open http://192.168.4.1\n", name, AP_PASS);
+  Serial.printf("portal up: join %s (password %s), then open http://192.168.4.1\n", name, apPass.c_str());
 }
 
 void setup() {
   Serial.begin(115200);
   pinMode(BOOT_BUTTON, INPUT_PULLUP);
   prefs.begin("wifi", false);
+  benchSettingsBoot();
+  apPass = benchSetting("ap_pass", AP_PASS);
+  if (apPass.length() < 8) apPass = AP_PASS;  // the ESP32 refuses a shorter one
 
   // Holding BOOT while the board resets enters download mode, so the button is
   // only checked in the first two seconds after start-up.
@@ -1499,6 +1567,7 @@ void setup() {
 }
 
 void loop() {
+  benchSettingsPoll();
   if (portal) {
     dns.processNextRequest();
     server.handleClient();
@@ -1518,6 +1587,9 @@ void loop() {
       "To change networks, reset the board and hold BOOT within two seconds. Holding it while pressing reset puts the board in download mode instead.",
       "If the saved network is out of reach at start-up, the portal opens again, so a board that moves house can be set up without a cable.",
       "The WiFiManager library does the same with more polish. This sketch shows how it works in about a hundred lines with only built-in libraries.",
+    ],
+    settings: [
+      { key: "ap_pass", label: "Setup network password", kind: "password", hint: "At least 8 characters. The portal's own network uses it." },
     ],
     sample: [
       "hold BOOT now to forget the saved network",
@@ -1556,6 +1628,8 @@ void loop() {
 
 const char* WIFI_SSID = "your-network";
 const char* WIFI_PASS = "your-password";
+${benchSettings(["wifi_ssid", "wifi_pass"])}
+String wifiSsid, wifiPass;
 
 // AI-Thinker ESP32-CAM pins, from Espressif's CameraWebServer example
 #define PWDN_GPIO_NUM  32
@@ -1669,7 +1743,11 @@ void setup() {
   }
   Serial.println("Camera ready");
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  benchSettingsBoot();
+  wifiSsid = benchSetting("wifi_ssid", WIFI_SSID);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  benchNeeds("Wi-Fi name", wifiSsid, "your-network", "WIFI_SSID");
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
   WiFi.setSleep(false);
   Serial.print("Joining Wi-Fi");
   while (WiFi.status() != WL_CONNECTED) {
@@ -1683,8 +1761,10 @@ void setup() {
 }
 
 void loop() {
-  delay(10000);
+  benchSettingsPoll();
+  delay(100);
 }`,
+    settings: WIFI,
     open: ["Not tested on hardware yet. Compiles for the AI Thinker ESP32-CAM with Arduino-ESP32 core 3.3.12."],
     notes: [
       "Select AI Thinker ESP32-CAM as the board. It turns PSRAM on, which the camera needs for VGA and larger frames.",
@@ -2459,8 +2539,10 @@ const char* WIFI_SSID = "your-network";
 const char* WIFI_PASS = "your-password";
 // POSIX time zone rule. US Eastern shown; more examples in the project notes.
 const char* TZ_RULE = "EST5EDT,M3.2.0,M11.1.0";
+${benchSettings(["wifi_ssid", "wifi_pass", "tz_rule"])}
 
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
+String wifiSsid, wifiPass, tzRule;
 int lastMinute = -1;
 
 void message(const char* text) {
@@ -2479,15 +2561,21 @@ void setup() {
     Serial.println("SSD1306 not found at 0x3C");
     for (;;) delay(1000);
   }
+  message("Waiting for settings...");
+  benchSettingsBoot();
+  wifiSsid = benchSetting("wifi_ssid", WIFI_SSID);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  tzRule = benchSetting("tz_rule", TZ_RULE);
+  benchNeeds("Wi-Fi name", wifiSsid, "your-network", "WIFI_SSID");
   message("Joining Wi-Fi...");
-  Serial.printf("wifi joining %s\n", WIFI_SSID);
+  Serial.printf("wifi joining %s\n", wifiSsid.c_str());
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
   while (WiFi.status() != WL_CONNECTED) delay(250);
   Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
 
   message("Setting the time...");
-  configTzTime(TZ_RULE, "pool.ntp.org", "time.google.com");
+  configTzTime(tzRule.c_str(), "pool.ntp.org", "time.google.com");
   struct tm now;
   while (!getLocalTime(&now, 10000)) Serial.println("waiting for NTP");
   char text[48];
@@ -2496,6 +2584,7 @@ void setup() {
 }
 
 void loop() {
+  benchSettingsPoll();
   struct tm now;
   if (!getLocalTime(&now, 100)) return;
 
@@ -2531,6 +2620,10 @@ void loop() {
       "Change TZ_RULE for your time zone. Examples: Central US \"CST6CDT,M3.2.0,M11.1.0\", Pacific US \"PST8PDT,M3.2.0,M11.1.0\", UK \"GMT0BST,M3.5.0/1,M10.5.0\", Central Europe \"CET-1CEST,M3.5.0,M10.5.0/3\", Japan \"JST-9\".",
       "The ESP32 re-syncs with the time servers about once an hour. If Wi-Fi drops, the clock keeps running on its own crystal and a * appears after the date.",
       "Set WIFI_SSID and WIFI_PASS first. The ESP32 only joins 2.4 GHz networks.",
+    ],
+    settings: [
+      ...WIFI,
+      { key: "tz_rule", label: "Time zone rule", kind: "text", hint: 'POSIX form, e.g. "CST6CDT,M3.2.0,M11.1.0". Examples are in the notes.' },
     ],
     sample: [
       "wifi joining your-network",
@@ -3664,6 +3757,7 @@ const float FREEZE_F = 35.0;          // temperatures at or below this flash a w
 // Any sensor or device whose name contains one of these words is left out.
 const char* COLD_ON_PURPOSE[] = {"Freezer", "Fridge"};
 const unsigned STALE_MINUTES = 30;    // readings older than this are marked stale
+String wifiSsid, wifiPass, shareUrl;
 
 // ---- Pins ----
 const int SDA_PIN = %SDA%;
@@ -3782,6 +3876,8 @@ int count = 0, page = 0;
 char status[40] = "Starting";
 unsigned long lastFetch = 0, lastPage = 0, retryAfterMs = 0;
 
+${benchSettings(["wifi_ssid", "wifi_pass", "share_url"])}
+
 // Days since 1970-01-01 for a civil date (Howard Hinnant's algorithm), so we can
 // turn "2026-11-12T15:50:44Z" into a UTC timestamp without timegm().
 long daysFromCivil(int y, unsigned m, unsigned d) {
@@ -3875,7 +3971,7 @@ void fetchReadings() {
   http.useHTTP10(true);  // a plain body, so ArduinoJson can read it as it arrives
   const char* keep[] = {"Retry-After"};
   http.collectHeaders(keep, 1);
-  if (!http.begin(tls, SHARE_URL)) {
+  if (!http.begin(tls, shareUrl)) {
     copyText(status, sizeof(status), "Bad SHARE_URL");
     return;
   }
@@ -3982,9 +4078,17 @@ void setup() {
   Wire.begin(SDA_PIN, SCL_PIN);
   if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) Serial.println("OLED not found at 0x3C: check SDA, SCL and power");
   oled.cp437(true);
+  copyText(status, sizeof(status), "Waiting for settings");
+  draw();
+  benchSettingsBoot();
+  wifiSsid = benchSetting("wifi_ssid", WIFI_SSID);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  shareUrl = benchSetting("share_url", SHARE_URL);
+  benchNeeds("Wi-Fi name", wifiSsid, "your-wifi", "WIFI_SSID");
+  benchNeeds("ProbeHarbor share link", shareUrl, "https://probeharbor.dev/api/share/YOUR_SHARE_TOKEN/readings", "SHARE_URL");
   copyText(status, sizeof(status), "Joining Wi-Fi");
   draw();
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
   while (WiFi.status() != WL_CONNECTED) delay(250);
   Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
   configTime(0, 0, "pool.ntp.org", "time.google.com");  // UTC, for "minutes ago"
@@ -3993,6 +4097,7 @@ void setup() {
 }
 
 void loop() {
+  benchSettingsPoll();
   const unsigned long now = millis();
   const unsigned long every = retryAfterMs ? retryAfterMs : REFRESH_SECONDS * 1000UL;
   if (lastFetch == 0 || now - lastFetch >= every) {
@@ -4026,6 +4131,16 @@ void loop() {
       "Door, power, flood and motion sensors show OPEN or CLOSED, ON or OFF, WET or DRY and MOTION or CLEAR, as on the ProbeHarbor dashboard.",
     ],
     open: ["Not tested on hardware or against a real ProbeHarbor share link yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    settings: [
+      ...WIFI,
+      {
+        key: "share_url",
+        label: "ProbeHarbor share link",
+        kind: "url",
+        hint: "Dashboard, Share, create a live link, then paste its readings address.",
+        required: true,
+      },
+    ],
     sample: [
       "wifi ok 192.168.1.73",
       "Garage: Freezer_probe = 4.2 °F (at 15:49 UTC)",
@@ -4120,6 +4235,7 @@ const float FREEZE_F = 35.0;          // temperatures at or below this raise the
 // Any sensor or device whose name contains one of these words is left out.
 const char* COLD_ON_PURPOSE[] = {"Freezer", "Fridge"};
 const unsigned STALE_MINUTES = 30;    // readings older than this are marked stale
+String wifiSsid, wifiPass, shareUrl;
 
 // ---- Pins ----
 LiquidCrystal lcd(%RS%, %EN%, %DA%, %DB%, %DC%, %DD%);  // RS, E, D4, D5, D6, D7
@@ -4270,6 +4386,8 @@ int takeClicks() {
   return clicks;
 }
 
+${benchSettings(["wifi_ssid", "wifi_pass", "share_url"])}
+
 // Days since 1970-01-01 for a civil date (Howard Hinnant's algorithm), so we can
 // turn "2026-11-12T15:50:44Z" into a UTC timestamp without timegm().
 long daysFromCivil(int y, unsigned m, unsigned d) {
@@ -4353,7 +4471,7 @@ void fetchReadings() {
   http.useHTTP10(true);  // a plain body, so ArduinoJson can read it as it arrives
   const char* keep[] = {"Retry-After"};
   http.collectHeaders(keep, 1);
-  if (!http.begin(tls, SHARE_URL)) {
+  if (!http.begin(tls, shareUrl)) {
     copyText(status, sizeof(status), "Bad SHARE_URL");
     return;
   }
@@ -4497,9 +4615,17 @@ void setup() {
   pinMode(ENC_SW, INPUT_PULLUP);
   encState = (uint8_t)((digitalRead(ENC_A) << 1) | digitalRead(ENC_B));
   xTaskCreate(pollEncoder, "encoder", 2048, nullptr, 2, nullptr);  // above loop()'s priority
+  copyText(status, sizeof(status), "Waiting for settings");
+  draw();
+  benchSettingsBoot();
+  wifiSsid = benchSetting("wifi_ssid", WIFI_SSID);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  shareUrl = benchSetting("share_url", SHARE_URL);
+  benchNeeds("Wi-Fi name", wifiSsid, "your-wifi", "WIFI_SSID");
+  benchNeeds("ProbeHarbor share link", shareUrl, "https://probeharbor.dev/api/share/YOUR_SHARE_TOKEN/readings", "SHARE_URL");
   copyText(status, sizeof(status), "Joining Wi-Fi");
   draw();
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
   while (WiFi.status() != WL_CONNECTED) delay(250);
   Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
   configTime(0, 0, "pool.ntp.org", "time.google.com");  // UTC, for "minutes ago"
@@ -4508,6 +4634,7 @@ void setup() {
 }
 
 void loop() {
+  benchSettingsPoll();
   const unsigned long now = millis();
   const unsigned long every = retryAfterMs ? retryAfterMs : REFRESH_SECONDS * 1000UL;
   if (lastFetch == 0 || now - lastFetch >= every) {
@@ -4540,6 +4667,16 @@ void loop() {
       "GPIO 14 on the classic ESP32 wiggles briefly at power-up. On the LCD's E pin that is harmless: the screen is cleared when the sketch starts.",
     ],
     open: ["Not tested on hardware or against a real ProbeHarbor share link yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    settings: [
+      ...WIFI,
+      {
+        key: "share_url",
+        label: "ProbeHarbor share link",
+        kind: "url",
+        hint: "Dashboard, Share, create a live link, then paste its readings address.",
+        required: true,
+      },
+    ],
     sample: [
       "wifi ok 192.168.1.74",
       "Garage: Freezer_probe = 4.2 °F (at 15:49 UTC)",
@@ -4601,6 +4738,8 @@ const char* SENSOR_KEY = "motion1";
 const unsigned long HEARTBEAT_MS = 5UL * 60UL * 1000UL;  // re-send the state every 5 minutes
 const unsigned long MIN_GAP_MS = 10UL * 1000UL;          // never post more often than this
 const unsigned long WARMUP_MS = 60UL * 1000UL;           // the HC-SR501 settles for about a minute
+${benchSettings(["wifi_ssid", "wifi_pass", "ingest_url", "sensor_key"])}
+String wifiSsid, wifiPass, ingestUrl, sensorKey;
 
 // ---- Pins ----
 const int PIR_PIN = %PIR%;
@@ -4720,10 +4859,10 @@ int postMotion(bool on) {
   HTTPClient http;
   const char* keep[] = {"Retry-After"};
   http.collectHeaders(keep, 1);
-  if (!http.begin(tls, INGEST_URL)) return -1;
+  if (!http.begin(tls, ingestUrl)) return -1;
   http.addHeader("Content-Type", "application/json");
   char body[64];
-  snprintf(body, sizeof(body), "{\"%s\":%s}", SENSOR_KEY, on ? "true" : "false");
+  snprintf(body, sizeof(body), "{\"%s\":%s}", sensorKey.c_str(), on ? "true" : "false");
   const int code = http.POST(body);
   if (code == 429) retryAfterMs = 1000UL * (unsigned long)max(10L, http.header("Retry-After").toInt());
   http.end();
@@ -4737,12 +4876,21 @@ void setup() {
   pinMode(LED_G, OUTPUT);
   pinMode(LED_B, OUTPUT);
   setColor(0, 0, 80);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  benchSettingsBoot();
+  wifiSsid = benchSetting("wifi_ssid", WIFI_SSID);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  ingestUrl = benchSetting("ingest_url", INGEST_URL);
+  sensorKey = benchSetting("sensor_key", SENSOR_KEY);
+  if (sensorKey.length() == 0 || sensorKey.length() > 24) sensorKey = SENSOR_KEY;  // keep the JSON body small
+  benchNeeds("Wi-Fi name", wifiSsid, "your-wifi", "WIFI_SSID");
+  benchNeeds("ProbeHarbor ingest address", ingestUrl, "https://probeharbor.dev/api/ingest/YOUR_DEVICE_KEY", "INGEST_URL");
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
   while (WiFi.status() != WL_CONNECTED) delay(250);
   Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
 }
 
 void loop() {
+  benchSettingsPoll();
   const unsigned long now = millis();
 
   // Debounce: the PIR output has to hold a new level for 200 ms.
@@ -4794,6 +4942,17 @@ void loop() {
       "PIR sensors see warm moving bodies, so heaters, sunlight on a wall or a draught from a vent can trigger them. Point it away from windows and heat sources.",
     ],
     open: ["Not tested on hardware or with ProbeHarbor yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    settings: [
+      ...WIFI,
+      {
+        key: "ingest_url",
+        label: "ProbeHarbor ingest address",
+        kind: "url",
+        hint: "Dashboard, Devices, add a push device, then copy its ingest address.",
+        required: true,
+      },
+      { key: "sensor_key", label: "Sensor name", kind: "text", hint: "A name containing \"motion\" shows up as a motion sensor." },
+    ],
     sample: [
       "wifi ok 192.168.1.75",
       "posted quiet ok",
@@ -4860,6 +5019,7 @@ void loop() {
 
 const char* WIFI_SSID = "your-wifi";
 const char* WIFI_PASS = "your-password";
+${benchSettings(["wifi_ssid", "wifi_pass"])}
 
 // ---- Pins ----
 const int PIN_SCK = %SCK%, PIN_MISO = %MISO%, PIN_MOSI = %MOSI%;
@@ -4918,7 +5078,10 @@ void setup() {
   radio.startListening();
   Serial.println("radio listening");
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  benchSettingsBoot();
+  const String wifiSsid = benchSetting("wifi_ssid", WIFI_SSID), wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  benchNeeds("Wi-Fi name", wifiSsid, "your-wifi", "WIFI_SSID");
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
   for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(250);
   if (WiFi.status() == WL_CONNECTED) {
     server.on("/", handleRoot);
@@ -4931,6 +5094,7 @@ void setup() {
 }
 
 void loop() {
+  benchSettingsPoll();
   if (WiFi.status() == WL_CONNECTED) server.handleClient();
   while (radio.available()) {
     Packet p;
@@ -5015,6 +5179,9 @@ void loop() {
       "On the bench, light and button are charted as they arrive, and missed counts packets that never made it.",
     ],
     open: ["Not tested on hardware yet. The ESP32 sketch compiles for every board listed with Arduino-ESP32 core 3.3.12, and the Uno sketch compiles for the Arduino Uno (PlatformIO Atmel AVR 5.3.0)."],
+    settings: [
+      ...WIFI,
+    ],
     sample: [
       "radio listening",
       "web page at http://192.168.1.76/",

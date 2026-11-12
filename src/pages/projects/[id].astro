@@ -6,6 +6,7 @@ import Pinout from "../../components/Pinout.astro";
 import WiringDiagram from "../../components/WiringDiagram.astro";
 import Flasher from "../../components/Flasher.astro";
 import ProbeSetup from "../../components/ProbeSetup.astro";
+import SettingsForm from "../../components/SettingsForm.astro";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
 import { boardById } from "../../data/boards";
 import { link } from "../../lib/paths";
@@ -237,6 +238,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
             {p.flash.after.map((step) => <li>{step}</li>)}
           </ol>
           {p.setup === "probeharbor" && <ProbeSetup />}
+          {p.settings && <SettingsForm settings={p.settings} project={p.id} baud={p.baud} />}
           {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Firmware source on GitHub</a></p>}
         </div>
       ) : (
@@ -248,6 +250,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
             <li>Paste the sketch, choose the board's port and upload. Hold BOOT if the upload stalls at Connecting.</li>
             <li>Close the IDE's serial monitor, then open the bench here to watch the output.</li>
           </ol>
+          {p.settings && <SettingsForm settings={p.settings} project={p.id} baud={p.baud} />}
           {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Sketch source on GitHub</a></p>}
         </div>
       )
