@@ -6,7 +6,8 @@ import { link } from "../lib/paths";
 
 export const GET: APIRoute = () => {
   const version = new Date().toISOString();
-  const pages = [...allPages(), "/offline/"].map(link);
+  // The search index is kept too, so search works offline.
+  const pages = [...allPages(), "/offline/", "/search-index.json"].map(link);
   const body = `// ESP32 Bench service worker, built ${version}
 const VERSION = ${JSON.stringify(version)};
 const PAGES = "pages-" + VERSION;

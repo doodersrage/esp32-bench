@@ -1,0 +1,41 @@
+---
+import Base from "../layouts/Base.astro";
+import { link } from "../lib/paths";
+---
+
+<Base
+  title="Search"
+  current="search"
+  description="Search ESP32 Bench: projects, board pinouts and individual GPIO pins, errors, tools, the getting started guide and the hall of flames."
+>
+  <section class="view">
+    <h1 class="h2">Search</h1>
+    <form class="spage" id="search-form" role="search" action={link("/search/")} method="get">
+      <label class="sr" for="search-q">Search ESP32 Bench</label>
+      <input
+        id="search-q"
+        name="q"
+        type="search"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="Try: brownout, GPIO 34, c6, dht22, partition"
+        autofocus
+      />
+      <button class="btn go" type="submit">Search</button>
+    </form>
+    <p class="lede" id="search-count" role="status" aria-live="polite">
+      Projects, boards, single pins, errors, tools and guides. Press / on any page to search.
+    </p>
+    <ol class="sresults" id="search-results"></ol>
+    <noscript>
+      <p class="notice">
+        <strong>Search needs JavaScript.</strong> The <a href={link("/")}>library</a> and the
+        <a href={link("/errors/")}>error reference</a> work without it.
+      </p>
+    </noscript>
+  </section>
+</Base>
+
+<script>
+  import "../scripts/search-page.ts";
+</script>

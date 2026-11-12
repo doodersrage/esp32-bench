@@ -19,6 +19,7 @@ export const STATIC_PAGES = [
   "/flames/",
   "/about/",
   "/report/",
+  "/search/",
   "/changes/",
 ];
 
