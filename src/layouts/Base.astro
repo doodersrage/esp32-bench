@@ -4,7 +4,7 @@ import { link } from "../lib/paths";
 
 interface Props {
   title?: string;
-  current: "library" | "boards" | "bench";
+  current: "library" | "boards" | "wire" | "bench" | "flames";
 }
 
 const { title, current } = Astro.props;
@@ -33,13 +33,15 @@ const pageTitle = title ? `${title} | ESP32 Bench` : "ESP32 Bench";
         <nav class="tabs" aria-label="Views">
           <a href={link("/")} aria-current={current === "library" ? "page" : undefined}>Library</a>
           <a href={link("/boards/")} aria-current={current === "boards" ? "page" : undefined}>Boards</a>
+          <a href={link("/wire/")} aria-current={current === "wire" ? "page" : undefined}>Wire</a>
           <a href={link("/bench/")} aria-current={current === "bench" ? "page" : undefined}>Bench</a>
+          <a href={link("/flames/")} aria-current={current === "flames" ? "page" : undefined}>Flames</a>
         </nav>
       </header>
       <main>
         <slot />
       </main>
-      <footer>ESP32 Bench v0.3. Pin numbers are GPIO numbers. Check your own board's pinout before powering anything.</footer>
+      <footer>ESP32 Bench v0.4. Pin numbers are GPIO numbers. Check your own board's pinout before powering anything.</footer>
     </div>
   </body>
 </html>

@@ -25,6 +25,7 @@ const LINES: [RegExp, string, string][] = [
   [/Stack smashing protect failure/, "smash", "A function wrote past the end of a local buffer. Check sprintf, strcpy and array indexes in the function named in the backtrace."],
   [/CORRUPT HEAP/, "heap", "Heap bookkeeping was overwritten. Something wrote past the end of an allocated block, or used memory after freeing it."],
   [/assert failed/, "assert", "A sanity check in the firmware or a library failed. The text after 'assert failed' names the file, line and condition."],
+  [/USB_UART_CHIP_RESET/, "rst-USB_UART_CHIP_RESET", "Reset caused by opening the native USB port. Normal on the ESP32-S3 and C3."],
   [/waiting for download/i, "download", "The board is in download mode, waiting for new firmware. Press EN or RST to run what is already flashed."],
   [/invalid header: 0x/, "header", "The bootloader found no valid firmware. The flash is empty or was written at the wrong offset. Flash again."],
   [/flash read err/, "flashread", "The bootloader could not read the flash chip. Check the flash mode and size settings, then flash again."],

@@ -1,0 +1,52 @@
+---
+import Base from "../layouts/Base.astro";
+import { FLAMES } from "../data/flames";
+import { explainLog } from "../lib/crash";
+
+const fromTests = FLAMES.filter((f) => f.source === "probeharbor").length;
+---
+
+<Base title="Flames" current="flames">
+  <section class="view">
+    <h1 class="h2">Hall of flames</h1>
+    <p class="lede">
+      Failures worth remembering: what the serial port said, what it is easy to mistake that for, and what was
+      actually wrong. {fromTests} of these come from ProbeHarbor's hardware test log and use the status lines recorded
+      there. The rest are common ESP32 failures, shown with typical output.
+    </p>
+
+    <div class="flames">
+      {
+        FLAMES.map((f, i) => {
+          const hints = explainLog(f.log.join("\n"));
+          return (
+            <article class="flame" id={f.id}>
+              <div class="stack tight">
+                <span class="no">Exhibit {String(i + 1).padStart(2, "0")}</span>
+                <h2>{f.title}</h2>
+                <div class="meta">
+                  <span class="tag lvl">{f.board}</span>
+                  <span class:list={["tag", f.source === "probeharbor" ? "ok" : "todo"]}>
+                    {f.source === "probeharbor" ? "From ProbeHarbor's tests" : "Typical output"}
+                  </span>
+                </div>
+              </div>
+              <pre class="code">{f.log.join("\n")}</pre>
+              <dl class="verdict">
+                <dt>Easy to mistake for</dt>
+                <dd>{f.mistaken}</dd>
+                <dt>Was</dt>
+                <dd>{f.cause}</dd>
+                <dt>Fix</dt>
+                <dd>{f.fix}</dd>
+              </dl>
+              {hints.length > 0 && (
+                <p class="cap left">What the bench's crash translator says about this log: {hints.map((h) => h.text).join(" ")}</p>
+              )}
+            </article>
+          );
+        })
+      }
+    </div>
+  </section>
+</Base>

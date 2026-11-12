@@ -203,3 +203,29 @@ ul.badges { list-style: none; margin: 0; padding: 0; display: grid; grid-templat
 .badgestate { font: 500 0.68rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
 .badge.earned { border: 1px solid var(--pad); background: var(--pad-soft); color: var(--ink); }
 .badge.earned .badgestate { color: var(--pad); }
+
+/* Batch 2: wiring pad and hall of flames */
+nav.tabs { flex-wrap: wrap; row-gap: 0; }
+nav.tabs a { padding: 8px 11px; }
+button.pinrow { background: none; border: 0; padding: 0; cursor: pointer; }
+button.pinrow:hover span { color: var(--accent); }
+button.pinrow.care i { border-style: dashed; border-color: var(--warn); }
+button.pinrow.on.care i { border-style: solid; }
+.wpart { display: flex; flex-direction: column; gap: 6px; }
+.wpartname { font-weight: 600; font-size: 0.92rem; }
+.chip.wpin { font-family: var(--mono); font-size: 0.78rem; border-radius: 2px; }
+.chip.wpin.wired { border-color: var(--pad); background: var(--pad-soft); color: var(--ink); }
+.chip.wpin[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+ul.findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.finding { display: flex; gap: 8px; align-items: baseline; font-size: 0.9rem; }
+.finding .tag { flex: none; }
+.tag.bad { border-color: var(--accent); color: var(--accent); }
+.tag.warnt { border-color: var(--warn); color: var(--warn); }
+.band select { padding: 7px 8px; border: 1px solid var(--line); background: var(--panel); border-radius: 2px; min-width: 0; max-width: 100%; }
+.flames { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.flame { display: flex; flex-direction: column; gap: 12px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--accent); min-width: 0; }
+.flame .no { font: 500 0.72rem/1 var(--mono); color: var(--muted); }
+.flame h2 { font-size: 1.45rem; }
+dl.verdict { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 0.9rem; }
+dl.verdict dt { font: 600 0.7rem/1.6 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+dl.verdict dd { margin: 0; }

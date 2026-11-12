@@ -1,0 +1,107 @@
+---
+import Base from "../layouts/Base.astro";
+import { BOARDS } from "../data/boards";
+import { PARTS } from "../data/parts";
+import { PROJECTS } from "../data/projects";
+
+const remixable = PROJECTS.filter((p) => p.needs.length > 0);
+const needsAttr = (needs: string[][]) => needs.map((group) => group.join("|")).join(" ");
+---
+
+<Base title="Wire" current="wire">
+  <section class="view">
+    <h1 class="h2">Wiring pad</h1>
+    <p class="lede">
+      Choose a board and parts, then tap a part pin and a board pad to join them. Each wire is checked for boot pins,
+      input-only pins, 5 V signals and pads used twice.
+    </p>
+
+    <div class="row" id="w-boards" role="group" aria-label="Board">
+      <span class="swlabel">Board</span>
+      {
+        BOARDS.map((b) => (
+          <button class="chip" type="button" data-board={b.id} aria-pressed={b.id === "esp32" ? "true" : "false"}>
+            {b.name}
+          </button>
+        ))
+      }
+    </div>
+
+    <div class="row" id="w-parts" role="group" aria-label="Parts">
+      <span class="swlabel">Parts</span>
+      {
+        PARTS.map((p) => (
+          <button class="chip" type="button" data-part={p.id} aria-pressed="false">
+            {p.name}
+          </button>
+        ))
+      }
+    </div>
+
+    <div class="cols">
+      <figure class="fig">
+        <div id="w-board"></div>
+        <figcaption>Tap a pad to connect the selected pin. Pads with a dashed ring need care.</figcaption>
+      </figure>
+      <div class="stack">
+        <div class="stack tight">
+          <h2 class="h3">Part pins</h2>
+          <div class="stack tight" id="w-pins"></div>
+          <p class="pickresult" id="w-status" role="status"></p>
+          <div class="row">
+            <button class="btn go" type="button" id="w-auto">Wire it for me</button>
+            <button class="btn" type="button" id="w-clear">Clear wires</button>
+          </div>
+        </div>
+        <div class="stack tight">
+          <h2 class="h3">Checks</h2>
+          <ul class="findings" id="w-findings"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols even">
+      <div class="stack tight">
+        <h2 class="h3">Wiring</h2>
+        <div class="tablebox">
+          <table>
+            <thead>
+              <tr>
+                <th>From</th>
+                <th>To board</th>
+              </tr>
+            </thead>
+            <tbody id="w-table"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="stack tight">
+        <div class="codehead">
+          <h2 class="h3">Pin constants</h2>
+          <button class="btn sm" type="button" id="w-copy">Copy wiring</button>
+        </div>
+        <pre class="code" id="w-code"></pre>
+      </div>
+    </div>
+
+    <div class="stack tight band">
+      <h2>Remix two projects</h2>
+      <p class="lede">Pick two projects to load their parts onto one board, wired so nothing shares a pin it should not.</p>
+      <div class="row">
+        <select id="remix-a" aria-label="First project">
+          {remixable.map((p) => <option value={p.id} data-needs={needsAttr(p.needs)} selected={p.id === "dht22"}>{p.name}</option>)}
+        </select>
+        <span class="swlabel">plus</span>
+        <select id="remix-b" aria-label="Second project">
+          {remixable.map((p) => <option value={p.id} data-needs={needsAttr(p.needs)} selected={p.id === "oled"}>{p.name}</option>)}
+        </select>
+        <button class="btn" type="button" id="remix-go">Remix</button>
+      </div>
+      <p class="pickresult" id="remix-note" role="status"></p>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import "../scripts/wire.ts";
+</script>

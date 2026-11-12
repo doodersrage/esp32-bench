@@ -4,6 +4,8 @@ A project library and a serial workbench for ESP32 boards, built as a static sit
 
 - **Library:** sixteen projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
 - **Boards:** pin headers, hardware-tested pins and field notes for the ESP32-DevKitC V4, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1. Projects that support more than one board have a board switch.
+- **Wire:** a wiring pad. Pick a board and parts, tap a part pin and a board pad, and each wire is checked for boot pins, input-only pins, 5 V signals and pads used twice. It can wire everything for you, and remix two projects onto one board.
+- **Flames:** a gallery of failures with what the serial port said and what was actually wrong. Six come from ProbeHarbor's hardware test log.
 - **Bench:** a serial monitor built on Web Serial. Connect, pick a baud rate, send lines, pulse EN to reset the board, and copy the log. Crash lines are highlighted and common ones get a plain-language hint.
 - **Plotter:** numbers that keep appearing in the serial output are charted live, one small chart per value.
 - **Wi-Fi radar:** the Wi-Fi scanner project's output is drawn as arches by channel and signal strength.
@@ -32,6 +34,8 @@ src/
   data/projects.ts        Projects, per-board pin values, hardware test results
   data/boards.ts          Board headers, tested pins and field notes
   data/probeharbor.ts     Library entries for the ProbeHarbor sketches
+  data/parts.ts           Parts the wiring pad can connect, with pin types
+  data/flames.ts          Failure stories for the Flames page
   sketches/probeharbor/   Those sketches as .ino files, copied unchanged
   components/
     Pinout.astro          Board figure with a project's pins highlighted
@@ -43,12 +47,15 @@ src/
     index.astro           Library with search and filters
     projects/[id].astro   One page per project
     boards.astro          Board reference
+    wire.astro            Wiring pad and remix
     bench.astro           Serial monitor
+    flames.astro          Failure gallery
   scripts/bench.ts        Web Serial logic for the bench
   scripts/plotter.ts      Live charts from serial numbers
   scripts/radar.ts        Wi-Fi channel view
   scripts/library.ts      Filters, bench log and the drawer picker
   scripts/progress.ts     Build marks, streaks and badges
+  lib/wiring.ts           Wiring rules, auto-wiring and pin constants
   lib/crash.ts            Explanations for reset, panic and backtrace lines
   scripts/probe-setup.ts  The probe's USB settings protocol
   lib/shop.ts             Buy links and the Amazon Associates tag
@@ -92,3 +99,4 @@ Not built yet:
 
 - A build pipeline that compiles the starter sketches into flashable images.
 - Saving your own projects.
+- Merging sketches in a remix. It merges wiring and pin numbers only.
