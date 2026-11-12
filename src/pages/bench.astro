@@ -34,8 +34,10 @@ const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
       <label for="follow"><input type="checkbox" id="follow" checked /> Follow</label>
       <label for="sound"><input type="checkbox" id="sound" /> Sound</label>
       <button class="btn sm" id="copylog" type="button">Copy log</button>
+      <button class="btn sm" id="sharelog" type="button">Share log</button>
       <button class="btn sm" id="clear" type="button">Clear</button>
     </div>
+    <div class="shareout" id="share-term" hidden></div>
 
     <div class="terms" id="terms">
       <div class="stack tight pane">
@@ -95,14 +97,16 @@ const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
       <p class="cap left" data-radar-note></p>
     </div>
 
-    <details class="translator">
+    <details class="translator" id="translator">
       <summary>Crash translator</summary>
       <div class="stack tight">
         <label for="crashlog">Paste a boot log or crash output</label>
         <textarea id="crashlog" rows="5" spellcheck="false" placeholder="Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled."></textarea>
         <div class="row">
           <button class="btn" id="crashgo" type="button">Explain it</button>
+          <button class="btn" id="crashshare" type="button">Share as a link</button>
         </div>
+        <div class="shareout" id="share-paste" hidden></div>
         <ul class="notes" id="crashout"></ul>
       </div>
     </details>

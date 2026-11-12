@@ -3,6 +3,7 @@ import { PROJECTS, boardsOf, forBoard } from "../data/projects";
 import { explainLine, explainLog } from "../lib/crash";
 import { errorSlugForKey } from "../data/errors";
 import { link } from "../lib/paths";
+import { decodeLog, encodeLog, logCodeFromHash, trimLog } from "../lib/share";
 import { feedPlotter, initPlotter, resetPlotter } from "./plotter";
 import { feedRadar, initRadar, resetRadar } from "./radar";
 import { markSeen } from "./progress";
@@ -322,6 +323,59 @@ function playSample() {
   }, 450);
 }
 
+/** The terminal's text, without hints and system lines. */
+function terminalText(): string {
+  return [...term.querySelectorAll(":scope > div:not(.sys):not(.tx) > .body")].map((el) => el.textContent ?? "").join("\n");
+}
+
+/** Make a link that carries the log in its #fragment, copy it, and show it with a privacy note. */
+async function shareLog(raw: string, panel: HTMLElement) {
+  panel.hidden = false;
+  if (!raw.trim()) {
+    panel.textContent = "There is nothing to share yet.";
+    return;
+  }
+  const { text, trimmed } = trimLog(raw);
+  const url = `${location.origin}${link("/bench/")}#log=${await encodeLog(text)}`;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.readOnly = true;
+  input.value = url;
+  input.setAttribute("aria-label", "Link to this log");
+  input.addEventListener("focus", () => input.select());
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(url);
+    copied = true;
+  } catch {
+    // The link is shown below for copying by hand.
+  }
+  const note = document.createElement("p");
+  note.className = "cap left";
+  note.textContent =
+    `${copied ? "Link copied. " : "Copy this link. "}` +
+    `The log travels inside the link itself and is not uploaded anywhere, but anyone with the link can read it. ` +
+    `Check it for Wi-Fi names, addresses or keys before posting it.` +
+    (trimmed ? " Only the last part of a long log fits in a link." : "");
+  panel.replaceChildren(input, note);
+}
+
+/** Open a log someone shared: /bench/#log=... */
+async function openSharedLog() {
+  const code = logCodeFromHash(location.hash);
+  if (!code) return;
+  const text = await decodeLog(code);
+  if (text === null) {
+    addLine("This shared log link is damaged or incomplete. Ask for the link again.", "sys");
+    return;
+  }
+  addLine("Showing a shared log. Nothing here came from a board connected to this computer.", "sys");
+  for (const line of text.split("\n")) addLine(line);
+  $<HTMLTextAreaElement>("crashlog").value = text;
+  ($("translator") as HTMLDetailsElement).open = true;
+  $("crashgo").click();
+}
+
 function init() {
   // A project page can hand over its baud rate and sample: /bench/?baud=115200&sample=dht22
   const params = new URLSearchParams(location.search);
@@ -372,10 +426,14 @@ function init() {
       }),
     );
   });
+  $("sharelog").addEventListener("click", () => void shareLog(terminalText(), $("share-term")));
+  $("crashshare").addEventListener("click", () => void shareLog($<HTMLTextAreaElement>("crashlog").value, $("share-paste")));
+  void openSharedLog();
+
   $("copylog").addEventListener("click", async () => {
     const btn = $<HTMLButtonElement>("copylog");
     const label = btn.textContent;
-    const text = [...term.querySelectorAll(".body")].map((el) => el.textContent ?? "").join("\n");
+    const text = terminalText();
     try {
       await navigator.clipboard.writeText(text);
       btn.textContent = "Copied";

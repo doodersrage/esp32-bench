@@ -292,3 +292,7 @@ p.when { font: 500 0.78rem/1 var(--mono); }
   header.top .brand { white-space: nowrap; overflow: hidden; text-overflow: clip; }
   header.top nav.tabs { grid-column: 1 / -1; }
 }
+
+/* Shared bench logs */
+.shareout { display: flex; flex-direction: column; gap: 6px; }
+.shareout input { width: 100%; padding: 7px 9px; border: 1px solid var(--line); background: var(--panel); border-radius: 2px; font: 400 0.78rem/1.4 var(--mono); }
