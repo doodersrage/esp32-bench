@@ -4,6 +4,7 @@ import { explainLine, explainLog } from "../lib/crash";
 import { feedPlotter, initPlotter, resetPlotter } from "./plotter";
 import { feedRadar, initRadar, resetRadar } from "./radar";
 import { markSeen } from "./progress";
+import { initSecondBoard } from "./second-board";
 
 // Minimal Web Serial types: the API is not in TypeScript's DOM library yet.
 interface SerialPortLike extends EventTarget {
@@ -345,6 +346,7 @@ function init() {
   });
 
   initPlotter($("plots"), $("plots-empty"));
+  initSecondBoard();
   initRadar($("radar"));
 
   // Crash translator: explain a pasted log without a board attached.

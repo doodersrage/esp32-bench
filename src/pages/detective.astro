@@ -1,0 +1,73 @@
+---
+import Base from "../layouts/Base.astro";
+import Flasher from "../components/Flasher.astro";
+---
+
+<Base title="Detective" current="detective">
+  <section class="view">
+    <h1 class="h2">Pin detective</h1>
+    <p class="lede">
+      Find out which pad is which. Flash the helper firmware, then touch a jumper wire from GND to any header pad and
+      watch it light up here. Useful for clone boards with a wrong or missing silkscreen.
+    </p>
+
+    <div class="stack tight">
+      <h2 class="h3">1. Flash the helper</h2>
+      <Flasher manifest="/firmware/pin-detective/manifest.json" version="0.1.0" />
+      <p class="cap left">
+        This replaces whatever firmware is on the board. Flash your own project again when you are done.
+      </p>
+    </div>
+
+    <div class="stack tight">
+      <h2 class="h3">2. Connect and touch pads</h2>
+      <div class="row">
+        <button class="btn go" type="button" id="d-connect">Connect board</button>
+        <span class="pickresult" id="d-status" role="status"></span>
+      </div>
+    </div>
+
+    <div class="cols">
+      <figure class="fig">
+        <div id="d-board"></div>
+        <figcaption>
+          Solid: touched to ground now. Ringed: held low by the board itself. Faded: cannot be read, such as supply,
+          flash, USB and input-only pins.
+        </figcaption>
+      </figure>
+      <div class="stack">
+        <div class="stack tight">
+          <h2 class="h3">Last touch</h2>
+          <p class="readout" id="d-readout" role="status">Nothing touched yet.</p>
+          <ol class="history" id="d-history"></ol>
+        </div>
+        <div class="stack tight">
+          <h2 class="h3">Silkscreen quiz</h2>
+          <div class="row">
+            <button class="btn" type="button" id="d-quiz">Quiz me</button>
+          </div>
+          <p class="pickresult" id="d-quiztext" role="status"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols even band">
+      <div class="stack tight">
+        <h2>Board passport</h2>
+        <div class="tablebox" id="d-passport"></div>
+        <form class="row" id="d-save" hidden>
+          <input type="text" id="d-name" placeholder="Name this board" aria-label="Name for this board" maxlength="40" />
+          <button class="btn" type="submit">Save to my boards</button>
+        </form>
+      </div>
+      <div class="stack tight">
+        <h2>My boards</h2>
+        <div class="stack tight" id="d-collection"></div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import "../scripts/detective.ts";
+</script>

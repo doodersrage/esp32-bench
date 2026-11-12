@@ -229,3 +229,17 @@ ul.findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direc
 dl.verdict { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 0.9rem; }
 dl.verdict dt { font: 600 0.7rem/1.6 var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 dl.verdict dd { margin: 0; }
+
+/* Batch 3: detective, passport, two-board bench */
+.terms { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+@media (min-width: 900px) { .terms.two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.terms.two .term { height: 38vh; }
+.pane { min-width: 0; }
+.samplebar .sp { flex: 1; }
+.pinrow.held i { border-color: var(--warn); box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--warn); }
+.pinrow.blind { opacity: 0.35; }
+.readout { font: 700 1.5rem/1.2 var(--display); max-width: 40ch; }
+ol.history { list-style: none; margin: 0; padding: 0; font: 400 0.8rem/1.7 var(--mono); color: var(--muted); }
+.passport { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--pad); }
+.passport .name { font: 700 1.2rem/1.1 var(--display); text-transform: uppercase; }
+#d-save input { flex: 1 1 180px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); background: var(--panel); border-radius: 2px; }
