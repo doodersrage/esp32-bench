@@ -1,0 +1,60 @@
+---
+import Base from "../layouts/Base.astro";
+import { PROJECTS } from "../data/projects";
+
+const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
+---
+
+<Base title="Bench" current="bench">
+  <section class="view">
+    <div class="benchhead">
+      <h1 class="h2">Serial bench</h1>
+      <span class="status" id="status"><span class="dot"></span><span id="status-text">No board</span></span>
+    </div>
+
+    <div class="notice" id="support" hidden>
+      <strong>This browser has no Web Serial.</strong> Open this page in Chrome or Edge on a desktop to connect a board. The library and sample output work everywhere.
+    </div>
+
+    <div class="controls">
+      <label for="baud">
+        Baud
+        <select id="baud">
+          {bauds.map((b) => <option value={b} selected={b === 115200}>{b}</option>)}
+        </select>
+      </label>
+      <button class="btn go" id="connect" type="button">Connect board</button>
+      <button class="btn" id="reset" type="button" disabled>Reset board</button>
+      <span class="sp"></span>
+      <label for="stamps"><input type="checkbox" id="stamps" /> Timestamps</label>
+      <label for="follow"><input type="checkbox" id="follow" checked /> Follow</label>
+      <button class="btn sm" id="copylog" type="button">Copy log</button>
+      <button class="btn sm" id="clear" type="button">Clear</button>
+    </div>
+
+    <div class="term" id="term" role="log" aria-label="Serial output" tabindex="0"></div>
+
+    <form class="send" id="sendform">
+      <input type="text" id="tx" placeholder="Type a line to send" aria-label="Line to send" autocomplete="off" disabled />
+      <select id="eol" aria-label="Line ending">
+        <option value="lf">LF</option>
+        <option value="crlf">CR LF</option>
+        <option value="cr">CR</option>
+        <option value="none">None</option>
+      </select>
+      <button class="btn" id="sendbtn" type="submit" disabled>Send</button>
+    </form>
+
+    <div class="samplebar">
+      <span>No board handy?</span>
+      <select id="samplepick" aria-label="Project for sample output">
+        {PROJECTS.map((p) => <option value={p.id}>{p.name}</option>)}
+      </select>
+      <button class="btn sm" id="sample" type="button">Play sample output</button>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import "../scripts/bench.ts";
+</script>

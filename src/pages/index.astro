@@ -1,0 +1,73 @@
+---
+import Base from "../layouts/Base.astro";
+import ProjectCard from "../components/ProjectCard.astro";
+import { PROJECTS, TAGS } from "../data/projects";
+---
+
+<Base current="library">
+  <section class="view">
+    <h1 class="sr">Project library</h1>
+    <p class="lede">
+      Projects with a pin map, a parts list and firmware you can paste straight into the Arduino IDE. Pick one, wire
+      it, then watch it talk on the bench.
+    </p>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Search projects, parts or pins" aria-label="Search projects" />
+      <div class="row" id="chips">
+        {
+          TAGS.map(([id, label]) => (
+            <button class="chip" type="button" data-tag={id} aria-pressed={id === "all" ? "true" : "false"}>
+              {label}
+            </button>
+          ))
+        }
+      </div>
+    </div>
+    <div class="grid" id="grid">
+      {PROJECTS.map((p, i) => <ProjectCard project={p} number={i + 1} />)}
+    </div>
+    <div class="empty" id="empty" hidden>No project matches. Clear the search or pick another filter.</div>
+  </section>
+</Base>
+
+<script>
+  const q = document.getElementById("q") as HTMLInputElement;
+  const empty = document.getElementById("empty") as HTMLElement;
+  const chips = [...document.querySelectorAll<HTMLButtonElement>("#chips .chip")];
+  const cards = [...document.querySelectorAll<HTMLElement>("#grid .card")];
+
+  let activeTag = "all";
+  try {
+    activeTag = localStorage.getItem("bench.tag") ?? "all";
+  } catch {
+    // Storage can be unavailable; the filter still works for this visit.
+  }
+
+  function apply() {
+    const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    for (const card of cards) {
+      const tags = (card.dataset.tags ?? "").split(" ");
+      const hay = card.dataset.hay ?? "";
+      const ok = (activeTag === "all" || tags.includes(activeTag)) && words.every((w) => hay.includes(w));
+      card.hidden = !ok;
+      if (ok) shown++;
+    }
+    empty.hidden = shown > 0;
+    for (const chip of chips) chip.setAttribute("aria-pressed", String(chip.dataset.tag === activeTag));
+  }
+
+  for (const chip of chips) {
+    chip.addEventListener("click", () => {
+      activeTag = chip.dataset.tag ?? "all";
+      try {
+        localStorage.setItem("bench.tag", activeTag);
+      } catch {
+        // Ignore: remembering the filter is a convenience only.
+      }
+      apply();
+    });
+  }
+  q.addEventListener("input", apply);
+  apply();
+</script>

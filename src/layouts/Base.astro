@@ -1,0 +1,44 @@
+---
+import "../styles/global.css";
+import { link } from "../lib/paths";
+
+interface Props {
+  title?: string;
+  current: "library" | "bench";
+}
+
+const { title, current } = Astro.props;
+const pageTitle = title ? `${title} | ESP32 Bench` : "ESP32 Bench";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="ESP32 project library and Web Serial workbench." />
+    <title>{pageTitle}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Saira+Condensed:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <p class="brand">ESP32 <span>Bench</span></p>
+        <div class="rev">Board: ESP32-DevKitC V4, 38 pin<br />Monitor: Web Serial</div>
+        <nav class="tabs" aria-label="Views">
+          <a href={link("/")} aria-current={current === "library" ? "page" : undefined}>Library</a>
+          <a href={link("/bench/")} aria-current={current === "bench" ? "page" : undefined}>Bench</a>
+        </nav>
+      </header>
+      <main>
+        <slot />
+      </main>
+      <footer>ESP32 Bench v0.2. Pin numbers are GPIO numbers. Check your own board's pinout before powering anything.</footer>
+    </div>
+  </body>
+</html>

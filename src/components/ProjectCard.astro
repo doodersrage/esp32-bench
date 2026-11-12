@@ -1,0 +1,38 @@
+---
+import type { Project } from "../data/projects";
+import { link } from "../lib/paths";
+
+interface Props {
+  project: Project;
+  number: number;
+}
+
+const { project: p, number } = Astro.props;
+const extra = p.parts.length - 1;
+const partsLabel = extra ? `${extra} ${extra === 1 ? "part" : "parts"}` : "board only";
+const gpio = p.pins.filter((x) => /^\d+$/.test(x));
+
+// Lowercased text the library search matches against.
+const haystack = [
+  p.name,
+  p.sum,
+  p.level,
+  p.libs.join(" "),
+  p.parts.map((x) => x[1]).join(" "),
+  gpio.map((x) => `gpio ${x}`).join(" "),
+]
+  .join(" ")
+  .toLowerCase();
+---
+
+<a class="card" href={link(`/projects/${p.id}/`)} data-tags={p.tags.join(" ")} data-hay={haystack}>
+  <span class="no">No. {String(number).padStart(2, "0")}</span>
+  <span class="name">{p.name}</span>
+  <span class="sum">{p.sum}</span>
+  <span class="meta">
+    <span class="tag lvl">{p.level}</span>
+    <span class="tag">{p.mins} min</span>
+    <span class="tag">{partsLabel}</span>
+    {gpio.map((x) => <span class="tag pin">GPIO {x}</span>)}
+  </span>
+</a>

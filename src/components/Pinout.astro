@@ -1,0 +1,51 @@
+---
+import { LEFT_PINS, RIGHT_PINS } from "../data/projects";
+
+interface Props {
+  /** Pin labels to highlight, e.g. ["3V3", "GND", "21"] */
+  pins: string[];
+}
+
+const { pins } = Astro.props;
+const used = new Set(pins);
+
+// Only the first ground pad on the right header lights up, so a project
+// shows one ground connection instead of three.
+let groundShown = false;
+const rows = LEFT_PINS.map((left, i) => {
+  const right = RIGHT_PINS[i];
+  const leftOn = left !== "GND" && used.has(left);
+  let rightOn = used.has(right);
+  if (right === "GND") {
+    rightOn = rightOn && !groundShown;
+    if (rightOn) groundShown = true;
+  }
+  return { left, right, leftOn, rightOn, row: i + 1 };
+});
+const label = `Pinout with pins used by this project highlighted: ${pins.join(", ") || "none"}`;
+---
+
+<figure class="fig">
+  <div class="board" role="img" aria-label={label}>
+    <div class="pcb">
+      <div class="can"></div>
+      <div class="silk">ESP32-DEVKITC</div>
+      <div class="usb"></div>
+    </div>
+    {
+      rows.map((r) => (
+        <>
+          <div class:list={["pinrow", "l", { on: r.leftOn }]} style={`grid-column:1;grid-row:${r.row}`}>
+            <span>{r.left}</span>
+            <i></i>
+          </div>
+          <div class:list={["pinrow", "r", { on: r.rightOn }]} style={`grid-column:3;grid-row:${r.row}`}>
+            <i></i>
+            <span>{r.right}</span>
+          </div>
+        </>
+      ))
+    }
+  </div>
+  <figcaption>Fig. 1. Pins this project uses. USB connector at the bottom.</figcaption>
+</figure>

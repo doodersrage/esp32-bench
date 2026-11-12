@@ -1,0 +1,127 @@
+---
+import Base from "../../layouts/Base.astro";
+import Pinout from "../../components/Pinout.astro";
+import { PROJECTS, type Project } from "../../data/projects";
+import { link } from "../../lib/paths";
+
+export function getStaticPaths() {
+  return PROJECTS.map((p) => ({ params: { id: p.id }, props: { p } }));
+}
+
+interface Props {
+  p: Project;
+}
+
+const { p } = Astro.props;
+const needsLibraries = p.libs.some((l) => !/built in/.test(l));
+const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
+---
+
+<Base title={p.name} current="library">
+  <section class="view">
+    <a class="back" href={link("/")}>← All projects</a>
+
+    <div class="stack tight">
+      <h1 class="h2">{p.name}</h1>
+      <p class="lede">{p.sum}</p>
+      <div class="meta">
+        <span class="tag lvl">{p.level}</span>
+        <span class="tag">{p.mins} min</span>
+        <span class="tag">{p.baud} baud</span>
+      </div>
+    </div>
+
+    <div class="cols">
+      <Pinout pins={p.pins} />
+      <div class="stack">
+        <div>
+          <h3>Wiring</h3>
+          {
+            p.wiring.length > 0 ? (
+              <div class="tablebox">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>From</th>
+                      <th>To ESP32</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {p.wiring.map(([from, to, note]) => (
+                      <tr>
+                        <td>{from}</td>
+                        <td class="m">{to}</td>
+                        <td>{note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p class="lede">Nothing to wire. This one runs on the bare board.</p>
+            )
+          }
+        </div>
+        <div>
+          <h3>Parts</h3>
+          <div class="tablebox">
+            <table>
+              <tbody>
+                {p.parts.map(([qty, what]) => (
+                  <tr>
+                    <td class="q">{qty}×</td>
+                    <td>{what}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3>Libraries</h3>
+          <p>{p.libs.length > 0 ? p.libs.join(", ") : "None beyond the ESP32 Arduino core."}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack tight">
+      <div class="codehead">
+        <h3 class="flat">Firmware, Arduino sketch</h3>
+        <button class="btn sm" type="button" id="copy">Copy firmware</button>
+      </div>
+      <pre class="code"><code id="firmware">{p.code}</code></pre>
+    </div>
+
+    <div>
+      <h3>Load it</h3>
+      <ol class="steps">
+        <li>In the Arduino IDE, install the esp32 board package and pick <code>ESP32 Dev Module</code>.</li>
+        {needsLibraries && <li>Install the libraries listed above from the Library Manager.</li>}
+        <li>Paste the sketch, choose the board's port and upload. Hold BOOT if the upload stalls at Connecting.</li>
+        <li>Close the IDE's serial monitor, then open the bench here to watch the output.</li>
+      </ol>
+    </div>
+
+    <div class="row">
+      <a class="btn go" href={benchHref}>Open the bench at {p.baud} baud</a>
+    </div>
+  </section>
+</Base>
+
+<script>
+  const btn = document.getElementById("copy") as HTMLButtonElement;
+  const code = document.getElementById("firmware") as HTMLElement;
+  btn.addEventListener("click", async () => {
+    const label = btn.textContent;
+    try {
+      await navigator.clipboard.writeText(code.textContent ?? "");
+      btn.textContent = "Copied";
+    } catch {
+      btn.textContent = "Copy blocked, select the text";
+    }
+    setTimeout(() => {
+      btn.textContent = label;
+    }, 1600);
+  });
+</script>

@@ -1,47 +1,56 @@
 # ESP32 Bench
 
-A project library and a serial workbench for ESP32 boards, in one static web page.
+A project library and a serial workbench for ESP32 boards, built as a static site with [Astro 7](https://astro.build/).
 
-- **Library:** eight starter projects, each with a highlighted pinout, a wiring table, a parts list and an Arduino sketch you can copy.
+- **Library:** eight starter projects, each with a highlighted pinout, a wiring table, a parts list and an Arduino sketch you can copy. Every project is its own page at `/projects/<id>/`.
 - **Bench:** a serial monitor built on Web Serial. Connect, pick a baud rate, send lines, pulse EN to reset the board, and copy the log. Crash and error lines are highlighted.
 - **Sample output:** recorded output for every project, so you can see what a working build prints without a board attached.
 
-There is no build step and no dependencies. Everything is in `index.html`.
-
 ## Run it
 
-Web Serial needs a secure page, so open it from `localhost` or HTTPS, not from a `file://` path.
+Needs Node 22.12 or newer.
 
 ```sh
-python3 -m http.server 8000
-# then open http://localhost:8000
+npm install
+npm run dev      # http://localhost:4321
+npm run build    # static site in dist/
+npm run preview  # serve the built site
 ```
 
-Or enable GitHub Pages for this repository (Settings, Pages, deploy from the `main` branch root).
+Web Serial needs a secure page, so use `localhost` or HTTPS. Connecting a board needs Chrome or Edge on a desktop. The library and sample output work in any browser.
 
-Connecting a board needs Chrome or Edge on a desktop. The library and sample output work in any browser.
+## Layout
+
+```text
+src/
+  data/projects.ts        Project data and the board's pin headers
+  components/
+    Pinout.astro          Board figure with a project's pins highlighted
+    ProjectCard.astro     Library card
+  layouts/Base.astro      Page shell, header and navigation
+  pages/
+    index.astro           Library with search and filters
+    projects/[id].astro   One page per project
+    bench.astro           Serial monitor
+  scripts/bench.ts        Web Serial logic for the bench
+  lib/paths.ts            Link helper that respects Astro's `base`
+  styles/global.css       Theme tokens and all styles
+```
 
 ## Add a project
 
-Projects live in the `PROJECTS` array near the top of the script in `index.html`. Each entry has:
+Add an entry to `PROJECTS` in `src/data/projects.ts`. The `Project` type in that file documents each field. A new entry gets a library card, its own page and a sample-output option on the bench with no other changes.
 
-| Field | Meaning |
-| --- | --- |
-| `id` | Short slug, used in the URL as `#p-<id>` |
-| `name`, `sum` | Title and one-line summary |
-| `level`, `mins` | Difficulty label and rough build time |
-| `tags` | Any of `no-parts`, `sensors`, `display`, `wifi`, `power` |
-| `pins` | Pin labels to highlight on the pinout, such as `"21"`, `"3V3"`, `"GND"` |
-| `parts` | `[quantity, description]` pairs |
-| `wiring` | `[from, to, note]` rows |
-| `libs` | Arduino libraries to install |
-| `baud` | Serial speed the sketch uses |
-| `code` | The sketch, in a `String.raw` template |
-| `sample` | Lines the sketch prints when it works |
+## Deploy to GitHub Pages
+
+Set `site` and `base` in `astro.config.mjs` (for this repository, `base: "/esp32-bench"`), then publish `dist/` with Astro's official GitHub Pages action. Internal links already follow `base`.
 
 ## Status
 
-v0.1. The sketches have not been run on hardware from this repository yet, and the serial monitor has not been tested against a physical board. Treat both as a first draft and check the wiring against your own board's pinout.
+v0.2. Not verified yet:
+
+- The Astro project was written without running `astro build`, so the first `npm install && npm run build` is its first real test. There is no lockfile yet; commit the `package-lock.json` that `npm install` creates.
+- The sketches and the serial monitor have not been run against a physical board.
 
 Not built yet:
 
