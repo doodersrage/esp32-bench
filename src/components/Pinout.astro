@@ -29,32 +29,72 @@ const rows = board.left.map((left, i) => ({
   rightOn: rightOn[i],
   row: i + 1,
 }));
+const silk = (label: string) => board.silk?.[label];
+// Short boards such as the XIAO get a smaller shield so the figure stays in proportion.
+const compact = rows.length < 12;
 const label = pins.length
   ? `${board.name} pinout with pins used by this project highlighted: ${pins.join(", ")}`
   : `${board.name} pinout`;
 ---
 
-<figure class="fig">
-  <div class="board" role="img" aria-label={label}>
-    <div class="pcb" style={`grid-row:1 / span ${rows.length}`}>
-      <div class="can"></div>
-      <div class="silk">{board.short}</div>
-      <div class="usb"></div>
-    </div>
-    {
-      rows.map((r) => (
-        <>
-          <div class:list={["pinrow", "l", { on: r.leftOn }]} style={`grid-column:1;grid-row:${r.row}`}>
-            <span>{r.left}</span>
-            <i></i>
-          </div>
-          <div class:list={["pinrow", "r", { on: r.rightOn }]} style={`grid-column:3;grid-row:${r.row}`}>
-            <i></i>
-            <span>{r.right}</span>
-          </div>
-        </>
-      ))
-    }
-  </div>
-  <figcaption>{caption ?? `${board.name}. USB connector at the bottom.`}</figcaption>
-</figure>
+{
+  rows.length === 0 ? (
+    <figure class="fig nohead">
+      <p class="cap left">{board.noHeader ?? "No header layout on file for this board."}</p>
+      {pins.length > 0 && <p class="cap left">GPIOs this project uses: {pins.filter((p) => /^\d+$/.test(p)).join(", ") || "none"}.</p>}
+    </figure>
+  ) : (
+    <figure class="fig">
+      <div class="board" role="img" aria-label={label}>
+        <div class:list={["pcb", { compact }]} style={`grid-row:1 / span ${rows.length}`}>
+          <div class="can"></div>
+          <div class="silk">{board.short}</div>
+          <div class="usb"></div>
+        </div>
+        {rows.map((r) => (
+          <>
+            <div class:list={["pinrow", "l", { on: r.leftOn }]} style={`grid-column:1;grid-row:${r.row}`}>
+              <span>
+                {silk(r.left) && <small>{silk(r.left)}</small>}
+                {r.left}
+              </span>
+              <i></i>
+            </div>
+            <div class:list={["pinrow", "r", { on: r.rightOn }]} style={`grid-column:3;grid-row:${r.row}`}>
+              <i></i>
+              <span>
+                {r.right}
+                {silk(r.right) && <small>{silk(r.right)}</small>}
+              </span>
+            </div>
+          </>
+        ))}
+      </div>
+      <figcaption>
+        {caption ??
+          `${board.name}. USB connector at the bottom.${board.silk ? " Small labels are the silkscreen names; the numbers are GPIOs." : ""}`}
+      </figcaption>
+    </figure>
+  )
+}
+
+<style>
+  small {
+    font-size: 0.62rem;
+    color: var(--muted);
+    margin: 0 4px;
+    font-weight: 400;
+  }
+  .pcb.compact .can {
+    height: 44px;
+    width: 52px;
+  }
+  .pcb.compact .silk {
+    font-size: 0.68rem;
+  }
+  .nohead {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+</style>

@@ -213,6 +213,7 @@ void loop() {
   {
     id: "wifi-scan", needs: [], name: "Wi-Fi scanner", level: "Starter", mins: 5, tags: ["no-parts", "wifi"],
     sum: "List nearby networks with signal strength and channel every ten seconds. A quick radio health check.",
+    boards: ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32c3", "xiao-esp32s3", "esp32-cam"],
     pins: [], libs: ["WiFi (built in)"], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit]],
     wiring: [],
@@ -241,8 +242,16 @@ void loop() {
   {
     id: "i2c-scan", needs: [["i2c", "oled"]], name: "I2C bus scanner", level: "Starter", mins: 10, tags: ["sensors"],
     sum: "Probe every address on the I2C bus and report what answers. Run it before trusting any sensor wiring.",
-    boards: ["esp32", "esp32s3", "esp32c3"],
-    vars: { esp32: { SDA: "21", SCL: "22" }, esp32s3: { SDA: "8", SCL: "9" }, esp32c3: { SDA: "6", SCL: "7" } },
+    boards: ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32c3", "xiao-esp32s3"],
+    vars: {
+      esp32: { SDA: "21", SCL: "22" },
+      esp32s3: { SDA: "8", SCL: "9" },
+      esp32c3: { SDA: "6", SCL: "7" },
+      esp32s2: { SDA: "8", SCL: "9" },
+      esp32c6: { SDA: "23", SCL: "22" },
+      "xiao-esp32c3": { SDA: "6", SCL: "7" },
+      "xiao-esp32s3": { SDA: "5", SCL: "6" },
+    },
     pins: ["3V3", "GND", "%SDA%", "%SCL%"], libs: ["Wire (built in)"], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "Any I2C device"], [4, "Jumper wires"]],
     wiring: [["Device VCC", "3V3", ""], ["Device GND", "GND", ""], ["Device SDA", "GPIO %SDA%", ""], ["Device SCL", "GPIO %SCL%", ""]],
@@ -531,10 +540,10 @@ void loop() {
   {
     id: "esp-now", needs: [], name: "ESP-NOW pair", level: "Intermediate", mins: 20, tags: ["no-parts", "wifi"],
     sum: "Two boards talk directly over the Wi-Fi radio, with no router. Each sends a counter and prints what the other sends.",
-    boards: ["esp32", "esp32s3", "esp32c3"],
+    boards: ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32c3", "xiao-esp32s3"],
     pins: [], libs: ["WiFi (built in)", "esp_now (built in)"], baud: 115200,
     parts: [
-      [2, "ESP32 dev boards, any mix of ESP32, S3 and C3", BOM.esp32DevKit],
+      [2, "ESP32 boards, any mix of the boards listed above", BOM.esp32DevKit],
       [2, "USB cables, or one cable and a USB power supply"],
     ],
     wiring: [],
@@ -819,7 +828,7 @@ void loop() {
   {
     id: "ble-scan", needs: [], name: "Bluetooth LE scanner", level: "Starter", mins: 5, tags: ["no-parts", "bluetooth"],
     sum: "List nearby Bluetooth LE devices with their signal strength every ten seconds: phones, watches, beacons and sensors.",
-    boards: ["esp32", "esp32s3", "esp32c3"],
+    boards: ["esp32", "esp32s3", "esp32c3", "esp32c6", "xiao-esp32c3", "xiao-esp32s3"],
     pins: [], libs: ["BLE (built in)"], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit]],
     wiring: [],
@@ -855,7 +864,7 @@ void loop() {
       "Written for the 3.x Arduino core, where start() returns a pointer. On the older 2.x core, use BLEScanResults found = scan->start(5, false) and found.getCount() instead.",
       "The Bluetooth stack is large. If the classic ESP32 build says the sketch is too big, pick Tools, Partition Scheme, Huge APP.",
       "Phones and watches change their address every few minutes for privacy, so the same phone can appear more than once.",
-      "The S3 and C3 only have Bluetooth LE. The classic ESP32 also has Classic Bluetooth, which this sketch does not scan.",
+      "The S3, C3 and C6 only have Bluetooth LE. The classic ESP32 also has Classic Bluetooth, which this sketch does not scan. The ESP32-S2 has no Bluetooth at all.",
     ],
     sample: [
       "6 devices",
@@ -865,6 +874,175 @@ void loop() {
       "d8:3a:dd:05:6e:90   -77 dBm  (no name)",
       "c4:7c:8d:6a:31:5f   -82 dBm  Flower care",
       "4e:91:0b:7f:c2:a8   -89 dBm  (no name)",
+    ],
+  },
+  {
+    id: "esp32-cam-stream", needs: [], name: "ESP32-CAM video stream", level: "Intermediate", mins: 30, tags: ["wifi"],
+    sum: "Stream live video from an ESP32-CAM to any browser on your network. Joins your Wi-Fi and serves the camera at its own address.",
+    boards: ["esp32-cam"],
+    pins: ["5V", "GND", "0", "1", "3"],
+    libs: ["esp32-camera (built into the ESP32 core)", "WiFi (built in)"],
+    baud: 115200,
+    parts: [
+      [1, "AI-Thinker ESP32-CAM with the OV2640 camera"],
+      [1, "3.3 V USB-to-serial adapter (CP2102, CH340 or FTDI)"],
+      [1, "5 V supply that can give 1 A, or the adapter's 5 V pin if it can"],
+      [5, "Jumper wires"],
+    ],
+    wiring: [
+      ["Adapter TX", "U0R (GPIO 3)", "Crossed over: adapter TX to board RX"],
+      ["Adapter RX", "U0T (GPIO 1)", ""],
+      ["Adapter GND", "GND", ""],
+      ["5 V supply", "5V", "Not the 3.3 V pin. Weak power is the usual reason it resets"],
+      ["IO0 (GPIO 0)", "GND", "Only while flashing. Remove it, then press RST to run"],
+    ],
+    code: R`#include "esp_camera.h"
+#include <WiFi.h>
+#include "esp_http_server.h"
+
+const char* WIFI_SSID = "your-network";
+const char* WIFI_PASS = "your-password";
+
+// AI-Thinker ESP32-CAM pins, from Espressif's CameraWebServer example
+#define PWDN_GPIO_NUM  32
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM  0
+#define SIOD_GPIO_NUM  26
+#define SIOC_GPIO_NUM  27
+#define Y9_GPIO_NUM    35
+#define Y8_GPIO_NUM    34
+#define Y7_GPIO_NUM    39
+#define Y6_GPIO_NUM    36
+#define Y5_GPIO_NUM    21
+#define Y4_GPIO_NUM    19
+#define Y3_GPIO_NUM    18
+#define Y2_GPIO_NUM    5
+#define VSYNC_GPIO_NUM 25
+#define HREF_GPIO_NUM  23
+#define PCLK_GPIO_NUM  22
+
+httpd_handle_t server = nullptr;
+
+// Sends JPEG frames one after another until the browser closes the page.
+esp_err_t streamHandler(httpd_req_t* req) {
+  httpd_resp_set_type(req, "multipart/x-mixed-replace;boundary=frame");
+  char head[96];
+  while (true) {
+    camera_fb_t* fb = esp_camera_fb_get();
+    if (!fb) {
+      Serial.println("Frame capture failed");
+      return ESP_FAIL;
+    }
+    int n = snprintf(head, sizeof head, "\r\n--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n", (unsigned)fb->len);
+    esp_err_t res = httpd_resp_send_chunk(req, head, n);
+    if (res == ESP_OK) res = httpd_resp_send_chunk(req, (const char*)fb->buf, fb->len);
+    esp_camera_fb_return(fb);
+    if (res != ESP_OK) break;
+  }
+  return ESP_OK;
+}
+
+esp_err_t indexHandler(httpd_req_t* req) {
+  static const char page[] =
+    "<!doctype html><title>ESP32-CAM</title>"
+    "<body style='margin:0;background:#111'><img src='/stream' style='width:100%'>";
+  httpd_resp_set_type(req, "text/html");
+  return httpd_resp_send(req, page, HTTPD_RESP_USE_STRLEN);
+}
+
+void startServer() {
+  httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+  if (httpd_start(&server, &config) != ESP_OK) {
+    Serial.println("Web server failed to start");
+    return;
+  }
+  httpd_uri_t index = {};
+  index.uri = "/";
+  index.method = HTTP_GET;
+  index.handler = indexHandler;
+  httpd_register_uri_handler(server, &index);
+
+  httpd_uri_t stream = {};
+  stream.uri = "/stream";
+  stream.method = HTTP_GET;
+  stream.handler = streamHandler;
+  httpd_register_uri_handler(server, &stream);
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println();
+
+  camera_config_t config = {};
+  config.ledc_channel = LEDC_CHANNEL_0;
+  config.ledc_timer = LEDC_TIMER_0;
+  config.pin_d0 = Y2_GPIO_NUM;
+  config.pin_d1 = Y3_GPIO_NUM;
+  config.pin_d2 = Y4_GPIO_NUM;
+  config.pin_d3 = Y5_GPIO_NUM;
+  config.pin_d4 = Y6_GPIO_NUM;
+  config.pin_d5 = Y7_GPIO_NUM;
+  config.pin_d6 = Y8_GPIO_NUM;
+  config.pin_d7 = Y9_GPIO_NUM;
+  config.pin_xclk = XCLK_GPIO_NUM;
+  config.pin_pclk = PCLK_GPIO_NUM;
+  config.pin_vsync = VSYNC_GPIO_NUM;
+  config.pin_href = HREF_GPIO_NUM;
+  config.pin_sccb_sda = SIOD_GPIO_NUM;
+  config.pin_sccb_scl = SIOC_GPIO_NUM;
+  config.pin_pwdn = PWDN_GPIO_NUM;
+  config.pin_reset = RESET_GPIO_NUM;
+  config.xclk_freq_hz = 20000000;
+  config.pixel_format = PIXFORMAT_JPEG;
+  config.grab_mode = CAMERA_GRAB_LATEST;
+  config.jpeg_quality = 12;
+
+  if (psramFound()) {
+    config.frame_size = FRAMESIZE_VGA;
+    config.fb_location = CAMERA_FB_IN_PSRAM;
+    config.fb_count = 2;
+  } else {
+    Serial.println("No PSRAM: streaming at 320x240. Enable PSRAM in the board settings.");
+    config.frame_size = FRAMESIZE_QVGA;
+    config.fb_location = CAMERA_FB_IN_DRAM;
+    config.fb_count = 1;
+  }
+
+  esp_err_t err = esp_camera_init(&config);
+  if (err != ESP_OK) {
+    Serial.printf("Camera init failed: 0x%x. Check the ribbon cable and the power supply.\n", err);
+    return;
+  }
+  Serial.println("Camera ready");
+
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  WiFi.setSleep(false);
+  Serial.print("Joining Wi-Fi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+
+  startServer();
+  Serial.printf("Stream ready: open http://%s/ in a browser\n", WiFi.localIP().toString().c_str());
+}
+
+void loop() {
+  delay(10000);
+}`,
+    open: ["Not tested on hardware yet. Compiles for the AI Thinker ESP32-CAM with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Select AI Thinker ESP32-CAM as the board. It turns PSRAM on, which the camera needs for VGA and larger frames.",
+      "To flash: tie IO0 to GND, press RST, upload, then remove the wire and press RST again. The bench shows the address once it joins Wi-Fi.",
+      "Use 5 V on the 5V pin. Brownout resets during Wi-Fi start-up mean the supply is too weak.",
+      "Only one browser can watch at a time with this simple server.",
+      "Camera init failed: 0x105 usually means the camera ribbon is not seated. Lift the connector latch, push the ribbon in fully and close it.",
+    ],
+    sample: [
+      "Camera ready",
+      "Joining Wi-Fi......",
+      "Stream ready: open http://192.168.1.48/ in a browser",
     ],
   },
   ...PROBEHARBOR_SKETCHES,
