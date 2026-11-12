@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { checkReport, htmlFor, subjectFor, textFor } from "./report.ts";
 import { verifyTurnstile } from "./turnstile.ts";
 import { moderationPage, newToken, publicBuild, resultPage, sameHash, sha256, type BuildRow } from "./builds.ts";
+import { checkLabRun, publicLab, tokenMatches, type LabResultRow, type LabRunRow } from "./lab.ts";
 
 interface Env {
 	EMAIL: SendEmail;
@@ -14,6 +15,8 @@ interface Env {
 	TURNSTILE_SECRET?: string;
 	/** Verified Email Routing destination, set as a Worker secret */
 	REPORT_TO?: string;
+	/** Bearer token the hardware lab runner posts with, set as a Worker secret */
+	LAB_TOKEN?: string;
 }
 
 const config = env as unknown as Env;
@@ -63,7 +66,72 @@ async function listBuilds(url: URL): Promise<Response> {
 	)
 		.bind(project)
 		.all<BuildRow>();
-	return json({ builds: results.map(publicBuild) }, 200, headers);
+	return json({ builds: results.map(publicBuild), lab: await latestLab(project) }, 200, headers);
+}
+
+/** The latest hardware lab run that covered a project, shaped for the page; null when none. */
+async function latestLab(project: string) {
+	const run = await config.DB.prepare(
+		`SELECT r.id, r.finished_at, r.core, r.firmware_built_at FROM lab_runs r
+		 WHERE EXISTS (SELECT 1 FROM lab_results x WHERE x.run_id = r.id AND x.project = ?)
+		 ORDER BY r.finished_at DESC LIMIT 1`,
+	)
+		.bind(project)
+		.first<LabRunRow>();
+	if (!run) return null;
+	const { results } = await config.DB.prepare(
+		"SELECT project, board, chip, status, seconds, matched, missing, output FROM lab_results WHERE run_id = ? AND project = ? ORDER BY board",
+	)
+		.bind(run.id, project)
+		.all<LabResultRow>();
+	return publicLab(run, results);
+}
+
+/** GET /lab/latest: per-project outcome of the latest run, for a lab page. */
+async function labLatest(): Promise<Response> {
+	const headers = { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300" };
+	const run = await config.DB.prepare("SELECT id, finished_at, core, firmware_built_at FROM lab_runs ORDER BY finished_at DESC LIMIT 1").first<LabRunRow>();
+	if (!run) return json({ run: null, projects: {} }, 200, headers);
+	const { results } = await config.DB.prepare("SELECT project, board, status, seconds FROM lab_results WHERE run_id = ? ORDER BY project, board")
+		.bind(run.id)
+		.all<{ project: string; board: string; status: string; seconds: number }>();
+	const projects: Record<string, { board: string; status: string; seconds: number }[]> = {};
+	for (const r of results) (projects[r.project] ??= []).push({ board: r.board, status: r.status, seconds: r.seconds });
+	return json({ run: { finished_at: run.finished_at, core: run.core, firmware_built_at: run.firmware_built_at }, projects }, 200, headers);
+}
+
+/** POST /lab/runs: the lab runner's report, with the LAB_TOKEN secret. */
+async function labRuns(request: Request): Promise<Response> {
+	const none = {};
+	if (!config.LAB_TOKEN) return json({ ok: false, error: "The lab is not set up." }, 503, none);
+	const auth = request.headers.get("Authorization") ?? "";
+	const given = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+	if (!tokenMatches(given, config.LAB_TOKEN)) return json({ ok: false, error: "Not authorised." }, 401, none);
+	if (Number(request.headers.get("Content-Length") ?? 0) > 1_000_000) return json({ ok: false, error: "Report too large." }, 413, none);
+	let body: unknown;
+	try {
+		body = JSON.parse((await request.text()).slice(0, 1_000_000));
+	} catch {
+		return json({ ok: false, error: "Send JSON." }, 400, none);
+	}
+	const checked = checkLabRun(body);
+	if (!checked.ok) return json({ ok: false, error: checked.error }, 400, none);
+	const run = checked.run;
+	const inserted = await config.DB.prepare(
+		"INSERT INTO lab_runs (runner, started_at, finished_at, core, firmware_built_at, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
+	)
+		.bind(run.runner, run.started_at, run.finished_at, run.core, run.firmware_built_at, new Date().toISOString())
+		.first<{ id: number }>();
+	const runId = inserted?.id;
+	if (!runId) return json({ ok: false, error: "Could not store the run." }, 500, none);
+	const stmt = config.DB.prepare(
+		"INSERT INTO lab_results (run_id, project, board, chip, status, seconds, matched, missing, output) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+	);
+	await config.DB.batch(
+		run.results.map((r) => stmt.bind(runId, r.project, r.board, r.chip, r.status, r.seconds, JSON.stringify(r.matched), JSON.stringify(r.missing), r.output)),
+	);
+	const passed = run.results.filter((r) => r.status === "passed").length;
+	return json({ ok: true, run: runId, results: run.results.length, passed }, 200, none);
 }
 
 /** GET /moderate/<id>?t=...: the report with Approve and Reject buttons. Nothing changes until a button posts. */
@@ -96,6 +164,11 @@ export default {
 		const headers = cors(origin);
 
 		if (url.pathname === "/builds" && request.method === "GET") return listBuilds(url);
+		if (url.pathname === "/lab/latest" && request.method === "GET") return labLatest();
+		if (url.pathname === "/lab/runs") {
+			if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, { Allow: "POST" });
+			return labRuns(request);
+		}
 		const mod = /^\/moderate\/(\d{1,9})$/.exec(url.pathname);
 		if (mod) {
 			const id = Number(mod[1]);

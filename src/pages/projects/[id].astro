@@ -56,6 +56,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
         <span class="tag">{p.mins} min</span>
         <span class="tag">{p.baud} baud</span>
         {p.flash && <span class="tag flash">Browser flash</span>}
+        <span class="tag ok" data-lab-tag hidden title="The latest hardware lab run passed on at least one board">Lab tested</span>
       </div>
       {
         p.tags.includes("probeharbor") && (
@@ -283,6 +284,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     <div class="stack tight band" id="community" data-builds={SITE.buildsApi} data-project={p.id}>
       <h2>Community builds</h2>
       <p class="lede" data-community-status>Loading build reports from people who made this.</p>
+      <div class="labrun" data-lab hidden></div>
       <ul class="builds" data-community-list hidden></ul>
     </div>
 
@@ -307,6 +309,13 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
   .kicon :global(svg) { width: 28px; height: 28px; }
   .phcredit { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--ok); font-size: 0.92rem; max-width: 75ch; }
   .phcredit a { color: var(--accent); }
+  .labrun { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--ok); min-width: 0; }
+  .labrun :global(.labhead) { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .labrun :global(.labwhen) { font: 400 0.8rem/1.2 var(--mono); color: var(--muted); margin-left: auto; }
+  .labrun :global(details) { font-size: 0.88rem; }
+  .labrun :global(summary) { cursor: pointer; color: var(--muted); }
+  .labrun :global(pre.code) { margin-top: 6px; max-height: 18em; }
+  .labrun :global(.tag.pending) { border-style: dashed; }
 </style>
 
 <script>
