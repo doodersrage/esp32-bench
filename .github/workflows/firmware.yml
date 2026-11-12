@@ -1,0 +1,68 @@
+name: Firmware
+
+# Compiles the pin detective firmware for the ESP32, ESP32-S3 and ESP32-C3.
+# On a push, the merged images and manifest are committed to
+# public/firmware/pin-detective/ so the site can flash them from the browser.
+on:
+  push:
+    paths:
+      - "firmware/**"
+      - "scripts/build-firmware.mjs"
+      - ".github/workflows/firmware.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: platformio-${{ hashFiles('firmware/pin-detective/platformio.ini') }}
+
+      - run: pip install platformio
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Compile and merge images
+        run: |
+          set -o pipefail
+          node scripts/build-firmware.mjs 2>&1 | tee firmware.log
+
+      - name: Report compile failure
+        if: failure()
+        run: |
+          if [ -f firmware.log ]; then
+            msg="$(grep -nE 'error|Error|FAILED|undefined|No such' firmware.log | tail -c 5000 | sed 's/\x1b\[[0-9;]*m//g')"
+            msg="${msg//'%'/'%25'}"
+            msg="${msg//$'\n'/'%0A'}"
+            msg="${msg//$'\r'/'%0D'}"
+            echo "::error title=firmware build failed::$msg"
+          fi
+
+      - name: Commit the images
+        run: |
+          rm -f firmware.log
+          ls -la public/firmware/pin-detective
+          if [ -n "$(git status --porcelain public/firmware/pin-detective)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add public/firmware/pin-detective
+            git commit -m "Build pin detective firmware images [skip ci]"
+            git push
+          fi
