@@ -1,6 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 import Comments from "../../components/Comments.astro";
+import Preview from "../../components/Preview.astro";
 import Pinout from "../../components/Pinout.astro";
 import WiringDiagram from "../../components/WiringDiagram.astro";
 import Flasher from "../../components/Flasher.astro";
@@ -83,6 +84,8 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
         )
       }
     </div>
+
+    <Preview id={p.id} />
 
     {
       boards.length > 1 && (
