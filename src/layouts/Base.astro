@@ -73,6 +73,11 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
     <meta name="theme-color" content={SITE.themeColor} />
     <link rel="alternate" type="application/rss+xml" title={`${SITE.name}: what's new`} href={link("/rss.xml")} />
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+    {
+      import.meta.env.PROD && SITE.ahrefsKey && (
+        <script is:inline src="https://analytics.ahrefs.com/analytics.js" data-key={SITE.ahrefsKey} async />
+      )
+    }
 
     <script is:inline>
       // Apply the saved theme before first paint so the page does not flash.

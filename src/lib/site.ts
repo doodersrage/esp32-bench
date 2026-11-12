@@ -9,6 +9,8 @@ export const SITE = {
     "Free ESP32 project library with pinouts, wiring tables and copy-paste Arduino sketches, plus a Web Serial monitor, crash translator and browser flasher.",
   /** Public source repository. Leave empty while the repository is private. */
   repo: "",
+  /** Ahrefs Web Analytics site key. Empty turns analytics off. */
+  ahrefsKey: "OCD7LFsMxlGOUms5cW+xFw",
   themeColor: "#14231f",
   background: "#f2f5f1",
 };
