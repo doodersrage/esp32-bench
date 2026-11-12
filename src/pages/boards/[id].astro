@@ -1,0 +1,250 @@
+---
+import Base from "../../layouts/Base.astro";
+import Pinout from "../../components/Pinout.astro";
+import { BOARDS, type Board } from "../../data/boards";
+import { CHIPS } from "../../data/chips";
+import { PROJECTS, boardsOf } from "../../data/projects";
+import { padRows, wiredRows } from "../../lib/pins";
+import { link } from "../../lib/paths";
+import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
+
+export function getStaticPaths() {
+  return BOARDS.map((b) => ({ params: { id: b.id }, props: { b } }));
+}
+
+interface Props {
+  b: Board;
+}
+
+const { b } = Astro.props;
+const chip = CHIPS[b.chip];
+const rows = padRows(b);
+const wired = wiredRows(b);
+const projects = PROJECTS.filter((p) => boardsOf(p).includes(b.id));
+const hasHeader = rows.length > 0;
+const safeCount = new Set(rows.filter((r) => r.verdict.level === "safe").map((r) => r.gpio)).size;
+
+const title = hasHeader ? `${b.name} pinout` : `${b.name} pin map`;
+const description = hasHeader
+  ? `${b.name} pinout: every header pin with its GPIO number, ADC and touch channels, boot and strapping pins, and which of its pins are safe to use.`
+  : `${b.name} pin map: which GPIOs the camera, SD card and LEDs use, which pins are left for you, and how to flash it.`;
+const tone = { safe: "ok", care: "warnt", avoid: "bad", power: "" } as const;
+---
+
+<Base title={title} description={description} current="boards">
+  <section class="view">
+    <a class="back" href={link("/boards/")}>← All boards</a>
+
+    <div class="stack tight">
+      <h1 class="h2">{title}</h1>
+      <p class="lede">
+        {chip.name} board. Pick <strong>{b.arduinoBoard}</strong> in the Arduino IDE.
+        {hasHeader && ` ${safeCount} of its header GPIOs are free of boot, flash and USB duties.`}
+      </p>
+      <div class="meta">
+        <span class="tag lvl">{chip.name}</span>
+        {
+          b.tested ? (
+            <span class="tag ok">Pins tested on hardware</span>
+          ) : (
+            <span class="tag todo">From vendor documentation, not hardware tested</span>
+          )
+        }
+        <span class="tag">{projects.length} projects</span>
+      </div>
+    </div>
+
+    <div class="cols">
+      <Pinout board={b} />
+      <div class="stack">
+        {
+          b.tested && (
+            <div>
+              <h2 class="h3 mb">Pins tested on hardware</h2>
+              <div class="tablebox">
+                <table>
+                  <thead class="sr">
+                    <tr>
+                      <th>Use</th>
+                      <th>Pins</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>I2C</td>
+                      <td class="m">{b.tested.i2c}</td>
+                    </tr>
+                    <tr>
+                      <td>One-wire or DHT data</td>
+                      <td class="m">{b.tested.probe}</td>
+                    </tr>
+                    <tr>
+                      <td>BOOT button</td>
+                      <td class="m">{b.tested.boot}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        }
+        <div>
+          <h2 class="h3 mb">Field notes</h2>
+          <ul class="notes">
+            {b.notes.map((n) => <li>{n}</li>)}
+          </ul>
+        </div>
+        <div>
+          <h2 class="h3 mb">Analog and Wi-Fi</h2>
+          <p class="notecopy">{chip.adc2}</p>
+        </div>
+      </div>
+    </div>
+
+    {
+      hasHeader ? (
+        <div class="stack tight">
+          <h2>Every pin</h2>
+          <p class="lede">
+            Pads in order from the top, with the USB connector at the bottom. Numbers are GPIO numbers, which is what
+            sketches use.
+          </p>
+          <div class="tablebox">
+            <table class="pins">
+              <thead>
+                <tr>
+                  <th>Pad</th>
+                  <th>Label</th>
+                  <th>GPIO</th>
+                  <th>Can do</th>
+                  <th>Use it?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr>
+                    <td class="m">
+                      {r.side} {r.position}
+                    </td>
+                    <td class="m">{r.silk ?? r.label}</td>
+                    <td class="m">{r.gpio ?? "—"}</td>
+                    <td>{r.functions.join(", ") || "—"}</td>
+                    <td>
+                      <span class:list={["tag", tone[r.verdict.level]]}>{r.verdict.label}</span>{" "}
+                      <span class="why">{r.verdict.why}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div class="stack tight">
+          <h2>GPIOs the board already uses</h2>
+          <p class="lede">From Espressif's camera example and the ESP32's SD card pins.</p>
+          <div class="tablebox">
+            <table class="pins">
+              <thead>
+                <tr>
+                  <th>GPIO</th>
+                  <th>Wired to</th>
+                  <th>Chip functions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {wired.map((w) => (
+                  <tr>
+                    <td class="m">{w.gpio}</td>
+                    <td>{w.job}</td>
+                    <td>{w.functions.join(", ") || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )
+    }
+
+    <div class="stack tight">
+      <h2>The {chip.name} chip</h2>
+      <div class="tablebox">
+        <table>
+          <thead class="sr">
+            <tr>
+              <th>Feature</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>CPU</td><td>{chip.cpu}</td></tr>
+            <tr><td>Radio</td><td>{chip.wireless}</td></tr>
+            <tr><td>GPIOs</td><td>{chip.gpios}</td></tr>
+            <tr><td>Analog in</td><td>{chip.adc}</td></tr>
+            <tr><td>Touch</td><td>{chip.touch}</td></tr>
+            <tr><td>Analog out</td><td>{chip.dac}</td></tr>
+            <tr><td>USB</td><td>{chip.usb}</td></tr>
+            <tr><td>SRAM</td><td>{chip.sram}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="cap left">
+        <a href={link("/boards/compare/")}>Compare every ESP32 chip</a> · <a href={chip.datasheet} rel="noopener noreferrer" target="_blank">{chip.name} datasheet</a>
+      </p>
+    </div>
+
+    {
+      projects.length > 0 && (
+        <div class="stack tight">
+          <h2>Projects for this board</h2>
+          <ul class="jump">
+            {projects.map((p) => (
+              <li>
+                <a href={link(`/projects/${p.id}/`)}>{p.name}</a> <span>{p.sum}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+
+    <div class="row">
+      {
+        b.buy.map((x) => (
+          <a class="btn sm" href={x.href} rel={shopRel(x.href)} target="_blank">
+            Buy {x.label} at {shopVendor(x.href)}
+          </a>
+        ))
+      }
+      <a class="btn sm" href={b.source} rel="noopener noreferrer" target="_blank">Vendor documentation</a>
+      {
+        (b.sources ?? []).map((s) => (
+          <a class="btn sm" href={s.href} rel="noopener noreferrer" target="_blank">
+            {s.label}
+          </a>
+        ))
+      }
+      {hasHeader && <a class="btn sm" href={link("/wire/")}>Wire parts to it</a>}
+    </div>
+    {b.buy.length > 0 && <p class="cap left">{AFFILIATE_DISCLOSURE}</p>}
+  </section>
+</Base>
+
+<style>
+  .pins td {
+    font-size: 0.85rem;
+  }
+  .pins .why {
+    color: var(--muted);
+  }
+  .pins .tag {
+    white-space: nowrap;
+  }
+  .notecopy {
+    font-size: 0.92rem;
+  }
+  .cap a {
+    color: var(--accent);
+  }
+</style>

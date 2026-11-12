@@ -1,0 +1,57 @@
+---
+import Base from "../../layouts/Base.astro";
+import { BOARDS } from "../../data/boards";
+import { CHIPS } from "../../data/chips";
+import { PROJECTS, boardsOf } from "../../data/projects";
+import { padRows } from "../../lib/pins";
+import { link } from "../../lib/paths";
+
+const countFor = (id: string) => PROJECTS.filter((p) => boardsOf(p).some((b) => b === id)).length;
+const cards = BOARDS.map((b) => {
+  const rows = padRows(b);
+  return {
+    b,
+    chip: CHIPS[b.chip],
+    pads: rows.length,
+    safe: new Set(rows.filter((r) => r.verdict.level === "safe").map((r) => r.gpio)).size,
+    projects: countFor(b.id),
+  };
+});
+---
+
+<Base
+  title="ESP32 board pinouts: DevKitC, S2, S3, C3, C6, XIAO and ESP32-CAM"
+  current="boards"
+  description="Pinouts for ESP32 boards: ESP32-DevKitC, ESP32-S2, ESP32-S3, ESP32-C3 and ESP32-C6 DevKits, Seeed XIAO ESP32C3 and ESP32S3, and the ESP32-CAM, with every pin's GPIO, ADC, touch and boot role."
+>
+  <section class="view">
+    <div class="stack tight">
+      <h1 class="h2">Boards</h1>
+      <p class="lede">
+        Every pin of each board: its GPIO number, what the chip can do on it and whether it is safe to use. Header
+        layouts come from the vendors' documentation. The three DevKits marked as tested were also flashed and run with
+        real sensors in ProbeHarbor's hardware tests.
+      </p>
+      <p class="lede"><a href={link("/boards/compare/")}>Compare the ESP32 chips side by side</a>.</p>
+    </div>
+
+    <div class="grid">
+      {
+        cards.map(({ b, chip, pads, safe, projects }) => (
+          <a class="card" href={link(`/boards/${b.id}/`)}>
+            <span class="no">{chip.name}</span>
+            <span class="name">{b.name}</span>
+            <span class="sum">
+              {pads > 0 ? `${pads} header pads, ${safe} free GPIOs. ` : "Camera board with no USB port. "}
+              {b.notes[0]}
+            </span>
+            <span class="meta">
+              {b.tested ? <span class="tag ok">Pins tested on hardware</span> : <span class="tag todo">From documentation</span>}
+              <span class="tag">{projects} projects</span>
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+</Base>

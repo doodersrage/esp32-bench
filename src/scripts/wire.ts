@@ -111,7 +111,10 @@ function renderBoard() {
   const grid = el("div", "board");
   const pcb = el("div", "pcb");
   pcb.style.gridRow = `1 / span ${b.left.length}`;
-  pcb.append(el("div", "can"), el("div", "silk", b.short), el("div", "usb"));
+  const can = el("div", "can");
+  // Short boards such as the XIAO get a smaller shield so the rows keep their spacing.
+  if (b.left.length < 12) can.style.cssText = "height:44px;width:52px";
+  pcb.append(can, el("div", "silk", b.short), el("div", "usb"));
   grid.append(pcb);
 
   const lit = new Set<string>();
@@ -128,7 +131,8 @@ function renderBoard() {
       button.classList.add("on");
     }
     if (rule && ["strap", "usb", "uart", "caution", "flash", "input-only"].includes(rule.kind)) button.classList.add("care");
-    const text = el("span", "", label);
+    const silk = b.silk?.[label];
+    const text = el("span", "", silk ? (side === "l" ? `${silk} · ${label}` : `${label} · ${silk}`) : label);
     const hole = el("i");
     button.append(...(side === "l" ? [text, hole] : [hole, text]));
     button.setAttribute(

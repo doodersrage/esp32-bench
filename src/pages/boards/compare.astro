@@ -1,0 +1,98 @@
+---
+import Base from "../../layouts/Base.astro";
+import { BOARDS } from "../../data/boards";
+import { CHIPS, type Chip } from "../../data/chips";
+import { link } from "../../lib/paths";
+
+const chips = Object.values(CHIPS);
+const ROWS: [string, (c: Chip) => string][] = [
+  ["CPU", (c) => c.cpu],
+  ["Radio", (c) => c.wireless],
+  ["GPIOs", (c) => c.gpios],
+  ["Analog in", (c) => c.adc],
+  ["ADC2 and Wi-Fi", (c) => c.adc2],
+  ["Touch", (c) => c.touch],
+  ["Analog out", (c) => c.dac],
+  ["USB", (c) => c.usb],
+  ["SRAM", (c) => c.sram],
+];
+const boardsFor = (c: Chip) => BOARDS.filter((b) => b.chip === c.id);
+---
+
+<Base
+  title="ESP32 vs ESP32-S2 vs S3 vs C3 vs C6"
+  current="boards"
+  description="ESP32, ESP32-S2, ESP32-S3, ESP32-C3 and ESP32-C6 compared: CPU, Wi-Fi 6, Bluetooth, Thread and Zigbee, GPIO count, ADC, touch pins, DAC and native USB."
+>
+  <section class="view">
+    <a class="back" href={link("/boards/")}>← All boards</a>
+    <div class="stack tight">
+      <h1 class="h2">Compare the ESP32 chips</h1>
+      <p class="lede">
+        Which chip to pick: the classic ESP32 for Bluetooth Classic and the most libraries, the S3 for cameras, displays
+        and USB, the C3 for small and cheap, the C6 for Wi-Fi 6, Thread and Zigbee, and the S2 for USB without
+        Bluetooth. Figures come from each chip's Espressif datasheet.
+      </p>
+    </div>
+
+    <div class="tablebox">
+      <table class="compare">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            {chips.map((c) => <th>{c.name}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {
+            ROWS.map(([label, value]) => (
+              <tr>
+                <td class="m">{label}</td>
+                {chips.map((c) => (
+                  <td>{value(c)}</td>
+                ))}
+              </tr>
+            ))
+          }
+          <tr>
+            <td class="m">Boards here</td>
+            {
+              chips.map((c) => (
+                <td>
+                  {boardsFor(c).map((b, i) => (
+                    <>
+                      {i > 0 && ", "}
+                      <a href={link(`/boards/${b.id}/`)}>{b.name}</a>
+                    </>
+                  ))}
+                </td>
+              ))
+            }
+          </tr>
+          <tr>
+            <td class="m">Datasheet</td>
+            {
+              chips.map((c) => (
+                <td>
+                  <a href={c.datasheet} rel="noopener noreferrer" target="_blank">
+                    {c.name} datasheet
+                  </a>
+                </td>
+              ))
+            }
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .compare td {
+    font-size: 0.85rem;
+    min-width: 150px;
+  }
+  .compare a {
+    color: var(--accent);
+  }
+</style>

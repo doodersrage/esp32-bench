@@ -1,6 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import { BOARDS } from "../data/boards";
+import { HEADER_BOARDS } from "../data/boards";
 import { PARTS } from "../data/parts";
 import { PROJECTS } from "../data/projects";
 
@@ -23,7 +23,7 @@ const needsAttr = (needs: string[][]) => needs.map((group) => group.join("|")).j
     <div class="row" id="w-boards" role="group" aria-label="Board">
       <span class="swlabel">Board</span>
       {
-        BOARDS.map((b) => (
+        HEADER_BOARDS.map((b) => (
           <button class="chip" type="button" data-board={b.id} aria-pressed={b.id === "esp32" ? "true" : "false"}>
             {b.name}
           </button>
