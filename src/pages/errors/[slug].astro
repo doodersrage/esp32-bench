@@ -37,22 +37,22 @@ const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.
     </div>
 
     <div class="stack tight">
-      <h3 class="flat">What it looks like</h3>
+      <h2 class="h3">What it looks like</h2>
       <pre class="code">{e.example.join("\n")}</pre>
     </div>
 
     <div class="stack tight">
-      <h3 class="flat">What it means</h3>
+      <h2 class="h3">What it means</h2>
       <p>{e.means}</p>
     </div>
 
     <div class="cols even">
       <div class="stack tight">
-        <h3 class="flat">Likely causes</h3>
+        <h2 class="h3">Likely causes</h2>
         <ul class="notes">{e.causes.map((c) => <li>{c}</li>)}</ul>
       </div>
       <div class="stack tight">
-        <h3 class="flat">How to fix it</h3>
+        <h2 class="h3">How to fix it</h2>
         <ol class="steps">{e.fixes.map((f) => <li>{f}</li>)}</ol>
       </div>
     </div>
@@ -75,7 +75,7 @@ const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.
     {
       flames.length > 0 && (
         <div class="stack tight">
-          <h3 class="flat">From the hall of flames</h3>
+          <h2 class="h3">From the hall of flames</h2>
           <ul class="notes">
             {flames.map((f) => (
               <li>
@@ -88,7 +88,7 @@ const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.
     }
 
     <div class="stack tight">
-      <h3 class="flat">Related errors</h3>
+      <h2 class="h3">Related errors</h2>
       <ul class="notes">
         {related.map((r) => (
           <li>

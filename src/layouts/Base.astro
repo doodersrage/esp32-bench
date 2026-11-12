@@ -1,4 +1,15 @@
 ---
+// Fonts are served from this site: no third-party request, and they work offline.
+import "@fontsource/ibm-plex-sans/400.css";
+import "@fontsource/ibm-plex-sans/500.css";
+import "@fontsource/ibm-plex-sans/600.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
+import "@fontsource/saira-condensed/600.css";
+import "@fontsource/saira-condensed/700.css";
+import sairaBold from "@fontsource/saira-condensed/files/saira-condensed-latin-700-normal.woff2?url";
+import sairaSemi from "@fontsource/saira-condensed/files/saira-condensed-latin-600-normal.woff2?url";
+import plexSans from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2?url";
 import "../styles/global.css";
 import { link } from "../lib/paths";
 import { SITE, absolute } from "../lib/site";
@@ -37,7 +48,7 @@ const imageUrl = absolute(image, Astro.site);
 
 const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
   ["library", "/", "Library"],
-  ["start", "/start/", "Start"],
+  ["start", "/start/", "Guide"],
   ["boards", "/boards/", "Boards"],
   ["wire", "/wire/", "Wire"],
   ["detective", "/detective/", "Detective"],
@@ -87,12 +98,11 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
       } catch {}
     </script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Saira+Condensed:wght@600;700&display=swap"
-      rel="stylesheet"
-    />
+    {
+      [sairaBold, sairaSemi, plexSans].map((href) => (
+        <link rel="preload" href={href} as="font" type="font/woff2" crossorigin />
+      ))
+    }
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -115,7 +125,7 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
         </nav>
       </header>
       <p class="offline-note" id="offline-note" role="status" hidden>
-        You are offline. Pages you have opened before still work. Flashing, fonts and buy links need a connection.
+        You are offline. Pages you have opened before still work. Flashing and buy links need a connection.
       </p>
       <main id="main">
         <slot />

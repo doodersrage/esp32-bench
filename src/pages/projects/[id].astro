@@ -66,7 +66,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
             <Pinout board={panel.board} pins={panel.pins} caption={`Fig. 1. Pins this project uses on the ${panel.board.name}. USB connector at the bottom.`} />
             <div class="stack">
               <div>
-                <h3>Wiring</h3>
+                <h2 class="h3 mb">Wiring</h2>
                 {panel.wiring.length > 0 ? (
                   <div class="tablebox">
                     <table>
@@ -93,7 +93,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
                 )}
               </div>
               <div>
-                <h3>Tested on this board</h3>
+                <h2 class="h3 mb">Tested on this board</h2>
                 {panel.verified.length > 0 ? (
                   <ul class="checks">
                     {panel.verified.map((v) => (
@@ -113,7 +113,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
           {panel.code !== undefined && (
             <div class="stack tight">
               <div class="codehead">
-                <h3 class="flat">Firmware, Arduino sketch for {panel.board.arduinoBoard}</h3>
+                <h2 class="h3">Firmware, Arduino sketch for {panel.board.arduinoBoard}</h2>
                 <button class="btn sm" type="button" data-copy>Copy firmware</button>
               </div>
               <pre class="code"><code>{panel.code}</code></pre>
@@ -125,9 +125,16 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
 
     <div class="cols even">
       <div>
-        <h3>Parts</h3>
+        <h2 class="h3 mb">Parts</h2>
         <div class="tablebox">
           <table>
+            <thead class="sr">
+              <tr>
+                <th>Quantity</th>
+                <th>Part</th>
+                <th>Where to buy</th>
+              </tr>
+            </thead>
             <tbody>
               {p.parts.map(([qty, what, href]) => (
                 <tr>
@@ -144,7 +151,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
       {
         p.code !== undefined && (
           <div>
-            <h3>Libraries</h3>
+            <h2 class="h3 mb">Libraries</h2>
             <p>{p.libs.length > 0 ? p.libs.join(", ") : "None beyond the ESP32 Arduino core."}</p>
           </div>
         )
@@ -154,7 +161,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     {
       p.flash ? (
         <div class="stack tight">
-          <h3 class="flat">Load it</h3>
+          <h2 class="h3">Load it</h2>
           <Flasher manifest={p.flash.manifest} version={p.flash.version} />
           <ol class="steps">
             {p.flash.after.map((step) => <li>{step}</li>)}
@@ -164,7 +171,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
         </div>
       ) : (
         <div>
-          <h3>Load it</h3>
+          <h2 class="h3 mb">Load it</h2>
           <ol class="steps">
             <li>In the Arduino IDE, install the esp32 board package and pick the board named above the sketch.</li>
             {needsLibraries && <li>Install the libraries listed above from the Library Manager.</li>}
@@ -179,7 +186,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     {
       p.notes && (
         <div>
-          <h3>Field notes</h3>
+          <h2 class="h3 mb">Field notes</h2>
           <ul class="notes">
             {p.notes.map((n) => <li>{n}</li>)}
           </ul>
@@ -190,7 +197,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     {
       p.open && (
         <div>
-          <h3>Not tested yet</h3>
+          <h2 class="h3 mb">Not tested yet</h2>
           <ul class="notes">
             {p.open.map((n) => <li>{n}</li>)}
           </ul>

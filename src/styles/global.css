@@ -5,11 +5,11 @@
   --ink: #14231f;
   --muted: #5a6b65;
   --line: #c8d1cb;
-  --accent: #d23a1e;
-  --pad: #a97a17;
+  --accent: #c0341a;
+  --pad: #7f5a0c;
   --pad-soft: #f4e7c4;
   --ok: #1d7a4c;
-  --warn: #a86200;
+  --warn: #935600;
   --term-bg: #13211e;
   --term-ink: #d9e5df;
   --term-dim: #7f958d;
@@ -285,3 +285,4 @@ ul.jump span { color: var(--muted); font-size: 0.9rem; }
 .change ul { margin: 0; padding-left: 20px; max-width: 70ch; display: flex; flex-direction: column; gap: 4px; }
 .change .btn { align-self: flex-start; }
 p.when { font: 500 0.78rem/1 var(--mono); }
+.h3.mb { margin-bottom: 8px; }
