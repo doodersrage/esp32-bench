@@ -20,6 +20,13 @@ const { b } = Astro.props;
 const chip = CHIPS[b.chip];
 const rows = padRows(b);
 const wired = wiredRows(b);
+// Anchors for site search: #gpio-34 on the first row that carries GPIO 34.
+const anchored = new Set<number>();
+const anchor = (gpio: number | null) => {
+  if (gpio === null || anchored.has(gpio)) return undefined;
+  anchored.add(gpio);
+  return `gpio-${gpio}`;
+};
 const projects = PROJECTS.filter((p) => boardsOf(p).includes(b.id));
 const hasHeader = rows.length > 0;
 const safeCount = new Set(rows.filter((r) => r.verdict.level === "safe").map((r) => r.gpio)).size;
@@ -122,7 +129,7 @@ const tone = { safe: "ok", care: "warnt", avoid: "bad", power: "" } as const;
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr>
+                  <tr id={anchor(r.gpio)}>
                     <td class="m">
                       {r.side} {r.position}
                     </td>
@@ -154,7 +161,7 @@ const tone = { safe: "ok", care: "warnt", avoid: "bad", power: "" } as const;
               </thead>
               <tbody>
                 {wired.map((w) => (
-                  <tr>
+                  <tr id={anchor(w.gpio)}>
                     <td class="m">{w.gpio}</td>
                     <td>{w.job}</td>
                     <td>{w.functions.join(", ") || "—"}</td>

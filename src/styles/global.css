@@ -296,3 +296,47 @@ p.when { font: 500 0.78rem/1 var(--mono); }
 /* Shared bench logs */
 .shareout { display: flex; flex-direction: column; gap: 6px; }
 .shareout input { width: 100%; padding: 7px 9px; border: 1px solid var(--line); background: var(--panel); border-radius: 2px; font: 400 0.78rem/1.4 var(--mono); }
+
+/* Batch 6: site search (header box, dropdown and the /search/ page) */
+.hsearch { position: relative; display: flex; align-items: stretch; }
+.hsearch input {
+  width: 190px; height: 30px; padding: 0 8px; border: 1px solid var(--ink); border-right: 0; border-radius: 2px 0 0 2px;
+  background: var(--panel); font: 400 0.82rem/1 var(--mono); min-width: 0;
+}
+.hsearch input::-webkit-search-cancel-button { display: none; }
+.hsearch .hsearch-go { height: 30px; padding: 0 8px; display: inline-flex; align-items: center; border-radius: 0 2px 2px 0; }
+.tools .btn.sm { height: 30px; }
+.hsearch-list {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; width: min(440px, calc(100vw - 32px));
+  margin: 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--ink);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); display: flex; flex-direction: column; gap: 2px;
+}
+.hsearch-list[hidden] { display: none; }
+.hsearch-list li[aria-selected="true"] .sresult, .hsearch-list .sresult:hover { background: var(--pad-soft); }
+.hsearch-list .sall a { display: block; padding: 8px; font: 500 0.8rem/1.2 var(--mono); color: var(--accent); text-decoration: none; }
+.hsearch-list .sall a:hover { background: var(--pad-soft); }
+@media (max-width: 720px) {
+  /* Phones: just the search button, which opens /search/. Keeps brand and tools on one row. */
+  .hsearch input, .hsearch-list { display: none; }
+  .hsearch .hsearch-go { border-radius: 2px; }
+}
+
+.sresult {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: baseline;
+  padding: 7px 8px; text-decoration: none; color: var(--ink); border-radius: 2px;
+}
+.sresult .skind { grid-row: 1; font-size: 0.66rem; padding: 3px 5px; }
+.sresult .stitle { font-weight: 600; font-size: 0.92rem; overflow-wrap: anywhere; }
+.sresult .ssnip { grid-column: 2; font-size: 0.8rem; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.skind-board, .skind-pin { border-color: var(--pad); color: var(--pad); }
+.skind-error, .skind-flame { border-color: var(--accent); color: var(--accent); }
+.skind-tool, .skind-guide { border-color: var(--ok); color: var(--ok); }
+
+.spage { display: flex; gap: 8px; max-width: 760px; }
+.spage input {
+  flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--ink); background: var(--panel); border-radius: 2px; font-size: 1rem;
+}
+.sresults { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-width: 860px; }
+.sresults .sresult { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); }
+.sresults .sresult:hover, .sresults .sresult:focus-visible { border-color: var(--accent); }
+.sresults .stitle { font-size: 1rem; }
