@@ -11,10 +11,12 @@ interface Props {
 }
 
 const { manifest, version, families = "ESP32, ESP32-S3 and ESP32-C3" } = Astro.props;
+// A site path gets the base prefix; an absolute URL (the firmware library) is used as is.
+const manifestUrl = /^https?:\/\//.test(manifest) ? manifest : link(manifest);
 ---
 
 <div class="flashbox">
-  <esp-web-install-button manifest={link(manifest)}>
+  <esp-web-install-button manifest={manifestUrl}>
     <button slot="activate" class="btn go" type="button">Flash firmware {version}</button>
     <p slot="unsupported" class="notice"><strong>This browser cannot flash.</strong> Use Chrome or Edge on a desktop.</p>
     <p slot="not-allowed" class="notice"><strong>Flashing needs a secure page.</strong> Open this site over https or from http://localhost.</p>
