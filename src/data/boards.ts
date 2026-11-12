@@ -140,7 +140,7 @@ export const BOARDS: Board[] = [
       "ProbeHarbor builds for 4 MB flash so modules smaller than the DevKitC's default 8 MB still boot.",
     ],
     buy: [{ label: "ESP32-S3-DevKitC-1", href: BOM.esp32S3DevKitC }],
-    source: "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide.html",
+    source: "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-devkitc-1/user_guide_v1.1.html",
   },
   {
     id: "esp32c3",

@@ -34,6 +34,7 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             api/package-lock.json
+            monitor/package-lock.json
 
       - name: Install
         run: |
@@ -78,4 +79,17 @@ jobs:
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then exit 0; fi
           # REPORT_TO is a Worker secret set once with --secrets-file; deploys keep it.
+          cf deploy --message "${GITHUB_SHA::7}: $(git log -1 --format=%s | head -c 80)"
+
+      - name: Deploy the uptime monitor
+        working-directory: monitor
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEBUG: ${{ inputs.debug && '1' || '' }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then exit 0; fi
+          npm ci
+          node --experimental-strip-types test/checks.test.ts
+          # ALERT_TO is a Worker secret set once with --secrets-file; deploys keep it.
           cf deploy --message "${GITHUB_SHA::7}: $(git log -1 --format=%s | head -c 80)"

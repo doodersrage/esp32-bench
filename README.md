@@ -144,6 +144,12 @@ node --experimental-strip-types test/turnstile.test.ts
 cf deploy
 ```
 
+## Keeping it healthy
+
+- **Uptime monitor** (`monitor/`, Worker `esp32-bench-monitor`): every 5 minutes it checks the home page, a project page, the search index, the firmware manifest, the report API and the www redirect. A check that fails twice in a row sends a DOWN email, and recovery sends another, through Email Routing to the `ALERT_TO` Worker secret. State is kept in the `esp32-bench-monitor` KV namespace and only written when it changes. Test: `cd monitor && node --experimental-strip-types test/checks.test.ts`.
+- **Weekly check** (`.github/workflows/weekly-check.yml`, Mondays): compiles every sketch for every board with the newest Arduino-ESP32 core (`scripts/check-sketches.mjs`, using a sketch export built only with `DUMP_SKETCHES=1`) and checks every outside link (`scripts/check-links.mjs`). Problems open or update the GitHub issue "Weekly check found problems".
+- **Dependabot** (`.github/dependabot.yml`): weekly grouped updates for the site, `api/` and `monitor/`, monthly for Actions. The Build workflow runs every test on its pull requests.
+
 ## Contributing and license
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Visitors send build reports and corrections through the site's report form. The GitHub issue forms in `.github/ISSUE_TEMPLATE/` are for contributors once the repository is public.

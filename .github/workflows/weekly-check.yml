@@ -1,0 +1,75 @@
+name: Weekly check
+
+# Every Monday: compile every library sketch for every board it lists with the
+# newest Arduino-ESP32 core, and check every outside link on the site. Problems
+# open (or update) a GitHub issue titled "Weekly check found problems".
+on:
+  schedule:
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: weekly-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          npm ci
+          pip install platformio
+
+      - name: Build the site with the sketch export
+        run: DUMP_SKETCHES=1 npx astro build
+
+      - name: Check outside links
+        id: links
+        continue-on-error: true
+        run: node scripts/check-links.mjs
+
+      - name: Compile every sketch with the newest core
+        id: sketches
+        continue-on-error: true
+        run: node scripts/check-sketches.mjs
+
+      - name: Open or update the issue
+        if: steps.links.outcome == 'failure' || steps.sketches.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="Weekly check found problems"
+          {
+            echo "The [weekly check](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) on $(date -u +%Y-%m-%d) found problems."
+            echo
+            [ -f link-report.md ] && cat link-report.md
+            echo
+            [ -f sketch-report.md ] && cat sketch-report.md
+          } > body.md
+          existing="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file body.md
+          else
+            gh issue create --title "$title" --body-file body.md
+          fi
+          exit 1
