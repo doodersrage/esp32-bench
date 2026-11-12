@@ -11,6 +11,9 @@ A project library and a serial workbench for ESP32 boards, built as a static sit
 - **Plotter:** numbers that keep appearing in the serial output are charted live, one small chart per value.
 - **Wi-Fi radar:** the Wi-Fi scanner project's output is drawn as arches by channel and signal strength.
 - **Crash translator:** reset reasons, Guru Meditation errors and backtraces get a plain-language explanation, live or from a pasted log.
+- **Errors:** a reference page for each common crash, reset, boot and upload error, with causes, fixes and a box to paste a log into. A build check keeps it in step with the crash translator.
+- **Start:** a getting started guide covering cables, drivers, Linux permissions, Web Serial and the Arduino IDE.
+- **App:** installs from Chrome or Edge, works offline for pages already opened, and has light and dark themes. Also an about page, a what's new page and an RSS feed.
 - **Bench log:** mark projects as built to earn badges and keep a streak, and let the library pick a project from the parts in your drawer. Kept in the browser only.
 - **Sample output:** recorded output for every project, so you can see what a working build prints without a board attached.
 
@@ -23,7 +26,10 @@ npm install
 npm run dev      # http://localhost:4321
 npm run build    # static site in dist/
 npm run preview  # serve the built site
+npm run deploy   # build and upload to Cloudflare Workers (needs `npm i -g cf` and `cf auth login`)
 ```
+
+The public address is `site` in `astro.config.mjs`. Canonical links, link previews, the sitemap, the RSS feed and robots.txt are built from it. `cloudflare.config.ts` makes Cloudflare serve `404.html` for unknown paths, and `public/_headers` keeps the service worker uncached.
 
 Web Serial needs a secure page, so use `localhost` or HTTPS. Flashing and connecting a board need Chrome or Edge on a desktop. The library, boards and sample output work in any browser.
 
@@ -39,6 +45,8 @@ src/
   data/probeharbor.ts     Library entries for the ProbeHarbor sketches
   data/parts.ts           Parts the wiring pad can connect, with pin types
   data/flames.ts          Failure stories for the Flames page
+  data/errors.ts          Error reference entries
+  data/changes.ts         Release notes for /changes/ and the RSS feed
   sketches/probeharbor/   Those sketches as .ino files, copied unchanged
   components/
     Pinout.astro          Board figure with a project's pins highlighted
@@ -68,6 +76,10 @@ src/
   scripts/probe-setup.ts  The probe's USB settings protocol
   lib/shop.ts             Buy links and the Amazon Associates tag
   lib/paths.ts            Link helper that respects Astro's `base`
+  lib/site.ts             Site name, description and repository link
+  lib/routes.ts           Every page, for the sitemap and the offline cache
+  scripts/shell.ts        Theme switch, install button, offline notice, service worker
+  pages/sw.js.ts          Service worker, generated per build
   styles/global.css       Theme tokens and all styles
 ```
 

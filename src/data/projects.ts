@@ -509,7 +509,7 @@ void loop() {
   }
   delay(20);
 }`,
-    open: ["Not tested on hardware yet. The sketch has not been compiled for either board."],
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
     notes: [
       "The ESP32-C3 has no touch sensor, so this project is for the classic ESP32 and the S3 only.",
       "Readings go the opposite way on the two chips: on the classic ESP32 they fall when touched, on the S3 they rise. The sketch handles both.",
@@ -592,7 +592,7 @@ void loop() {
   Serial.printf("tx %c #%lu %s\n", NAME, (unsigned long)m.count, r == ESP_OK ? "sent" : esp_err_to_name(r));
   delay(2000);
 }`,
-    open: ["Not tested on hardware yet. The sketch has not been compiled for any board."],
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
     notes: [
       "Flash the same sketch to both boards, but change NAME to 'B' on the second one.",
       "Watch both sides at once: on the Bench page, choose Add a second board and connect one board to each monitor.",
@@ -686,7 +686,7 @@ void loop() {
   Serial.println("effect: theater chase");
   chase(strip.Color(255, 160, 0), 4000);
 }`,
-    open: ["Not tested on hardware yet. The sketch has not been compiled for any board."],
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
     notes: [
       "Each LED can draw about 60 mA at full white. Eight LEDs at the sketch's brightness are fine on USB. A metre or more needs its own 5 V supply and a 1000 µF capacitor across it.",
       "WS2812B LEDs on 5 V expect a data signal near 5 V. Most accept the ESP32's 3.3 V anyway. If the first LED flickers or stays dark, put a 74AHCT125 level shifter in the data line.",
@@ -799,7 +799,7 @@ void loop() {
   mqtt.publish(stateTopic.c_str(), value);
   Serial.printf("%s %s\n", stateTopic.c_str(), value);
 }`,
-    open: ["Not tested on hardware or with Home Assistant yet. The sketch has not been compiled for any board."],
+    open: ["Not tested on hardware or with Home Assistant yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
     notes: [
       "Home Assistant needs the MQTT integration set up and pointed at the same broker. The sensor then appears under Settings, Devices and services, MQTT.",
       "mqtt failed, state -2 means the broker could not be reached: check MQTT_HOST and that port 1883 is open. State 4 or 5 means the user name or password was refused.",
@@ -850,7 +850,7 @@ void loop() {
   scan->clearResults();
   delay(5000);
 }`,
-    open: ["Not tested on hardware yet. The sketch has not been compiled for any board."],
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
     notes: [
       "Written for the 3.x Arduino core, where start() returns a pointer. On the older 2.x core, use BLEScanResults found = scan->start(5, false) and found.getCount() instead.",
       "The Bluetooth stack is large. If the classic ESP32 build says the sketch is too big, pick Tools, Partition Scheme, Huge APP.",

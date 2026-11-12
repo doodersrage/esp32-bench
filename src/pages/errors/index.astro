@@ -1,0 +1,64 @@
+---
+import Base from "../../layouts/Base.astro";
+import { ERRORS, GROUPS } from "../../data/errors";
+import { checkErrors } from "../../lib/errors-check";
+import { link } from "../../lib/paths";
+
+checkErrors();
+
+const groups = GROUPS.map(([id, name, blurb]) => ({ id, name, blurb, items: ERRORS.filter((e) => e.group === id) }));
+const searchText = (e: (typeof ERRORS)[number]) => [e.title, e.match, e.means, ...e.example].join(" ").toLowerCase();
+---
+
+<Base
+  title="ESP32 error reference"
+  description="Plain-language explanations and fixes for ESP32 errors: Guru Meditation panics, watchdog and brownout resets, boot messages and upload failures."
+  current="errors"
+>
+  <section class="view">
+    <div class="stack tight">
+      <h1 class="h2">Error reference</h1>
+      <p class="lede">
+        What ESP32 error messages mean and how to fix them. Find the line you saw, or paste a whole log into the crash
+        translator on any error page or on the <a href={link("/bench/")}>bench</a>.
+      </p>
+    </div>
+
+    <div class="filters">
+      <input type="search" id="error-q" placeholder="Search errors, e.g. LoadProhibited or brownout" aria-label="Search errors" />
+    </div>
+
+    {
+      groups.map((g) => (
+        <div class="stack tight band" data-group={g.id}>
+          <h2>{g.name}</h2>
+          <p class="lede">{g.blurb}</p>
+          <ul class="errlist">
+            {g.items.map((e) => (
+              <li data-error={searchText(e)}>
+                <a href={link(`/errors/${e.slug}/`)}>
+                  <span class="errtitle">{e.title}</span>
+                  <code class="errmatch">{e.match}</code>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))
+    }
+    <div class="empty" id="error-empty" hidden>No error matches. Try a shorter word, or paste the whole log into the bench's crash translator.</div>
+  </section>
+</Base>
+
+<style>
+  ul.errlist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 8px; }
+  ul.errlist a { display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--ink); text-decoration: none; }
+  ul.errlist a:hover { border-left-color: var(--accent); }
+  .errtitle { font-weight: 600; font-size: 0.95rem; overflow-wrap: anywhere; }
+  .errmatch { color: var(--muted); font-size: 0.75rem; overflow-wrap: anywhere; }
+  .lede a { color: var(--accent); }
+</style>
+
+<script>
+  import "../../scripts/errors.ts";
+</script>

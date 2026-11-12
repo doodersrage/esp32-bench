@@ -1,0 +1,111 @@
+---
+import Base from "../../layouts/Base.astro";
+import { ERRORS, GROUPS, errorBySlug, type ErrorEntry } from "../../data/errors";
+import { FLAMES } from "../../data/flames";
+import { explainLog } from "../../lib/crash";
+import { checkErrors } from "../../lib/errors-check";
+import { link } from "../../lib/paths";
+
+export function getStaticPaths() {
+  checkErrors();
+  return ERRORS.map((e) => ({ params: { slug: e.slug }, props: { e } }));
+}
+
+interface Props {
+  e: ErrorEntry;
+}
+
+const { e } = Astro.props;
+const group = GROUPS.find(([id]) => id === e.group)!;
+const related = e.related.map((slug) => errorBySlug(slug)!);
+// Flames whose log the translator reads as this error's main finding.
+const mainKey = e.keys?.[0];
+const flames = mainKey ? FLAMES.filter((f) => explainLog(f.log.join("\n")).some((x) => x.key === mainKey)) : [];
+const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.title : e.match}" means on an ESP32, and how to fix it.`;
+---
+
+<Base title={e.title} description={description} current="errors">
+  <section class="view">
+    <a class="back" href={link("/errors/")}>← All errors</a>
+
+    <div class="stack tight">
+      <h1 class="h2 errh">{e.title}</h1>
+      <div class="meta">
+        <span class="tag lvl">{group[1]}</span>
+        {e.keys && <span class="tag ok">Recognised by the crash translator</span>}
+      </div>
+    </div>
+
+    <div class="stack tight">
+      <h3 class="flat">What it looks like</h3>
+      <pre class="code">{e.example.join("\n")}</pre>
+    </div>
+
+    <div class="stack tight">
+      <h3 class="flat">What it means</h3>
+      <p>{e.means}</p>
+    </div>
+
+    <div class="cols even">
+      <div class="stack tight">
+        <h3 class="flat">Likely causes</h3>
+        <ul class="notes">{e.causes.map((c) => <li>{c}</li>)}</ul>
+      </div>
+      <div class="stack tight">
+        <h3 class="flat">How to fix it</h3>
+        <ol class="steps">{e.fixes.map((f) => <li>{f}</li>)}</ol>
+      </div>
+    </div>
+
+    <div class="stack tight band">
+      <h2>Paste your full log</h2>
+      <p class="lede">
+        The lines around the error usually say more. Paste everything from the reset to the backtrace and the crash
+        translator explains each part. It runs in your browser; nothing is sent anywhere.
+      </p>
+      <label class="sr" for="explain-log">Boot log or crash output</label>
+      <textarea id="explain-log" class="explainbox" rows="6" spellcheck="false" data-slug={e.slug} placeholder={e.example.find((l) => l.trim()) ?? ""}></textarea>
+      <div class="row">
+        <button class="btn go" id="explain-go" type="button">Explain it</button>
+        <a class="btn" href={link("/bench/")}>Watch a board live on the bench</a>
+      </div>
+      <ul class="notes" id="explain-out" aria-live="polite"></ul>
+    </div>
+
+    {
+      flames.length > 0 && (
+        <div class="stack tight">
+          <h3 class="flat">From the hall of flames</h3>
+          <ul class="notes">
+            {flames.map((f) => (
+              <li>
+                <a href={link(`/flames/#${f.id}`)}>{f.title}</a>: {f.cause}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+
+    <div class="stack tight">
+      <h3 class="flat">Related errors</h3>
+      <ul class="notes">
+        {related.map((r) => (
+          <li>
+            <a href={link(`/errors/${r.slug}/`)}>{r.title}</a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .errh { overflow-wrap: anywhere; text-transform: none; }
+  .explainbox { width: 100%; padding: 8px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 2px; font: 400 0.8rem/1.5 var(--mono); resize: vertical; }
+  ul.notes a, #explain-out :global(a) { color: var(--accent); }
+</style>
+
+<script>
+  import "../../scripts/errors.ts";
+</script>
