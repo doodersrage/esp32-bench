@@ -27,7 +27,7 @@ export const SITE = {
     category: "Announcements",
     categoryId: "DIC_kwDOVsLL1M4DK-8y",
     /** Turn on once the giscus GitHub App is installed on the repository. */
-    enabled: false,
+    enabled: true,
   },
   themeColor: "#14231f",
   background: "#f2f5f1",
