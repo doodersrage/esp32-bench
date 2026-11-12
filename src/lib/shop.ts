@@ -46,4 +46,6 @@ export const BOM = {
   aht20: "https://www.adafruit.com/product/4566",
   reedSwitch: "https://www.adafruit.com/product/375",
   resistor100k: "https://www.adafruit.com/product/2787",
+  neopixelStick: "https://www.adafruit.com/product/1426",
+  levelShifter: "https://www.adafruit.com/product/1787",
 } as const;

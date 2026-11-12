@@ -2,7 +2,7 @@ import type { BoardId } from "./boards";
 import { BOM } from "../lib/shop";
 import { PROBEHARBOR_SKETCHES } from "./probeharbor";
 
-export type Tag = "no-parts" | "sensors" | "display" | "wifi" | "power" | "flash" | "probeharbor";
+export type Tag = "no-parts" | "sensors" | "display" | "lights" | "wifi" | "bluetooth" | "power" | "flash" | "probeharbor";
 
 /** A check done on real hardware. `board` says which board it was done on. */
 export interface Verified {
@@ -73,6 +73,7 @@ export const DRAWER = {
   powersense: "Power sense module",
   max31855: "MAX31855 and thermocouple",
   max6675: "MAX6675 module",
+  neopixel: "NeoPixel strip or stick",
 } as const;
 export type DrawerPart = keyof typeof DRAWER;
 
@@ -83,7 +84,9 @@ export const TAGS: [Tag | "all", string][] = [
   ["no-parts", "No extra parts"],
   ["sensors", "Sensors"],
   ["display", "Display"],
+  ["lights", "Lights"],
   ["wifi", "Wi-Fi"],
+  ["bluetooth", "Bluetooth"],
   ["power", "Power"],
 ];
 
@@ -432,6 +435,437 @@ void loop() {
   server.handleClient();
 }`,
     sample: [".......", "Open http://192.168.1.57"]
+  },
+  {
+    id: "touch-piano", needs: [], name: "Touch piano", level: "Starter", mins: 10, tags: ["no-parts", "sensors"],
+    sum: "Turn four bare wires into touch keys. Each touch prints a note, and an optional buzzer plays it.",
+    boards: ["esp32", "esp32s3"],
+    vars: {
+      esp32: { PA: "4", PB: "13", PC: "14", PD: "27", BUZZ: "25", BA: "71", BB: "68", TV: "18" },
+      esp32s3: { PA: "4", PB: "5", PC: "6", PD: "7", BUZZ: "15", BA: "21843", BB: "22410", TV: "38210" },
+    },
+    pins: ["%PA%", "%PB%", "%PC%", "%PD%", "%BUZZ%", "GND"], libs: [], baud: 115200,
+    parts: [
+      [1, "ESP32 or ESP32-S3 dev board", BOM.esp32DevKit],
+      [4, "Jumper wires, or foil, coins or fruit as keys"],
+      [1, "Optional passive buzzer"],
+    ],
+    wiring: [
+      ["Key 1", "GPIO %PA%", "Any conductive pad. Bare wire is enough"],
+      ["Key 2", "GPIO %PB%", ""],
+      ["Key 3", "GPIO %PC%", ""],
+      ["Key 4", "GPIO %PD%", ""],
+      ["Buzzer +", "GPIO %BUZZ%", "Optional. A passive buzzer, not an active one"],
+      ["Buzzer -", "GND", ""],
+    ],
+    code: R`// Four touch keys. Touch pins sense a finger through the wire, no parts needed.
+const int KEYS[] = {%PA%, %PB%, %PC%, %PD%};
+const char* NOTES[] = {"C4", "E4", "G4", "C5"};
+const int FREQ[] = {262, 330, 392, 523};
+const int BUZZER = %BUZZ%;  // optional passive buzzer
+
+uint32_t baseline[4];
+bool down[4];
+int playing = -1;
+
+bool touched(int i, uint32_t v) {
+#if CONFIG_IDF_TARGET_ESP32
+  return v < baseline[i] * 7 / 10;   // classic ESP32: the reading drops when touched
+#else
+  return v > baseline[i] * 13 / 10;  // ESP32-S3: the reading rises when touched
+#endif
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  // Average a few readings with nobody touching the keys.
+  for (int i = 0; i < 4; i++) {
+    uint32_t sum = 0;
+    for (int k = 0; k < 16; k++) {
+      sum += touchRead(KEYS[i]);
+      delay(5);
+    }
+    baseline[i] = sum / 16;
+    Serial.printf("key %d on GPIO %d: baseline %lu\n", i + 1, KEYS[i], (unsigned long)baseline[i]);
+  }
+  Serial.println("Touch a key");
+}
+
+void loop() {
+  int now = -1;
+  for (int i = 0; i < 4; i++) {
+    uint32_t v = touchRead(KEYS[i]);
+    bool on = touched(i, v);
+    if (on && !down[i]) Serial.printf("key %d down  %s  (reading %lu)\n", i + 1, NOTES[i], (unsigned long)v);
+    if (!on && down[i]) Serial.printf("key %d up\n", i + 1);
+    down[i] = on;
+    if (on && now < 0) now = i;
+  }
+  if (now != playing) {
+    if (now >= 0) tone(BUZZER, FREQ[now]);
+    else noTone(BUZZER);
+    playing = now;
+  }
+  delay(20);
+}`,
+    open: ["Not tested on hardware yet. The sketch has not been compiled for either board."],
+    notes: [
+      "The ESP32-C3 has no touch sensor, so this project is for the classic ESP32 and the S3 only.",
+      "Readings go the opposite way on the two chips: on the classic ESP32 they fall when touched, on the S3 they rise. The sketch handles both.",
+      "Keep your hands off the keys while the board starts. The first half second sets the untouched baseline.",
+      "Readings shift with humidity, wire length and whether the board is on USB or a battery. If keys trigger by themselves, press EN to take a new baseline.",
+    ],
+    sample: [
+      "key 1 on GPIO %PA%: baseline %BA%",
+      "key 2 on GPIO %PB%: baseline %BB%",
+      "key 3 on GPIO %PC%: baseline %BA%",
+      "key 4 on GPIO %PD%: baseline %BB%",
+      "Touch a key",
+      "key 1 down  C4  (reading %TV%)",
+      "key 1 up",
+      "key 3 down  G4  (reading %TV%)",
+      "key 3 up",
+    ],
+  },
+  {
+    id: "esp-now", needs: [], name: "ESP-NOW pair", level: "Intermediate", mins: 20, tags: ["no-parts", "wifi"],
+    sum: "Two boards talk directly over the Wi-Fi radio, with no router. Each sends a counter and prints what the other sends.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    pins: [], libs: ["WiFi (built in)", "esp_now (built in)"], baud: 115200,
+    parts: [
+      [2, "ESP32 dev boards, any mix of ESP32, S3 and C3", BOM.esp32DevKit],
+      [2, "USB cables, or one cable and a USB power supply"],
+    ],
+    wiring: [],
+    code: R`#include <WiFi.h>
+#include <esp_now.h>
+#include <esp_wifi.h>
+
+const char NAME = 'A';  // set to 'B' before flashing the second board
+const int CHANNEL = 1;  // both boards must use the same channel
+const uint8_t BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+struct Message {
+  char from;
+  uint32_t count;
+};
+
+uint32_t count = 0;
+
+void onReceive(const esp_now_recv_info_t* info, const uint8_t* data, int len) {
+  if (len != sizeof(Message)) return;
+  Message m;
+  memcpy(&m, data, sizeof m);
+  if (m.from == NAME) return;
+  const uint8_t* a = info->src_addr;
+  Serial.printf("rx %c #%lu from %02X:%02X:%02X:%02X:%02X:%02X rssi %d\n",
+    m.from, (unsigned long)m.count, a[0], a[1], a[2], a[3], a[4], a[5], info->rx_ctrl->rssi);
+}
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  esp_wifi_set_channel(CHANNEL, WIFI_SECOND_CHAN_NONE);
+
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("esp-now init failed");
+    for (;;) delay(1000);
+  }
+  esp_now_register_recv_cb(onReceive);
+
+  // Broadcast, so neither board needs the other's MAC address.
+  esp_now_peer_info_t peer = {};
+  memcpy(peer.peer_addr, BROADCAST, 6);
+  peer.channel = CHANNEL;
+  peer.ifidx = WIFI_IF_STA;
+  peer.encrypt = false;
+  esp_now_add_peer(&peer);
+
+  Serial.printf("esp-now ready on channel %d, this board is %c, MAC %s\n", CHANNEL, NAME, WiFi.macAddress().c_str());
+}
+
+void loop() {
+  Message m = {NAME, ++count};
+  esp_err_t r = esp_now_send(BROADCAST, (const uint8_t*)&m, sizeof m);
+  Serial.printf("tx %c #%lu %s\n", NAME, (unsigned long)m.count, r == ESP_OK ? "sent" : esp_err_to_name(r));
+  delay(2000);
+}`,
+    open: ["Not tested on hardware yet. The sketch has not been compiled for any board."],
+    notes: [
+      "Flash the same sketch to both boards, but change NAME to 'B' on the second one.",
+      "Watch both sides at once: on the Bench page, choose Add a second board and connect one board to each monitor.",
+      "Broadcasts are not acknowledged, so 'sent' only means the radio queued the message. Seeing it arrive on the other board is the real test.",
+      "Both boards must be on the same channel. A board that also joins a Wi-Fi network moves to that network's channel, so set CHANNEL to match it.",
+      "Messages are not encrypted. Do not send anything private this way.",
+    ],
+    sample: [
+      "esp-now ready on channel 1, this board is A, MAC 24:6F:28:AA:10:3C",
+      "tx A #1 sent",
+      "rx B #1 from 7C:DF:A1:0B:22:E4 rssi -38",
+      "tx A #2 sent",
+      "rx B #2 from 7C:DF:A1:0B:22:E4 rssi -41",
+      "tx A #3 sent",
+      "rx B #3 from 7C:DF:A1:0B:22:E4 rssi -39",
+    ],
+  },
+  {
+    id: "neopixel", needs: [["neopixel"]], name: "NeoPixel effects", level: "Starter", mins: 15, tags: ["lights"],
+    sum: "Drive a strip or stick of WS2812 LEDs through a color wipe, a rainbow and a theater chase.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { PIX: "16" }, esp32s3: { PIX: "5" }, esp32c3: { PIX: "4" } },
+    pins: ["5V", "GND", "%PIX%"], libs: ["Adafruit NeoPixel"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "NeoPixel Stick, 8 LEDs, or any WS2812B strip", BOM.neopixelStick],
+      [1, "330 Ω resistor"],
+      [1, "Optional 74AHCT125 level shifter", BOM.levelShifter],
+      [3, "Jumper wires"],
+    ],
+    wiring: [
+      ["Strip 5V or VDC", "5V", "Fine for a few LEDs. A long strip needs its own 5 V supply"],
+      ["Strip GND", "GND", "Join the grounds if the strip has its own supply"],
+      ["Strip DIN, through 330 Ω", "GPIO %PIX%", "The resistor goes next to the strip"],
+    ],
+    code: R`#include <Adafruit_NeoPixel.h>
+
+const int PIN = %PIX%;
+const int COUNT = 8;  // LEDs on your strip or stick
+
+Adafruit_NeoPixel strip(COUNT, PIN, NEO_GRB + NEO_KHZ800);
+
+void wipe(uint32_t color) {
+  for (int i = 0; i < COUNT; i++) {
+    strip.setPixelColor(i, color);
+    strip.show();
+    delay(60);
+  }
+}
+
+void rainbow(unsigned long ms) {
+  unsigned long start = millis();
+  uint16_t hue = 0;
+  while (millis() - start < ms) {
+    for (int i = 0; i < COUNT; i++) {
+      strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(hue + i * 65536L / COUNT)));
+    }
+    strip.show();
+    hue += 256;
+    delay(20);
+  }
+}
+
+void chase(uint32_t color, unsigned long ms) {
+  unsigned long start = millis();
+  int step = 0;
+  while (millis() - start < ms) {
+    strip.clear();
+    for (int i = step % 3; i < COUNT; i += 3) strip.setPixelColor(i, color);
+    strip.show();
+    step++;
+    delay(120);
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  strip.begin();
+  strip.setBrightness(40);  // about 15 %: easy on the eyes and on USB power
+  strip.show();
+  Serial.printf("%d LEDs on GPIO %d\n", COUNT, PIN);
+}
+
+void loop() {
+  Serial.println("effect: color wipe");
+  wipe(strip.Color(255, 0, 0));
+  wipe(strip.Color(0, 255, 0));
+  wipe(strip.Color(0, 0, 255));
+  Serial.println("effect: rainbow");
+  rainbow(5000);
+  Serial.println("effect: theater chase");
+  chase(strip.Color(255, 160, 0), 4000);
+}`,
+    open: ["Not tested on hardware yet. The sketch has not been compiled for any board."],
+    notes: [
+      "Each LED can draw about 60 mA at full white. Eight LEDs at the sketch's brightness are fine on USB. A metre or more needs its own 5 V supply and a 1000 µF capacitor across it.",
+      "WS2812B LEDs on 5 V expect a data signal near 5 V. Most accept the ESP32's 3.3 V anyway. If the first LED flickers or stays dark, put a 74AHCT125 level shifter in the data line.",
+      "No strip yet? The S3 and C3 DevKits have one WS2812 LED on the board: GPIO 38 (or 48 on the first S3 revision) and GPIO 8 on the C3. Set PIN to that and COUNT to 1.",
+      "Use a current release of Adafruit NeoPixel. Old releases do not build on the 3.x Arduino core.",
+    ],
+    sample: ["8 LEDs on GPIO %PIX%", "effect: color wipe", "effect: rainbow", "effect: theater chase", "effect: color wipe"],
+  },
+  {
+    id: "mqtt-ha", needs: [["ds18b20"]], name: "Home Assistant temperature", level: "Intermediate", mins: 30, tags: ["sensors", "wifi"],
+    sum: "Publish a DS18B20 reading over MQTT every 30 seconds. Home Assistant finds the sensor by itself through MQTT discovery.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    pins: ["3V3", "GND", "4"], libs: ["PubSubClient (Nick O'Leary)", "OneWire", "DallasTemperature", "WiFi (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "DS18B20 waterproof probe", BOM.ds18b20],
+      [1, "4.7 kΩ resistor, pull-up for the data line", BOM.resistor4k7],
+      [1, "An MQTT broker, such as the Mosquitto add-on in Home Assistant"],
+    ],
+    wiring: [
+      ["DS18B20 VDD (red)", "3V3", ""],
+      ["DS18B20 GND (black)", "GND", ""],
+      ["DS18B20 DATA (yellow)", "GPIO 4", "4.7 kΩ pull-up from DATA to 3V3"],
+    ],
+    code: R`#include <WiFi.h>
+#include <PubSubClient.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+const char* WIFI_NAME = "your-network";
+const char* WIFI_PASS = "your-password";
+const char* MQTT_HOST = "192.168.1.10";  // your broker, often the Home Assistant machine
+const int MQTT_PORT = 1883;
+const char* MQTT_USER = "";  // leave empty if the broker allows anonymous clients
+const char* MQTT_PASS = "";
+
+OneWire oneWire(4);
+DallasTemperature probes(&oneWire);
+WiFiClient net;
+PubSubClient mqtt(net);
+
+String id, stateTopic, statusTopic;
+unsigned long lastSend = 0;
+
+// Tell Home Assistant about the sensor. Retained, so it survives a restart.
+void announce() {
+  String config = String("{\"name\":\"Temperature\",\"device_class\":\"temperature\",")
+    + "\"state_class\":\"measurement\",\"unit_of_measurement\":\"°C\","
+    + "\"state_topic\":\"" + stateTopic + "\","
+    + "\"availability_topic\":\"" + statusTopic + "\","
+    + "\"unique_id\":\"" + id + "_temperature\","
+    + "\"device\":{\"identifiers\":[\"" + id + "\"],\"name\":\"ESP32 Bench " + id + "\"}}";
+  String topic = String("homeassistant/sensor/") + id + "/temperature/config";
+  mqtt.publish(topic.c_str(), config.c_str(), true);
+}
+
+void connectMqtt() {
+  const char* user = strlen(MQTT_USER) > 0 ? MQTT_USER : nullptr;
+  const char* pass = strlen(MQTT_PASS) > 0 ? MQTT_PASS : nullptr;
+  while (!mqtt.connected()) {
+    Serial.printf("mqtt connecting to %s\n", MQTT_HOST);
+    // The last will marks the sensor unavailable if the board drops off.
+    if (mqtt.connect(id.c_str(), user, pass, statusTopic.c_str(), 1, true, "offline")) {
+      mqtt.publish(statusTopic.c_str(), "online", true);
+      announce();
+      Serial.printf("mqtt ok as %s, discovery sent\n", id.c_str());
+    } else {
+      Serial.printf("mqtt failed, state %d, retry in 5 s\n", mqtt.state());
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  probes.begin();
+
+  Serial.printf("wifi joining %s\n", WIFI_NAME);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_NAME, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) delay(300);
+  Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
+
+  String mac = WiFi.macAddress();
+  mac.replace(":", "");
+  mac.toLowerCase();
+  id = String("esp32bench-") + mac.substring(6);
+  stateTopic = String("esp32bench/") + id + "/temperature";
+  statusTopic = String("esp32bench/") + id + "/status";
+
+  mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  mqtt.setBufferSize(512);  // the discovery message is longer than the 256-byte default
+}
+
+void loop() {
+  if (!mqtt.connected()) connectMqtt();
+  mqtt.loop();
+
+  if (lastSend != 0 && millis() - lastSend < 30000) return;
+  lastSend = millis();
+
+  probes.requestTemperatures();
+  float c = probes.getTempCByIndex(0);
+  if (c == DEVICE_DISCONNECTED_C) {
+    Serial.println("no probe: check the data wire and the 4.7 kOhm pull-up");
+    return;
+  }
+  char value[16];
+  snprintf(value, sizeof value, "%.2f", c);
+  mqtt.publish(stateTopic.c_str(), value);
+  Serial.printf("%s %s\n", stateTopic.c_str(), value);
+}`,
+    open: ["Not tested on hardware or with Home Assistant yet. The sketch has not been compiled for any board."],
+    notes: [
+      "Home Assistant needs the MQTT integration set up and pointed at the same broker. The sensor then appears under Settings, Devices and services, MQTT.",
+      "mqtt failed, state -2 means the broker could not be reached: check MQTT_HOST and that port 1883 is open. State 4 or 5 means the user name or password was refused.",
+      "The sketch raises PubSubClient's buffer to 512 bytes. With the default 256 the discovery message is silently dropped and nothing appears in Home Assistant.",
+      "The device id comes from the board's MAC address, so each board shows up as its own device.",
+    ],
+    sample: [
+      "wifi joining your-network",
+      "wifi ok 192.168.1.64",
+      "mqtt connecting to 192.168.1.10",
+      "mqtt ok as esp32bench-aa103c, discovery sent",
+      "esp32bench/esp32bench-aa103c/temperature 21.44",
+      "esp32bench/esp32bench-aa103c/temperature 21.50",
+      "esp32bench/esp32bench-aa103c/temperature 21.56",
+    ],
+  },
+  {
+    id: "ble-scan", needs: [], name: "Bluetooth LE scanner", level: "Starter", mins: 5, tags: ["no-parts", "bluetooth"],
+    sum: "List nearby Bluetooth LE devices with their signal strength every ten seconds: phones, watches, beacons and sensors.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    pins: [], libs: ["BLE (built in)"], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit]],
+    wiring: [],
+    code: R`#include <BLEDevice.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
+
+BLEScan* scan;
+
+void setup() {
+  Serial.begin(115200);
+  BLEDevice::init("");
+  scan = BLEDevice::getScan();
+  scan->setActiveScan(true);  // ask devices for their names
+  scan->setInterval(100);
+  scan->setWindow(99);
+}
+
+void loop() {
+  BLEScanResults* found = scan->start(5, false);  // scan for five seconds
+  int n = found->getCount();
+  Serial.printf("%d devices\n", n);
+  for (int i = 0; i < n; i++) {
+    BLEAdvertisedDevice d = found->getDevice(i);
+    Serial.printf("%s  %4d dBm  %s\n", d.getAddress().toString().c_str(), d.getRSSI(),
+      d.haveName() ? d.getName().c_str() : "(no name)");
+  }
+  scan->clearResults();
+  delay(5000);
+}`,
+    open: ["Not tested on hardware yet. The sketch has not been compiled for any board."],
+    notes: [
+      "Written for the 3.x Arduino core, where start() returns a pointer. On the older 2.x core, use BLEScanResults found = scan->start(5, false) and found.getCount() instead.",
+      "The Bluetooth stack is large. If the classic ESP32 build says the sketch is too big, pick Tools, Partition Scheme, Huge APP.",
+      "Phones and watches change their address every few minutes for privacy, so the same phone can appear more than once.",
+      "The S3 and C3 only have Bluetooth LE. The classic ESP32 also has Classic Bluetooth, which this sketch does not scan.",
+    ],
+    sample: [
+      "6 devices",
+      "a4:c1:38:2f:91:0e   -58 dBm  ATC_2F910E",
+      "5c:e7:62:11:a0:3b   -64 dBm  (no name)",
+      "f0:9e:9e:4a:22:17   -71 dBm  Galaxy Watch5 (2C1B)",
+      "d8:3a:dd:05:6e:90   -77 dBm  (no name)",
+      "c4:7c:8d:6a:31:5f   -82 dBm  Flower care",
+      "4e:91:0b:7f:c2:a8   -89 dBm  (no name)",
+    ],
   },
   ...PROBEHARBOR_SKETCHES,
 ];
