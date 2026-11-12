@@ -1,7 +1,8 @@
 import type { BoardId } from "./boards";
 import { BOM } from "../lib/shop";
+import { PROBEHARBOR_SKETCHES } from "./probeharbor";
 
-export type Tag = "no-parts" | "sensors" | "display" | "wifi" | "power" | "flash";
+export type Tag = "no-parts" | "sensors" | "display" | "wifi" | "power" | "flash" | "probeharbor";
 
 /** A check done on real hardware. `board` says which board it was done on. */
 export interface Verified {
@@ -42,6 +43,8 @@ export interface Project {
   sourceUrl?: string;
   /** ESP Web Tools manifest under public/, for projects that flash from the browser */
   flash?: { manifest: string; version: string; after: string[] };
+  /** Show the form that sends ProbeHarbor settings to the board over USB */
+  setup?: "probeharbor";
   /** Checks done on real hardware */
   verified?: Verified[];
   /** Things that have only been compiled or are still untested */
@@ -55,6 +58,7 @@ export interface Project {
 export const TAGS: [Tag | "all", string][] = [
   ["all", "All"],
   ["flash", "Browser flash"],
+  ["probeharbor", "ProbeHarbor"],
   ["no-parts", "No extra parts"],
   ["sensors", "Sensors"],
   ["display", "Display"],
@@ -82,7 +86,7 @@ const R = String.raw;
 
 export const PROJECTS: Project[] = [
   {
-    id: "probeharbor-probe", name: "ProbeHarbor probe", level: "Starter", mins: 15, tags: ["flash", "sensors", "wifi"],
+    id: "probeharbor-probe", name: "ProbeHarbor probe", level: "Starter", mins: 15, tags: ["flash", "probeharbor", "sensors", "wifi"],
     sum: "Prebuilt sensor firmware from the ProbeHarbor project. Flash it from this page, then it finds a temperature sensor by itself and posts a reading every minute.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -120,10 +124,11 @@ export const PROJECTS: Project[] = [
       version: "1.2.6",
       after: [
         "Create a device at probeharbor.dev to get a device key.",
-        "Send Wi-Fi and the key over USB from probeharbor.dev/flash, or join the ProbeHarbor-Setup Wi-Fi network from a phone and fill in the portal.",
-        "Open the bench at 115200 baud. Status lines start with TT.",
+        "Keep the board on USB and send Wi-Fi and the key with the form below.",
+        "No computer nearby? Join the ProbeHarbor-Setup Wi-Fi network from a phone and fill in the portal instead.",
       ],
     },
+    setup: "probeharbor",
     verified: [
       { board: "esp32", what: "Browser flash, USB settings, Wi-Fi and first reading with a DS18B20", when: "firmware 1.0.1" },
       { board: "esp32", what: "DHT22 on GPIO 4", when: "firmware 1.1.1" },
@@ -406,5 +411,6 @@ void loop() {
   server.handleClient();
 }`,
     sample: [".......", "Open http://192.168.1.57"]
-  }
+  },
+  ...PROBEHARBOR_SKETCHES,
 ];

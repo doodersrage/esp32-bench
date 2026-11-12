@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import Pinout from "../../components/Pinout.astro";
 import Flasher from "../../components/Flasher.astro";
+import ProbeSetup from "../../components/ProbeSetup.astro";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
 import { boardById } from "../../data/boards";
 import { link } from "../../lib/paths";
@@ -155,6 +156,7 @@ const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
           <ol class="steps">
             {p.flash.after.map((step) => <li>{step}</li>)}
           </ol>
+          {p.setup === "probeharbor" && <ProbeSetup />}
           {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Firmware source on GitHub</a></p>}
         </div>
       ) : (
@@ -166,6 +168,7 @@ const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
             <li>Paste the sketch, choose the board's port and upload. Hold BOOT if the upload stalls at Connecting.</li>
             <li>Close the IDE's serial monitor, then open the bench here to watch the output.</li>
           </ol>
+          {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Sketch source on GitHub</a></p>}
         </div>
       )
     }

@@ -159,3 +159,13 @@ ul.notes li { padding-left: 14px; border-left: 3px solid var(--line); font-size:
 .flashbox .notice { margin: 0; }
 .boardcard { padding-top: 20px; border-top: 1px solid var(--line); }
 td.m a { color: var(--accent); }
+
+/* Probe settings form */
+.setupform { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.setupform .wide { grid-column: 1 / -1; }
+.setupform > label { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; font-weight: 500; }
+.setupform input:not([type="checkbox"]) { padding: 8px 10px; border: 1px solid var(--line); background: var(--paper); border-radius: 2px; font-family: var(--mono); font-size: 0.9rem; min-width: 0; }
+.setupform fieldset { border: 1px solid var(--line); margin: 0; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.9rem; }
+.setupform legend { font: 600 0.72rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+.setupform .hint { font-size: 0.78rem; font-weight: 400; color: var(--muted); flex-basis: 100%; }
+.setupstatus { font-size: 0.9rem; font-weight: 500; }
