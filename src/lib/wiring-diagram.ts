@@ -99,7 +99,7 @@ const PIN_WORDS = new Set(
     "dc", "rst", "busy", "data", "trig", "echo", "out", "aout", "vo", "v0", "vrx", "vry", "sw", "tx", "rx", "in",
     "sig", "do", "so", "anode", "cathode", "signal", "red", "brown", "black", "orange", "yellow", "white", "+", "-",
     "a", "b", "e", "k", "rs", "rw", "collector", "emitter", "base", "wiper", "middle", "+5v", "5v", "common", "side",
-    "wire", "push", "output", "ground", "ser", "srclk", "rclk", "oe", "mr", "segments", "decimal", "contact",
+    "wire", "push", "output", "ground", "ser", "srclk", "rclk", "oe", "mr", "segments", "decimal", "outer", "other",
   ].map((w) => w.toLowerCase()),
 );
 const PIN_PATTERN = /^(q\d|d\d)$/i;
@@ -202,7 +202,7 @@ export function parseWiring(rows: readonly WiringRow[], header: Header): Model {
   rows.forEach(([rawFrom, rawTo, note], row) => {
     const text = `${rawFrom} → ${rawTo}`;
     if (/^Already on the board/i.test(note)) return listed.push({ row, text, why: "on-board" });
-    if (/^Not wired\b/i.test(rawTo)) return listed.push({ row, text, why: "not-wired" });
+    if (/^Not (wired|used)\b/i.test(rawTo)) return listed.push({ row, text, why: "not-wired" });
     const other = /^(Uno)\b/.exec(rawTo);
     if (other) {
       otherBoard = other[1];
@@ -210,8 +210,10 @@ export function parseWiring(rows: readonly WiringRow[], header: Header): Model {
     }
 
     let from = rawFrom.trim();
-    const optional = /^Optional\s+/i.test(from);
-    from = from.replace(/^Optional\s+/i, "");
+    // "Optional: MPU-6050 VCC" marks a wire that is only needed for an extra.
+    const optional = /^Optional:?\s+/i.test(from);
+    from = from.replace(/^Optional:?\s+/i, "");
+    from = from.charAt(0).toUpperCase() + from.slice(1);
     let resistor: string | undefined;
     const through = new RegExp(String.raw`,?\s+through\s+(${OHMS})\s*$`).exec(from);
     if (through) {
@@ -266,7 +268,7 @@ export function parseWiring(rows: readonly WiringRow[], header: Header): Model {
         [a, b].forEach((pad, i) => {
           const h = usePad(pad);
           touch(row, h);
-          wires.push({ row, part: name, pin: pin(name, `leg ${i + 1}`, "board"), to: { pad: h }, color: "" });
+          wires.push({ row, part: name, pin: pin(name, `leg ${i + 1}`, "board"), to: { pad: h }, color: "", ...(optional ? { optional } : {}) });
         });
         return;
       }
@@ -354,6 +356,14 @@ export function parseWiring(rows: readonly WiringRow[], header: Header): Model {
 // ---- Layout -------------------------------------------------------------
 
 export interface Layout {
+  /** Supply pads drawn as a shared rail, e.g. ["GND"] */
+  rails: string[];
+  /**
+   * Each rail drawn once: its pad run and vertical line, solid where a required wire
+   * uses it and dashed where it only serves optional wires. Rows lists the wiring rows
+   * on the rail, so build mode can light it with any of them.
+   */
+  railPaths: { pad: string; color: string; solid: string; dashed: string; rows: number[] }[];
   width: number;
   height: number;
   board: { x: number; y: number; w: number; h: number };
@@ -361,11 +371,16 @@ export interface Layout {
   parts: { part: Part; x: number; y: number; w: number; h: number; pins: { pin: PartPin; x: number; y: number }[] }[];
   wires: {
     wire: Wire;
+    /** The wire's own line. On a rail it is only the stub from the rail to the pin. */
     d: string;
+    /** For wires to the board: the pad's height, the vertical lane (or rail) and the pin's height */
+    geo?: { padY: number; lane: number; pinY: number };
     resistorAt?: { x: number; y: number };
     end: { x: number; y: number };
     /** Where the step number sits */
     badge: { x: number; y: number };
+    /** Junction dots where a wire joins a supply rail */
+    dots?: { x: number; y: number }[];
   }[];
 }
 
@@ -376,11 +391,49 @@ const BOARD_HEAD = 40;
 const LANE = 11;
 const BOARD_W = 150;
 const PART_W = 200;
+/** Wires to one supply pad before they share a rail */
+const BUS_MIN = 3;
 
 /** A part with one unnamed pin is drawn as a slim box with the pin on its name line. */
 const slim = (part: Part) => part.pins.length === 1 && part.pins[0].label === "pin" && part.extras.length === 0;
 
+/**
+ * Wires whose runs would share a stretch of line with another connection: one pad's
+ * run out to its lane, and another wire's run from its lane to a pin at the same
+ * height. Drawn like that they would look joined, so layout() never leaves any.
+ */
+function clashes(lay: Layout): { pin: Wire; pad: string }[] {
+  const runs = lay.wires.filter((w) => w.geo).map((w) => ({ w: w.wire, g: w.geo!, pad: (w.wire.to as { pad: string }).pad }));
+  const out: { pin: Wire; pad: string }[] = [];
+  for (const a of runs) {
+    for (const b of runs) {
+      if (a.pad !== b.pad && a.g.padY === b.g.pinY && b.g.lane < a.g.lane) out.push({ pin: b.w, pad: a.pad });
+    }
+  }
+  return out;
+}
+
+export function overlaps(lay: Layout): string[] {
+  return clashes(lay).map((c) => `${c.pad} runs along ${c.pin.part} ${c.pin.pin}`);
+}
+
 export function layout(model: Model): Layout {
+  // Nudge a part down half a row whenever one of its wires would run along another net's line.
+  const nudge = new Map<string, number>();
+  let lay = place(model, nudge);
+  for (let i = 0; i < 40; i++) {
+    const clash = clashes(lay)[0]?.pin;
+    if (!clash) break;
+    nudge.set(clash.part, (nudge.get(clash.part) ?? 0) + ROW / 2);
+    lay = place(model, nudge);
+  }
+  return lay;
+}
+
+/** The first placement, before any nudging; exported so the test can show what nudging fixes. */
+export const firstPlacement = (model: Model): Layout => place(model, new Map());
+
+function place(model: Model, nudge: Map<string, number>): Layout {
   const pads = model.pads.map((pad, i) => ({ pad, x: 10 + BOARD_W, y: TOP + BOARD_HEAD + i * ROW }));
   const padY = new Map(pads.map((p) => [p.pad.header, p.y]));
 
@@ -419,7 +472,7 @@ export function layout(model: Model): Layout {
     // Pull a part down level with its first pad when there is room, to shorten wires.
     const firstPad = Math.min(...boardWires.filter((w) => w.part === part.name).map((w) => padY.get((w.to as { pad: string }).pad)!), Infinity);
     const want = Number.isFinite(firstPad) ? firstPad - (isSlim ? 15 : head + ROW / 2) : y;
-    const top = Math.max(y, want);
+    const top = Math.max(y, want) + (nudge.get(part.name) ?? 0);
     y = top + h + 12;
     return { part, left, right, top, h, head, isSlim };
   });
@@ -435,16 +488,28 @@ export function layout(model: Model): Layout {
     const b = pinYOf.get(`${w.part}|board|${w.pin}`)!;
     return { w, a, b };
   });
-  // One vertical lane per wire, so no two wires ever share a run. Wires heading
+  // A supply pad with BUS_MIN or more wires becomes a rail: one vertical line beside
+  // the parts, joined once to its pad, with a short stub and a dot for each pin.
+  const padCount = new Map<string, number>();
+  for (const s of spans) padCount.set((s.w.to as { pad: string }).pad, (padCount.get((s.w.to as { pad: string }).pad) ?? 0) + 1);
+  const busPads = [...padCount.entries()]
+    .filter(([pad, n]) => n >= BUS_MIN && model.pads.find((p) => p.header === pad)!.kind !== "gpio")
+    .map(([pad]) => pad)
+    .sort((a, b) => padY.get(a)! - padY.get(b)!);
+  const onBus = (s: { w: Wire }) => busPads.includes((s.w.to as { pad: string }).pad);
+
+  // One vertical lane per other wire, so no two wires ever share a run. Wires heading
   // down are ordered lowest-first from the board side and wires heading up
   // highest-first: with pins sorted in pad order, neither group crosses itself.
-  const up = spans.filter((s) => s.b < s.a).sort((s, t) => s.b - t.b || s.a - t.a);
-  const down = spans.filter((s) => s.b >= s.a).sort((s, t) => t.b - s.b || t.a - s.a);
+  const solo = spans.filter((s) => !onBus(s));
+  const up = solo.filter((s) => s.b < s.a).sort((s, t) => s.b - t.b || s.a - t.a);
+  const down = solo.filter((s) => s.b >= s.a).sort((s, t) => t.b - s.b || t.a - s.a);
   const laneOf = new Map<Wire, number>();
   [...up, ...down].forEach((s, i) => laneOf.set(s.w, i));
-  const lanes = Math.max(spans.length, 1);
+  const lanes = Math.max(solo.length, 1);
   const laneX0 = 10 + BOARD_W + 16;
-  const partX = laneX0 + lanes * LANE + 70;
+  const busX = new Map(busPads.map((pad, i) => [pad, laneX0 + lanes * LANE + 8 + i * LANE]));
+  const partX = laneX0 + lanes * LANE + busPads.length * LANE + 76;
 
   // Every part box is as wide as the widest needs: name, or left and right pin labels side by side.
   const CHAR = 6.4;
@@ -470,12 +535,59 @@ export function layout(model: Model): Layout {
     ],
   }));
 
+  // Each rail runs from its topmost to its bottommost connection.
+  const railSpan = new Map<string, [number, number]>();
+  for (const pad of busPads) {
+    const ys = [padY.get(pad)!, ...spans.filter((s) => (s.w.to as { pad: string }).pad === pad).map((s) => s.b)];
+    railSpan.set(pad, [Math.min(...ys), Math.max(...ys)]);
+  }
+  const startX = 10 + BOARD_W;
   const wiresOut: Layout["wires"] = spans.map(({ w, a, b }) => {
-    const lx = laneX0 + laneOf.get(w)! * LANE;
-    const startX = 10 + BOARD_W;
-    const d = `M${startX} ${a}H${lx}V${b}H${partX}`;
-    const segMid = (lx + partX) / 2 - 6;
-    return { wire: w, d, resistorAt: w.resistor ? { x: segMid, y: b } : undefined, end: { x: partX, y: b }, badge: { x: partX - 10, y: b } };
+    const pad = (w.to as { pad: string }).pad;
+    const bus = busX.get(pad);
+    const lx = bus ?? laneX0 + laneOf.get(w)! * LANE;
+    // A wire on a rail draws only its stub; the rail itself is drawn once (railPaths).
+    const d = bus === undefined ? `M${startX} ${a}H${lx}V${b}H${partX}` : `M${lx} ${b}H${partX}`;
+    const resistorX = bus === undefined ? Math.max((lx + partX) / 2 - 6, partX - 52) : partX - 36;
+    const [top, bottom] = railSpan.get(pad) ?? [0, 0];
+    // A dot wherever three or more lines meet on the rail: up, down, the pad run, a stub.
+    const branches = (y: number) =>
+      Number(y > top) + Number(y < bottom) + Number(y === a) + Number(spans.some((s) => (s.w.to as { pad: string }).pad === pad && s.b === y));
+    return {
+      wire: w,
+      d,
+      geo: { padY: a, lane: lx, pinY: b },
+      resistorAt: w.resistor ? { x: resistorX, y: b } : undefined,
+      end: { x: partX, y: b },
+      badge: { x: partX - 10, y: b },
+      ...(bus !== undefined ? { dots: [...new Set([b, a])].filter((y) => branches(y) >= 3).map((y) => ({ x: lx, y })) } : {}),
+    };
+  });
+
+  // Rails: the pad run and the vertical line, solid as far as required wires reach,
+  // dashed only beyond that, where the rail serves optional wires alone.
+  const railPaths = busPads.map((pad) => {
+    const x = busX.get(pad)!;
+    const py = padY.get(pad)!;
+    const on = spans.filter((s) => (s.w.to as { pad: string }).pad === pad);
+    const req = on.filter((s) => !s.w.optional).map((s) => s.b);
+    const all = on.map((s) => s.b);
+    const solid: string[] = [];
+    const dashed: string[] = [];
+    if (req.length) {
+      solid.push(`M${startX} ${py}H${x}`);
+      const lo = Math.min(py, ...req);
+      const hi = Math.max(py, ...req);
+      if (hi > lo) solid.push(`M${x} ${lo}V${hi}`);
+      const optLo = Math.min(py, ...all);
+      const optHi = Math.max(py, ...all);
+      if (optLo < lo) dashed.push(`M${x} ${optLo}V${lo}`);
+      if (optHi > hi) dashed.push(`M${x} ${hi}V${optHi}`);
+    } else {
+      dashed.push(`M${startX} ${py}H${x}`, `M${x} ${Math.min(py, ...all)}V${Math.max(py, ...all)}`);
+    }
+    const color = wiresOut.find((w) => w.wire.to && "pad" in w.wire.to && w.wire.to.pad === pad)!.wire.color;
+    return { pad, color, solid: solid.join(""), dashed: dashed.join(""), rows: [...new Set(on.map((s) => s.w.row))] };
   });
 
   // Part-to-part links run in lanes to the right of the parts.
@@ -500,5 +612,5 @@ export function layout(model: Model): Layout {
   const boardH = Math.max(BOARD_HEAD + pads.length * ROW - ROW / 2 + 8, 60);
   const height = Math.max(TOP + boardH, y) + 10;
   const width = partX + partW + (partLinks.length ? linkStub + 14 + partLinks.length * LANE : 12);
-  return { width, height, board: { x: 10, y: TOP, w: BOARD_W, h: boardH }, pads, parts: partsOut, wires: wiresOut };
+  return { rails: busPads, railPaths, width, height, board: { x: 10, y: TOP, w: BOARD_W, h: boardH }, pads, parts: partsOut, wires: wiresOut };
 }
