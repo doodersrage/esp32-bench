@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import Comments from "../../components/Comments.astro";
 import Pinout from "../../components/Pinout.astro";
+import WiringDiagram from "../../components/WiringDiagram.astro";
 import Flasher from "../../components/Flasher.astro";
 import ProbeSetup from "../../components/ProbeSetup.astro";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
@@ -106,7 +107,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
                 <h2 class="h3 mb">Wiring</h2>
                 {panel.wiring.length > 0 ? (
                   <div class="tablebox">
-                    <table>
+                    <table id={`wiring-${panel.board.id}`}>
                       <thead>
                         <tr>
                           <th>From</th>
@@ -129,6 +130,15 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
                   <p class="lede">Nothing to wire. This one runs on the bare board.</p>
                 )}
               </div>
+              <WiringDiagram
+                rows={panel.wiring}
+                board={panel.board}
+                projectId={p.id}
+                projectName={p.name}
+                tableId={`wiring-${panel.board.id}`}
+                benchHref={benchHref}
+                baud={p.baud}
+              />
               <div>
                 <h2 class="h3 mb">Tested on this board</h2>
                 {panel.verified.length > 0 ? (
