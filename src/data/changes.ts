@@ -14,6 +14,20 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-10",
+    date: "2026-11-12",
+    title: "Version 0.10: garage projects and community builds",
+    summary:
+      "Eight projects built around a real parts drawer, from an IR sonar sweep to a self-levelling platform, and build reports from people who made a project now show on its page.",
+    items: [
+      "Community builds: tick Publish it when you send a build report, and once it is checked it appears on the project page with your board, notes and serial output.",
+      "ProbeHarbor on a 16x2 LCD with a rotary encoder, and a PIR motion sensor that reports to ProbeHarbor.",
+      "IR sonar sweep, self-levelling platform, joystick pan-tilt turret, visitor counter and an automatic fan.",
+      "An Arduino Uno to ESP32 radio link with nRF24L01+ modules, with both sketches on one page.",
+    ],
+    link: "/",
+  },
+  {
     id: "v0-9",
     date: "2026-11-12",
     title: "Version 0.9: games and toys",

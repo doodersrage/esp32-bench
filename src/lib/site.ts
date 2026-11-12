@@ -17,6 +17,16 @@ export const SITE = {
   buildsApi: "https://api.esp32bench.dev/builds",
   /** Public Turnstile site key for the report form (widget "esp32bench.dev report form") */
   turnstileSitekey: "0x4AAAAAAF-UtZoWkeF1Xe9G",
+  /**
+   * Comments through GitHub Discussions (giscus) in the public, code-free repo
+   * doodersrage/esp32-bench-community. Hidden until categoryId is set.
+   */
+  giscus: {
+    repo: "doodersrage/esp32-bench-community",
+    repoId: "R_kgDOVsLL1A",
+    category: "Comments",
+    categoryId: "",
+  },
   themeColor: "#14231f",
   background: "#f2f5f1",
 };

@@ -2,7 +2,7 @@
 
 A project library and a serial workbench for ESP32 boards, built as a static site with [Astro 7](https://astro.build/).
 
-- **Library:** thirty-eight projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
+- **Library:** forty-six projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
 - **Boards:** a page per board with its pinout, every pin's functions and a safe-to-use verdict: ESP32-DevKitC V4, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1 (with hardware-tested pins), ESP32-S2-DevKitC-1, ESP32-C6-DevKitC-1, Seeed XIAO ESP32C3 and ESP32S3, and the AI-Thinker ESP32-CAM, plus a chip comparison. Chip data is in `src/data/chips.ts`. Projects that support more than one board have a board switch.
 - **Wire:** a wiring pad. Pick a board and parts, tap a part pin and a board pad, and each wire is checked for boot pins, input-only pins, 5 V signals and pads used twice. It can wire everything for you, and remix two projects onto one board.
 - **Detective:** flash a small helper firmware (ESP32, S2, S3, C3 and C6; the S2 and C6 images are not hardware tested yet), touch a jumper from GND to any pad and watch that pad light up, with a silkscreen quiz. XIAO boards show their D0 to D10 labels. It also reads the chip, flash size and MAC address into a board passport you can save. `scripts/build-firmware.mjs` builds the ESP32, S3 and C3 on Arduino core 2.0.17 and the S2 and C6 on core 3.x, in separate PlatformIO homes.
@@ -129,6 +129,11 @@ Not built yet:
 - A build pipeline that compiles the starter sketches into flashable images.
 - Saving your own projects.
 - Merging sketches in a remix. It merges wiring and pin numbers only.
+
+## Community
+
+- **Published build reports:** a build report whose sender ticks "Publish it" is stored as pending in the D1 database `esp32-bench-reports` (`api/migrations/`). The report email links to `api.esp32bench.dev/moderate/<id>?t=<token>`, a confirmation page whose Approve and Reject buttons post the decision, so email link scanners cannot approve anything. Only a SHA-256 of the token is stored. Approved reports come from `GET /builds?project=<id>` and appear under Community builds on the project page. Test: `cd api && node --experimental-strip-types test/builds.test.ts`.
+- **Comments:** `src/components/Comments.astro` embeds giscus on project and error pages, backed by GitHub Discussions in the public, code-free repository `doodersrage/esp32-bench-community`. It stays hidden until `SITE.giscus.categoryId` is set in `src/lib/site.ts`.
 
 ## Report form
 

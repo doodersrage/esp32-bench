@@ -56,6 +56,7 @@ jobs:
           npm ci
           node --experimental-strip-types test/report.test.ts
           node --experimental-strip-types test/turnstile.test.ts
+          node --experimental-strip-types test/builds.test.ts
 
       - name: Deploy to Cloudflare
         env:

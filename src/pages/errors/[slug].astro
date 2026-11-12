@@ -1,5 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
+import Comments from "../../components/Comments.astro";
 import { ERRORS, GROUPS, errorBySlug, type ErrorEntry } from "../../data/errors";
 import { FLAMES } from "../../data/flames";
 import { explainLog } from "../../lib/crash";
@@ -104,6 +105,7 @@ const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.
         ))}
       </ul>
     </div>
+    <Comments />
   </section>
 </Base>
 
