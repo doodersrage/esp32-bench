@@ -47,7 +47,8 @@ const RADIO = /esp_phy_enable|phy_init\.c|esp_wifi_init|wifi_init|btdm|bt_contro
 // drivers (PWM for tone() and servos, the RMT behind NeoPixels, the ADC, touch)
 // is the emulator's gap too: on QEMU's C3, ledc_ll_get_slow_clk_sel reads a
 // clock register QEMU leaves at an invalid value and aborts.
-const PERIPHERAL = /^(ledc|rmt|adc|sar|touch|i2s|mcpwm|pcnt)_|_(ledc|rmt|adc|touch)_|^(ledcAttach|ledcWrite|analogRead|analogWrite|tone|touchRead)/;
+// Deep sleep too: QEMU has no RTC power domains, so rtc_sleep_pd faults where a real chip powers down.
+const PERIPHERAL = /^(ledc|rmt|adc|sar|touch|i2s|mcpwm|pcnt)_|_(ledc|rmt|adc|touch)_|^(ledcAttach|ledcWrite|analogRead|analogWrite|tone|touchRead)|^(rtc_sleep|esp_deep_sleep|esp_light_sleep)/;
 // The interrupt watchdog fires when code spins with interrupts off; under QEMU
 // that is a driver polling a peripheral register that never changes.
 const INT_WDT = /Interrupt wdt timeout/i;
@@ -137,6 +138,9 @@ function judge(job, out) {
     return { ...job, status: "radio", note: "booted, then stopped at the Wi-Fi or Bluetooth radio, which QEMU does not emulate", out };
   if (crash) {
     const fns = functionsAt(job, out, crash.index);
+    // The crash text may not name the radio, but the functions it stopped in do (btdm_controller_task).
+    const radio = fns.find((f) => RADIO.test(f));
+    if (radio) return { ...job, status: "radio", note: `stopped in ${radio}: the Wi-Fi or Bluetooth radio, which QEMU does not emulate`, out };
     const hal = fns.find((f) => PERIPHERAL.test(f));
     if (hal) return { ...job, status: "peripheral", note: `stopped in ${hal}, a driver for hardware QEMU does not fully emulate`, out };
     if (INT_WDT.test(lineAround(out, crash.index)))
@@ -157,6 +161,8 @@ function judge(job, out) {
 
 const lineAround = (text, at) => text.slice(text.lastIndexOf("\n", at) + 1, text.indexOf("\n", at) >= 0 ? text.indexOf("\n", at) : undefined).trim().slice(0, 160);
 
+const BAD = new Set(["crash", "boot loop", "no boot", "error"]);
+
 // Run several at once: each QEMU uses one core.
 const results = [];
 let next = 0;
@@ -165,7 +171,13 @@ await Promise.all(
   Array.from({ length: width }, async () => {
     while (next < jobs.length) {
       const job = jobs[next++];
-      const r = await run(job);
+      let r = await run(job);
+      // QEMU now and then faults at startup (a cache error in system init on an image that booted
+      // fine before). Run a failure once more and keep it only if it happens again.
+      if (BAD.has(r.status)) {
+        const again = await run(job);
+        r = BAD.has(again.status) ? { ...again, note: `${again.note} (twice)` } : { ...again, note: `${again.note}; the first run failed: ${r.note}` };
+      }
       results.push(r);
       console.log(`${r.status.padEnd(9)} ${r.id} on ${r.board}: ${r.note}`);
     }
@@ -175,7 +187,7 @@ rmSync(work, { recursive: true, force: true });
 
 results.sort((a, b) => a.id.localeCompare(b.id) || a.board.localeCompare(b.board));
 const count = (s) => results.filter((r) => r.status === s).length;
-const bad = results.filter((r) => ["crash", "boot loop", "no boot", "error"].includes(r.status));
+const bad = results.filter((r) => BAD.has(r.status));
 const summary = `${results.length} images in QEMU: ${count("ok")} ok, ${count("radio")} stopped at the radio QEMU lacks, ${count("peripheral")} stopped in a peripheral QEMU lacks, ${count("missing")} missing an expected line, ${bad.length} crashed or did not boot.`;
 console.log(`\n${summary}`);
 
