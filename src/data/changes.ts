@@ -14,6 +14,20 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-12",
+    date: "2026-11-13",
+    title: "Version 0.12: no Arduino IDE needed",
+    summary:
+      "Every project can now be flashed straight from its page, settings go over USB, and you can edit a sketch, build it and flash it without installing anything.",
+    items: [
+      "Flash it from the browser: every project's sketch is compiled for every board it supports, ready to flash with one button.",
+      "Settings over USB: projects that need Wi-Fi or account details take them from a form on the project page after flashing.",
+      "Edit and build: change a sketch in the browser, press Build, and get compiler errors on the right lines or a firmware image to flash. Also on the new Build a sketch tool.",
+      "The ESP32 Bench lab: a Raspberry Pi runner that flashes and tests projects on real boards, with results shown as Lab tested.",
+    ],
+    link: "/tools/build/",
+  },
+  {
     id: "v0-11",
     date: "2026-11-12",
     title: "Version 0.11: see it, build it, try it",

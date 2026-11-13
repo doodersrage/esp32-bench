@@ -131,6 +131,14 @@ Not built yet:
 - Saving your own projects.
 - Merging sketches in a remix. It merges wiring and pin numbers only.
 
+## No-IDE toolchain
+
+- **Firmware library:** `.github/workflows/firmware-library.yml` (Tuesdays and on sketch changes) compiles every sketch for every board (`scripts/build-firmware-library.mjs`, shared code in `scripts/lib/sketch-build.mjs`) and uploads merged images and ESP Web Tools manifests to the R2 bucket `esp32-bench-firmware`, served at `fw.esp32bench.dev`, through `PUT api.esp32bench.dev/fw/<key>`. The API accepts only a GitHub Actions OIDC token for this repository's main branch (`api/src/github-oidc.ts`), so no upload secret exists. Nothing is uploaded unless every build passed, and `index.json` goes last. Project pages show a Flash button when their project is in the index.
+- **Settings over USB:** configurable sketches include `src/sketches/bench-settings.inc` and read Wi-Fi and account settings from flash, with the sketch's constants as defaults. The settings form on the project page sends them over Web Serial (`src/lib/settings-protocol.ts`; protocol `SETTINGS?`, `SET`, `UNSET`, `SAVE`).
+- **Compile service:** `compile/` is the `esp32-bench-compile` Worker at `compile.esp32bench.dev`, running PlatformIO in Cloudflare Containers (`standard-2`, at most two instances, stopped 2 minutes after the last build). Quotas: 4 builds a minute and 40 a day per visitor, 600 a day in total. Its library list comes from `src/data/compile-libs.json` (`compile/scripts/sync-libs.mjs`). It is deployed by hand, not by CI, because the image is 8.6 GB: see `compile/README.md`.
+- **Editor:** "Edit and build" on project pages and `/tools/build/` (`src/components/SketchBuilder.astro`, `src/scripts/editor/`, CodeMirror loaded only when used).
+- **Hardware lab:** `lab/` is a Raspberry Pi runner that flashes each project from the firmware library, checks its serial output against `src/data/lab-expect.ts`, and posts results to `api.esp32bench.dev/lab/runs`; see `lab/README.md`.
+
 ## Community
 
 - **Published build reports:** a build report whose sender ticks "Publish it" is stored as pending in the D1 database `esp32-bench-reports` (`api/migrations/`). The report email links to `api.esp32bench.dev/moderate/<id>?t=<token>`, a confirmation page whose Approve and Reject buttons post the decision, so email link scanners cannot approve anything. Only a SHA-256 of the token is stored. Approved reports come from `GET /builds?project=<id>` and appear under Community builds on the project page. Test: `cd api && node --experimental-strip-types test/builds.test.ts`.
