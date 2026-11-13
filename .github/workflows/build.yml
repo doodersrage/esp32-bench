@@ -54,6 +54,11 @@ jobs:
           node --experimental-strip-types tests/wiring-diagram.test.ts
           node --experimental-strip-types tests/kit.test.ts
 
+      - name: Type check
+        run: |
+          npm install --no-save @astrojs/check typescript@6
+          npx astro check
+
       - name: Test the site's libraries
         run: |
           node --experimental-strip-types tests/share.test.ts
