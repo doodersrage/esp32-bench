@@ -1,6 +1,10 @@
 {
   "_comment": "Libraries the compile service and the firmware builds can install: site name to PlatformIO registry id. Shared by scripts/lib/sketch-build.mjs and the site (Build a sketch). Add a library here, and to the compile service image, to support it.",
   "libs": {
+    "MD_Parola": "majicdesigns/MD_Parola",
+    "MD_MAX72XX": "majicdesigns/MD_MAX72XX",
+    "RTClib (Adafruit)": "adafruit/RTClib",
+    "Adafruit ST7735 and ST7789 Library": "adafruit/Adafruit ST7735 and ST7789 Library",
     "DHT sensor library (Adafruit)": "adafruit/DHT sensor library",
     "Adafruit Unified Sensor": "adafruit/Adafruit Unified Sensor",
     "Adafruit SSD1306": "adafruit/Adafruit SSD1306",

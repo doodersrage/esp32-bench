@@ -273,6 +273,50 @@ export const PARTS: Part[] = [
       { name: "COMMON", kind: "gnd", note: "Common cathode to GND. A common-anode LED goes to 3V3 instead, with the colours inverted in code." },
     ],
   },
+  {
+    id: "max7219", name: "MAX7219 LED matrix",
+    pins: [
+      { name: "VCC", kind: "power5", note: "5 V. Four modules at full brightness draw close to 1 A; keep the brightness low on USB." },
+      { name: "GND", kind: "gnd" },
+      { name: "DIN", kind: "in", note: "3.3 V is below the MAX7219's rated high level at 5 V. Most modules still work; a 74AHCT125 makes it certain." },
+      { name: "CS", kind: "in" },
+      { name: "CLK", kind: "in" },
+    ],
+  },
+  {
+    id: "ds3231", name: "DS3231 real-time clock",
+    pins: [
+      { name: "VCC", kind: "power3" },
+      { name: "GND", kind: "gnd" },
+      { name: "SDA", kind: "bidir", bus: "sda" },
+      { name: "SCL", kind: "in", bus: "scl" },
+      { name: "SQW", kind: "out", note: "Alarm and square-wave output, open drain. Optional: the sketch polls the alarm over I2C." },
+    ],
+  },
+  {
+    id: "tft", name: "ST7789 colour TFT",
+    pins: [
+      { name: "VCC", kind: "power3" },
+      { name: "GND", kind: "gnd" },
+      { name: "SCL", kind: "in", note: "SPI clock, despite the name. Not an I2C pin." },
+      { name: "SDA", kind: "in", note: "SPI data (MOSI), despite the name. Not an I2C pin." },
+      { name: "RST", kind: "in" },
+      { name: "DC", kind: "in" },
+      { name: "CS", kind: "in" },
+      { name: "BLK", kind: "in", note: "Backlight. High is on." },
+    ],
+  },
+  {
+    id: "sdcard", name: "MicroSD card module",
+    pins: [
+      { name: "VCC", kind: "power5", note: "Modules with a regulator need 5 V. A bare 3.3 V breakout goes to 3V3 instead." },
+      { name: "GND", kind: "gnd" },
+      { name: "SCK", kind: "in" },
+      { name: "MOSI", kind: "in" },
+      { name: "MISO", kind: "out" },
+      { name: "CS", kind: "in" },
+    ],
+  },
 ];
 
 export const partById = (id: string): Part | undefined => PARTS.find((p) => p.id === id);

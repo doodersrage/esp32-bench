@@ -109,6 +109,10 @@ export const DRAWER = {
   encoder: "Rotary encoder",
   nrf24: "Two nRF24L01+ radio modules",
   rgbled: "RGB LED",
+  max7219: "MAX7219 LED matrix",
+  ds3231: "DS3231 real-time clock",
+  tft: "ST7789 colour TFT",
+  sdcard: "MicroSD card module",
 } as const;
 export type DrawerPart = keyof typeof DRAWER;
 
@@ -5201,6 +5205,592 @@ void loop() {
       "light = 608  button = 0",
       "light = 606  button = 0",
       "missed = 1",
+    ],
+  },
+  {
+    id: "led-matrix", needs: [["max7219"]], name: "Scrolling LED matrix", level: "Starter", mins: 20, tags: ["display", "lights"],
+    sum: "Scroll your own text across a chain of MAX7219 8x8 LED matrix modules. Type a new message on the bench and it scrolls straight away.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { DIN: "23", CLK: "18", CS: "5" },
+      esp32s3: { DIN: "11", CLK: "12", CS: "10" },
+      esp32c3: { DIN: "6", CLK: "4", CS: "7" },
+    },
+    pins: ["5V", "GND", "%DIN%", "%CLK%", "%CS%"],
+    libs: ["MD_Parola", "MD_MAX72XX"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "MAX7219 4-in-1 LED matrix module, FC-16 style (four 8x8 matrices)"],
+      [1, "Optional: 74AHCT125 level shifter, for modules that miss the 3.3 V data signal", BOM.levelShifter],
+      [5, "Jumper wires"],
+    ],
+    wiring: [
+      ["Matrix VCC", "5V", "Keep the brightness low on USB power: four modules flat out draw close to 1 A"],
+      ["Matrix GND", "GND", ""],
+      ["Matrix DIN", "GPIO %DIN%", "Data into the first module, at the end with DIN printed on it"],
+      ["Matrix CS", "GPIO %CS%", "Also labelled LOAD"],
+      ["Matrix CLK", "GPIO %CLK%", ""],
+    ],
+    code: R`// Scrolling text on MAX7219 LED matrix modules (the common 4-in-1 FC-16 boards).
+// Type in the bench: text Hello there | bright 0-15 | speed 10-500
+#include <MD_Parola.h>
+#include <MD_MAX72xx.h>
+
+// FC16_HW suits the common blue 4-in-1 boards. If letters come out mirrored,
+// upside down or in the wrong module order, try PAROLA_HW, GENERIC_HW or ICSTATION_HW.
+#define HARDWARE_TYPE MD_MAX72XX::FC16_HW
+const uint8_t MODULES = 4;  // 8x8 modules chained together
+const uint8_t DATA_PIN = %DIN%;
+const uint8_t CLK_PIN = %CLK%;
+const uint8_t CS_PIN = %CS%;
+
+MD_Parola matrix(HARDWARE_TYPE, DATA_PIN, CLK_PIN, CS_PIN, MODULES);
+
+char message[128] = "ESP32 Bench";
+uint8_t brightness = 2;  // 0 to 15: low is kind to a USB port
+uint16_t speedMs = 50;   // ms per column, lower is faster
+uint32_t passes = 0;
+String line;
+
+void startScroll() {
+  matrix.displayClear();
+  matrix.displayText(message, PA_LEFT, speedMs, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+}
+
+void help() {
+  Serial.println("commands: text <message>, bright <0-15>, speed <10-500>");
+}
+
+void handle(const String& cmd) {
+  if (cmd.startsWith("text ")) {
+    cmd.substring(5).toCharArray(message, sizeof message);
+    startScroll();
+    Serial.printf("text: %s\n", message);
+  } else if (cmd.startsWith("bright ")) {
+    brightness = (uint8_t)constrain(cmd.substring(7).toInt(), 0L, 15L);
+    matrix.setIntensity(brightness);
+    Serial.printf("brightness = %u\n", (unsigned)brightness);
+  } else if (cmd.startsWith("speed ")) {
+    speedMs = (uint16_t)constrain(cmd.substring(6).toInt(), 10L, 500L);
+    matrix.setSpeed(speedMs);
+    Serial.printf("speed = %u ms\n", (unsigned)speedMs);
+  } else if (cmd.length()) {
+    help();
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  matrix.begin();
+  matrix.setIntensity(brightness);
+  startScroll();
+  Serial.printf("matrix ready: %u modules, FC16_HW, DIN %u CLK %u CS %u\n",
+                (unsigned)MODULES, (unsigned)DATA_PIN, (unsigned)CLK_PIN, (unsigned)CS_PIN);
+  help();
+}
+
+void loop() {
+  if (matrix.displayAnimate()) {  // true once the text has scrolled off
+    matrix.displayReset();
+    Serial.printf("passes = %lu\n", (unsigned long)++passes);
+  }
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      line.trim();
+      handle(line);
+      line = "";
+    } else if (line.length() < 120) {
+      line += c;
+    }
+  }
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The module runs on 5 V, but the ESP32's data lines are 3.3 V. That is just under the MAX7219's rated high level when it runs on 5 V. Most modules work anyway; if the display shows garbage or stays dark, put a 74AHCT125 level shifter on DIN, CLK and CS, or try powering the matrix from 3.3 V at low brightness.",
+      "Each lit LED adds current. Four modules at full brightness can draw close to 1 A, more than a computer's USB port should give. The sketch starts at brightness 2; for a bright sign, use a separate 5 V supply with its GND joined to the ESP32's GND.",
+      "Modules chain: DOUT of one goes to DIN of the next, with VCC, GND, CS and CLK shared. Change MODULES to match how many 8x8 blocks you have.",
+      "If the text is mirrored, upside down or the modules run in the wrong order, the hardware type is wrong. FC16_HW suits most cheap 4-in-1 boards; the others are PAROLA_HW, GENERIC_HW and ICSTATION_HW.",
+      "The sketch drives the pins in software, so any free GPIOs work. The ones chosen are the board's usual SPI pins, which keeps the wiring familiar.",
+    ],
+    sample: [
+      "matrix ready: 4 modules, FC16_HW, DIN %DIN% CLK %CLK% CS %CS%",
+      "commands: text <message>, bright <0-15>, speed <10-500>",
+      "passes = 1",
+      "passes = 2",
+      "text: Hello from the bench",
+      "passes = 3",
+      "brightness = 6",
+      "passes = 4",
+      "passes = 5",
+    ],
+  },
+  {
+    id: "rtc-clock", needs: [["ds3231"]], name: "DS3231 real-time clock", level: "Starter", mins: 20, tags: ["sensors"],
+    sum: "Keep accurate time without Wi-Fi using a DS3231 clock module and its coin cell, with a daily alarm that beeps and the chip's own temperature for the plotter.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SDA: "21", SCL: "22", BUZZ: "25" },
+      esp32s3: { SDA: "8", SCL: "9", BUZZ: "4" },
+      esp32c3: { SDA: "6", SCL: "7", BUZZ: "5" },
+    },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%", "%BUZZ%"],
+    libs: ["RTClib (Adafruit)", "Wire (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "DS3231 real-time clock module", BOM.rtcDs3231],
+      [1, "CR2032 coin cell, or LIR2032 if your module charges the cell"],
+      [1, "Optional: passive buzzer or piezo, for the alarm", BOM.piezoBuzzer],
+      [6, "Jumper wires"],
+    ],
+    wiring: [
+      ["RTC VCC", "3V3", "3.3 V also keeps the common ZS-042 module from charging its coin cell; see the notes"],
+      ["RTC GND", "GND", ""],
+      ["RTC SDA", "GPIO %SDA%", "The module has its own pull-ups"],
+      ["RTC SCL", "GPIO %SCL%", ""],
+      ["Optional: buzzer +", "GPIO %BUZZ%", ""],
+      ["Optional: buzzer -", "GND", ""],
+    ],
+    code: R`// DS3231 real-time clock: keeps the time without Wi-Fi, on its coin cell through power cuts.
+// Type in the bench: set 2026-11-13 14:30:00 | alarm 07:30 | alarm off | now
+#include <Wire.h>
+#include <RTClib.h>
+
+const int SDA_PIN = %SDA%, SCL_PIN = %SCL%;
+const int BUZZER = %BUZZ%;  // optional passive buzzer for the alarm
+
+RTC_DS3231 rtc;
+bool found = false;
+uint32_t lastPrint = 0, lastTry = 0;
+String line;
+
+void printDate(const DateTime& t) {
+  Serial.printf("date %04d-%02d-%02d\n", t.year(), t.month(), t.day());
+}
+
+void help() {
+  Serial.println("commands: set YYYY-MM-DD HH:MM:SS, alarm HH:MM, alarm off, now");
+}
+
+bool connectRtc() {
+  found = rtc.begin(&Wire);
+  if (!found) {
+    Serial.println("DS3231 not found at 0x68: check SDA, SCL and power");
+    return false;
+  }
+  if (rtc.lostPower()) {
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    Serial.println("RTC lost power: time set from when the sketch was compiled. Correct it with set");
+  }
+  rtc.disable32K();
+  rtc.writeSqwPinMode(DS3231_OFF);  // SQW pin as the alarm output, not a square wave
+  rtc.clearAlarm(1);
+  rtc.clearAlarm(2);
+  rtc.disableAlarm(2);
+  printDate(rtc.now());
+  return true;
+}
+
+void handle(const String& cmd) {
+  int y, mo, d, h, mi, s;
+  if (sscanf(cmd.c_str(), "set %d-%d-%d %d:%d:%d", &y, &mo, &d, &h, &mi, &s) == 6) {
+    rtc.adjust(DateTime(y, mo, d, h, mi, s));
+    Serial.println("time set");
+    printDate(rtc.now());
+  } else if (cmd == "alarm off") {
+    rtc.disableAlarm(1);
+    rtc.clearAlarm(1);
+    Serial.println("alarm off");
+  } else if (sscanf(cmd.c_str(), "alarm %d:%d", &h, &mi) == 2) {
+    rtc.clearAlarm(1);
+    rtc.setAlarm1(DateTime(2000, 1, 1, h, mi, 0), DS3231_A1_Hour);  // every day at h:mi
+    Serial.printf("alarm set for %02d:%02d every day\n", h, mi);
+  } else if (cmd == "now") {
+    printDate(rtc.now());
+  } else if (cmd.length()) {
+    help();
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(SDA_PIN, SCL_PIN);
+  connectRtc();
+  help();
+}
+
+void loop() {
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      line.trim();
+      if (found) handle(line);
+      line = "";
+    } else if (line.length() < 60) {
+      line += c;
+    }
+  }
+  if (!found) {
+    if (millis() - lastTry > 5000) {
+      lastTry = millis();
+      connectRtc();
+    }
+    return;
+  }
+  if (millis() - lastPrint >= 1000) {
+    lastPrint = millis();
+    DateTime t = rtc.now();
+    // The DS3231 measures its own temperature to correct the crystal; it updates every 64 s.
+    Serial.printf("%02d:%02d:%02d  temp_c = %.2f\n", t.hour(), t.minute(), t.second(), rtc.getTemperature());
+    if (t.hour() == 0 && t.minute() == 0 && t.second() == 0) printDate(t);
+  }
+  if (rtc.alarmFired(1)) {
+    rtc.clearAlarm(1);
+    DateTime t = rtc.now();
+    Serial.printf("ALARM %02d:%02d\n", t.hour(), t.minute());
+    for (int i = 0; i < 3; i++) {
+      tone(BUZZER, 2000, 200);
+      delay(400);
+    }
+  }
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "On first start, or after the coin cell ran flat, the clock is set from the time the sketch was compiled. Send set 2026-11-13 14:30:00 (your own date and time) on the bench to correct it; it then keeps time through power cuts on the coin cell.",
+      "The popular ZS-042 module has a resistor and diode that trickle-charge the coin cell from VCC, meant for a rechargeable LIR2032. Never let it charge a normal CR2032. Powered from 3.3 V, as here, the diode drop leaves too little voltage to charge a 3 V cell, so a CR2032 is safe. If you run the module from 5 V with a CR2032, remove the charging diode or its resistor first, or fit an LIR2032.",
+      "The DS3231 is accurate to about two seconds a day without any network, because it measures its own temperature and corrects its crystal. That temperature is what the sketch prints; it is the chip's, roughly the room's, updated every 64 seconds.",
+      "Alarm 1 fires once a day at the time you set. The sketch asks the clock over I2C whether it has fired, so the SQW pin can stay unconnected; wire it to a GPIO only if you want an interrupt or to wake from deep sleep.",
+      "DS3231 modules usually also carry an AT24C32 memory chip at address 0x57. The I2C scanner project will show both.",
+    ],
+    sample: [
+      "date 2026-11-13",
+      "commands: set YYYY-MM-DD HH:MM:SS, alarm HH:MM, alarm off, now",
+      "14:30:00  temp_c = 23.50",
+      "14:30:01  temp_c = 23.50",
+      "14:30:02  temp_c = 23.50",
+      "alarm set for 14:31 every day",
+      "14:30:03  temp_c = 23.75",
+      "14:30:04  temp_c = 23.75",
+      "14:30:05  temp_c = 23.75",
+      "ALARM 14:31",
+      "14:31:01  temp_c = 23.75",
+    ],
+  },
+  {
+    id: "tft-display", needs: [["tft"]], name: "Colour TFT dashboard", level: "Intermediate", mins: 25, tags: ["display"],
+    sum: "Drive a 2 inch ST7789 colour screen: a sweeping colour gauge, a bouncing ball and a live frame-rate counter, with no sensors or Wi-Fi needed.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SCK: "18", MOSI: "23", CS: "5", DC: "16", RST: "17", BL: "4" },
+      esp32s3: { SCK: "12", MOSI: "11", CS: "10", DC: "9", RST: "8", BL: "7" },
+      esp32c3: { SCK: "4", MOSI: "6", CS: "7", DC: "10", RST: "1", BL: "3" },
+    },
+    pins: ["3V3", "GND", "%SCK%", "%MOSI%", "%CS%", "%DC%", "%RST%", "%BL%"],
+    libs: ["Adafruit ST7735 and ST7789 Library", "Adafruit GFX Library", "SPI (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "2.0 inch 320 by 240 ST7789 SPI TFT display", BOM.tftSt7789],
+      [8, "Jumper wires"],
+    ],
+    wiring: [
+      ["TFT VCC", "3V3", ""],
+      ["TFT GND", "GND", ""],
+      ["TFT SCL", "GPIO %SCK%", "SPI clock, despite the name"],
+      ["TFT SDA", "GPIO %MOSI%", "SPI data, despite the name"],
+      ["TFT RST", "GPIO %RST%", "Labelled RES on some boards"],
+      ["TFT DC", "GPIO %DC%", "Labelled RS or A0 on some boards"],
+      ["TFT CS", "GPIO %CS%", ""],
+      ["TFT BLK", "GPIO %BL%", "Backlight, also labelled BL or LED. High is on"],
+    ],
+    code: R`// ST7789 colour TFT dashboard: a sweeping gauge, a bouncing ball and the frame rate.
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7789.h>
+
+// 2.0 inch boards are 240 by 320. For 1.3 and 1.54 inch boards set both to 240.
+const int TFT_W = 240, TFT_H = 320;
+const int SCK_PIN = %SCK%, MOSI_PIN = %MOSI%, CS_PIN = %CS%, DC_PIN = %DC%, RST_PIN = %RST%, BL_PIN = %BL%;
+
+Adafruit_ST7789 tft(CS_PIN, DC_PIN, RST_PIN);  // hardware SPI, on the pins given to SPI.begin
+
+const int GX = TFT_W / 2, GY = 120, GR = 90;  // gauge centre and radius
+const int TOP = GY + 34, BOTTOM = TFT_H - 26;  // the ball's box
+const int R = 10;                              // ball radius
+
+float gaugeValue = 0, gaugeStep = 0.008f;
+int needleX = GX, needleY = GY - GR + 16;
+float ballX = 60, ballY = TOP + 40, vx = 2.6f, vy = 1.9f;
+int lastBallX = 60, lastBallY = TOP + 40;
+uint32_t frames = 0, lastSecond = 0;
+float fps = 0;
+
+uint16_t gaugeColour(float f) {  // green at 0, red at 1
+  return tft.color565((uint8_t)(255 * f), (uint8_t)(255 * (1 - f)), 40);
+}
+
+void drawFace() {
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
+  tft.setTextSize(2);
+  tft.setCursor(8, 8);
+  tft.print("ESP32 Bench");
+  for (int a = 0; a <= 180; a += 5) {
+    float rad = radians(180.0f + a);
+    uint16_t c = gaugeColour(a / 180.0f);
+    for (int w = 0; w < 4; w++) {
+      tft.drawLine(GX + cosf(rad) * (GR - 10 + w), GY + sinf(rad) * (GR - 10 + w),
+                   GX + cosf(rad) * (GR + w), GY + sinf(rad) * (GR + w), c);
+    }
+  }
+  tft.drawRect(0, TOP - 2, TFT_W, BOTTOM - TOP + 4, ST77XX_WHITE);
+}
+
+void drawNeedle() {
+  tft.drawLine(GX, GY, needleX, needleY, ST77XX_BLACK);  // rub out the old one
+  float rad = radians(180.0f + gaugeValue * 180.0f);
+  needleX = GX + cosf(rad) * (GR - 16);
+  needleY = GY + sinf(rad) * (GR - 16);
+  tft.drawLine(GX, GY, needleX, needleY, gaugeColour(gaugeValue));
+  tft.fillCircle(GX, GY, 5, ST77XX_WHITE);
+  tft.setTextSize(3);
+  tft.setCursor(GX - 27, GY + 6);
+  tft.printf("%3d", (int)(gaugeValue * 100));
+}
+
+void drawBall() {
+  ballX += vx;
+  ballY += vy;
+  if (ballX < R + 1 || ballX > TFT_W - R - 2) vx = -vx;
+  if (ballY < TOP + R + 1 || ballY > BOTTOM - R - 1) vy = -vy;
+  tft.fillCircle(lastBallX, lastBallY, R, ST77XX_BLACK);
+  lastBallX = (int)ballX;
+  lastBallY = (int)ballY;
+  tft.fillCircle(lastBallX, lastBallY, R, tft.color565(255, 180, (frames * 3) & 255));
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BL_PIN, OUTPUT);
+  digitalWrite(BL_PIN, HIGH);  // backlight on
+  SPI.begin(SCK_PIN, -1, MOSI_PIN, CS_PIN);  // before init, so the display uses these pins
+  tft.init(TFT_W, TFT_H);
+  tft.setSPISpeed(40000000);
+  tft.setRotation(0);
+  drawFace();
+  Serial.printf("TFT ready: %dx%d ST7789\n", TFT_W, TFT_H);
+}
+
+void loop() {
+  gaugeValue += gaugeStep;
+  if (gaugeValue > 1 || gaugeValue < 0) {
+    gaugeStep = -gaugeStep;
+    gaugeValue += gaugeStep;
+  }
+  drawNeedle();
+  drawBall();
+  frames++;
+
+  uint32_t now = millis();
+  if (now - lastSecond >= 1000) {
+    fps = frames * 1000.0f / (now - lastSecond);
+    frames = 0;
+    lastSecond = now;
+    tft.setTextSize(2);
+    tft.setCursor(8, TFT_H - 20);
+    tft.printf("%5.1f fps  up %lus   ", fps, (unsigned long)(now / 1000));
+    Serial.printf("fps = %.1f, uptime_s = %lu\n", fps, (unsigned long)(now / 1000));
+  }
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The pins called SCL and SDA on these boards are SPI clock and data, not I2C. They go to the board's SPI clock and MOSI pins.",
+      "Set TFT_W and TFT_H to your screen: 240 by 320 for 2.0 inch boards, 240 by 240 for 1.3 and 1.54 inch ones. Many 1.3 inch boards have no CS pin; tie nothing and pass -1 as CS in the constructor.",
+      "If the colours look like a photo negative, add tft.invertDisplay(false) after tft.init. IPS panels differ.",
+      "The display runs on 3.3 V logic, so it connects straight to the ESP32. Boards with a regulator are also happy on 5 V VCC, but the signals stay 3.3 V either way.",
+      "This sketch uses Adafruit's ST7789 library because it works straight from the Library Manager. TFT_eSPI is faster but needs its own setup file edited for every board and pin layout, which does not suit a copy-and-paste sketch.",
+      "The frame rate goes to the bench once a second, so the plotter charts it. Drawing only what moved, as this sketch does, is what keeps it smooth.",
+    ],
+    sample: [
+      "TFT ready: 240x320 ST7789",
+      "fps = 38.2, uptime_s = 1",
+      "fps = 41.7, uptime_s = 2",
+      "fps = 41.6, uptime_s = 3",
+      "fps = 41.8, uptime_s = 4",
+      "fps = 41.5, uptime_s = 5",
+      "fps = 41.7, uptime_s = 6",
+    ],
+  },
+  {
+    id: "sd-logger", needs: [["sdcard"], ["ldr"]], name: "MicroSD data logger", level: "Intermediate", mins: 25, tags: ["sensors"],
+    sum: "Log readings to a microSD card as a CSV file you can open in a spreadsheet: light level, free memory and, on the S3 and C3, the chip's own temperature. A new file every boot.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SCK: "18", MISO: "19", MOSI: "23", CS: "5", LDR: "34" },
+      esp32s3: { SCK: "12", MISO: "13", MOSI: "11", CS: "10", LDR: "1" },
+      esp32c3: { SCK: "4", MISO: "5", MOSI: "6", CS: "7", LDR: "0" },
+    },
+    pins: ["5V", "3V3", "GND", "%SCK%", "%MISO%", "%MOSI%", "%CS%", "%LDR%"],
+    libs: ["SD (built in)", "SPI (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "MicroSD card module", BOM.microSdBreakout],
+      [1, "MicroSD card, 32 GB or smaller, formatted FAT32"],
+      [1, "Photoresistor", BOM.photocell],
+      [1, "10 kΩ resistor, for the light sensor"],
+      [9, "Jumper wires"],
+    ],
+    wiring: [
+      ["SD module VCC", "5V", "For modules with a regulator. A bare 3.3 V breakout without one needs 3.3 V instead: see the notes"],
+      ["SD module GND", "GND", ""],
+      ["SD module SCK", "GPIO %SCK%", ""],
+      ["SD module MOSI", "GPIO %MOSI%", ""],
+      ["SD module MISO", "GPIO %MISO%", ""],
+      ["SD module CS", "GPIO %CS%", ""],
+      ["Photoresistor", "3V3 to GPIO %LDR%", "One leg to 3V3, the other to the pin"],
+      ["10 kΩ resistor", "GPIO %LDR% to GND", "With the photoresistor, brighter light gives a higher reading"],
+    ],
+    code: R`// Log readings to a microSD card as CSV: a new file each boot, saved every 30 s.
+// Type in the bench: dump (print the current file) | files (list the card)
+#include <SPI.h>
+#include <SD.h>
+#include "soc/soc_caps.h"
+
+const int SCK_PIN = %SCK%, MISO_PIN = %MISO%, MOSI_PIN = %MOSI%, CS_PIN = %CS%;
+const int LIGHT_PIN = %LDR%;   // photoresistor and 10 kOhm divider, an ADC1 pin
+const uint32_t LOG_MS = 5000;  // one row every 5 s
+const uint32_t FLUSH_EVERY = 6;  // save to the card every 6 rows, so 30 s
+
+File logFile;
+char path[16] = "";
+bool cardOk = false;
+uint32_t lastLog = 0, lastTry = 0, rows = 0;
+String line;
+
+float chipTemp() {
+#if SOC_TEMP_SENSOR_SUPPORTED
+  return temperatureRead();  // the chip's own die temperature, warmer than the room
+#else
+  return NAN;  // the classic ESP32 has no usable internal temperature sensor
+#endif
+}
+
+bool openCard() {
+  SD.end();
+  if (!SD.begin(CS_PIN, SPI, 4000000)) {
+    Serial.println("SD card not found: check the wiring, the CS pin and that the card is FAT32");
+    return false;
+  }
+  for (int i = 1; i < 1000; i++) {  // the first free name: /log001.csv, /log002.csv...
+    snprintf(path, sizeof path, "/log%03d.csv", i);
+    if (!SD.exists(path)) break;
+  }
+  logFile = SD.open(path, FILE_WRITE);
+  if (!logFile) {
+    Serial.printf("could not create %s: the card may be full or write-protected\n", path);
+    return false;
+  }
+  logFile.println("ms,light,heap_free,chip_temp_c");
+  logFile.flush();
+  Serial.printf("card %llu MB, %llu MB free\n", SD.totalBytes() / 1048576ULL,
+                (SD.totalBytes() - SD.usedBytes()) / 1048576ULL);
+  Serial.printf("logging to %s every %lu s\n", path, (unsigned long)(LOG_MS / 1000));
+  rows = 0;
+  return true;
+}
+
+void dumpFile() {
+  if (!cardOk) return;
+  logFile.close();
+  File f = SD.open(path, FILE_READ);
+  Serial.printf("--- %s ---\n", path);
+  while (f && f.available()) Serial.write(f.read());
+  f.close();
+  Serial.println("--- end ---");
+  logFile = SD.open(path, FILE_APPEND);
+}
+
+void listFiles() {
+  if (!cardOk) return;
+  File root = SD.open("/");
+  for (File f = root.openNextFile(); f; f = root.openNextFile()) {
+    Serial.printf("%s  %lu bytes\n", f.name(), (unsigned long)f.size());
+    f.close();
+  }
+  root.close();
+}
+
+void setup() {
+  Serial.begin(115200);
+  analogReadResolution(12);
+  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CS_PIN);
+  cardOk = openCard();
+  Serial.println("commands: dump, files");
+}
+
+void loop() {
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      line.trim();
+      if (line == "dump") dumpFile();
+      else if (line == "files") listFiles();
+      else if (line.length()) Serial.println("commands: dump, files");
+      line = "";
+    } else if (line.length() < 20) {
+      line += c;
+    }
+  }
+
+  if (!cardOk) {  // card missing or removed: try again every 10 s
+    if (millis() - lastTry > 10000) {
+      lastTry = millis();
+      cardOk = openCard();
+    }
+    return;
+  }
+  if (millis() - lastLog < LOG_MS) return;
+  lastLog = millis();
+
+  int light = analogRead(LIGHT_PIN);
+  uint32_t heap = ESP.getFreeHeap();
+  float temp = chipTemp();
+  char tempText[12] = "";
+  if (!isnan(temp)) snprintf(tempText, sizeof tempText, "%.1f", temp);
+
+  char row[64];
+  int n = snprintf(row, sizeof row, "%lu,%d,%lu,%s", (unsigned long)millis(), light, (unsigned long)heap, tempText);
+  if (logFile.println(row) < (size_t)n) {
+    Serial.println("write failed: the card is full or was removed");
+    logFile.close();
+    cardOk = false;
+    return;
+  }
+  // Rows wait in memory until a flush writes them to the card. Pulling the card or
+  // the power loses at most the rows since the last flush; flushing every row would
+  // wear the card and slow the logging.
+  if (++rows % FLUSH_EVERY == 0) logFile.flush();
+  if (isnan(temp)) Serial.printf("light = %d, heap_free = %lu\n", light, (unsigned long)heap);
+  else Serial.printf("light = %d, heap_free = %lu, chip_temp_c = %.1f\n", light, (unsigned long)heap, temp);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "SD modules come in two kinds. The common blue module with a small three-pin regulator chip and a level-shifter chip wants 5 V on VCC: at 3.3 V its regulator leaves the card underpowered. A bare 3.3 V breakout has no regulator and must go to 3V3, never 5 V. Adafruit's breakout works on either.",
+      "Format the card FAT32. Cards larger than 32 GB come as exFAT and usually need reformatting with a FAT32 tool first.",
+      "Each boot starts a new file, /log001.csv, /log002.csv and so on, so restarts never overwrite old data. Send files on the bench to list them and dump to print the current one.",
+      "Rows are saved to the card every 30 seconds. Unplugging the power or the card can lose up to the last 30 seconds; the rest of the file is safe. That keeps card wear down compared with saving every row.",
+      "The chip temperature column only fills on the ESP32-S3 and ESP32-C3, which have an internal sensor. It reads the chip's die, several degrees above the room. The classic ESP32 leaves the column empty.",
+      "If the card is removed or fills up, the sketch says so on the bench and tries again every 10 seconds, starting a new file when it succeeds.",
+      "Open the file in a spreadsheet: the ms column is milliseconds since boot. For real dates, add the DS3231 real-time clock project's clock and log its time instead.",
+    ],
+    sample: [
+      "card 15193 MB, 15187 MB free",
+      "logging to /log004.csv every 5 s",
+      "commands: dump, files",
+      "light = 1834, heap_free = 252316, chip_temp_c = 38.4",
+      "light = 1829, heap_free = 252316, chip_temp_c = 38.6",
+      "light = 2410, heap_free = 252316, chip_temp_c = 38.6",
+      "light = 2398, heap_free = 252316, chip_temp_c = 38.7",
+      "light = 1102, heap_free = 252316, chip_temp_c = 38.7",
     ],
   },
   ...PROBEHARBOR_SKETCHES,
