@@ -26,7 +26,7 @@ Projects live in `src/data/projects.ts`, boards in `src/data/boards.ts`, errors 
 current Arduino-ESP32 3.x core. Only add a `verified` entry for something that
 actually ran on hardware, and say which board and firmware.
 
-Pull requests deploy to esp32bench.dev automatically after they are merged.
+Every pull request runs the full test suite (first-time contributors wait for a maintainer to approve the run). Merged pull requests deploy to esp32bench.dev automatically.
 
 By contributing you agree that your code is released under MIT and your written
 content under CC BY 4.0, as described in [LICENSE](LICENSE).

@@ -1,13 +1,15 @@
 name: Build
 
-# Installs dependencies and builds the site on every push.
-# If the repository has no lockfile yet, the first run commits one.
+# Installs dependencies, builds the site and runs every test suite on every push
+# and on pull requests, including ones from forks. It only reads the repository
+# and uses no secrets, so it is safe to run on other people's changes.
 on:
   push:
+  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-${{ github.ref }}
@@ -27,17 +29,6 @@ jobs:
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
           npm ls astro esp-web-tools --depth=0
-
-      - name: Commit the lockfile if it is new
-        if: github.event_name == 'push'
-        run: |
-          if [ -n "$(git status --porcelain package-lock.json)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package-lock.json
-            git commit -m "Add package-lock.json [skip ci]"
-            git push
-          fi
 
       - name: Build
         run: |
