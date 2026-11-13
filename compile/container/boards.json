@@ -1,0 +1,75 @@
+{
+  "platform": "https://github.com/pioarduino/platform-espressif32/releases/download/stable/platform-espressif32.zip",
+  "boards": {
+    "esp32": {
+      "pio": "esp32dev",
+      "chip": "esp32",
+      "bootloader": "0x1000"
+    },
+    "esp32s3": {
+      "pio": "esp32-s3-devkitc-1",
+      "chip": "esp32s3",
+      "bootloader": "0x0"
+    },
+    "esp32c3": {
+      "pio": "esp32-c3-devkitm-1",
+      "chip": "esp32c3",
+      "bootloader": "0x0"
+    },
+    "esp32s2": {
+      "pio": "esp32-s2-saola-1",
+      "chip": "esp32s2",
+      "bootloader": "0x1000"
+    },
+    "esp32c6": {
+      "pio": "esp32-c6-devkitc-1",
+      "chip": "esp32c6",
+      "bootloader": "0x0"
+    },
+    "xiao-esp32c3": {
+      "pio": "seeed_xiao_esp32c3",
+      "chip": "esp32c3",
+      "bootloader": "0x0"
+    },
+    "xiao-esp32s3": {
+      "pio": "seeed_xiao_esp32s3",
+      "chip": "esp32s3",
+      "bootloader": "0x0"
+    },
+    "esp32-cam": {
+      "pio": "esp32cam",
+      "chip": "esp32",
+      "bootloader": "0x1000"
+    }
+  },
+  "warm_includes": [
+    "Wire.h",
+    "SPI.h",
+    "WiFi.h",
+    "WiFiClientSecure.h",
+    "HTTPClient.h",
+    "WebServer.h",
+    "DNSServer.h",
+    "ESPmDNS.h",
+    "ArduinoOTA.h",
+    "Preferences.h",
+    "esp_now.h",
+    "DHT.h",
+    "Adafruit_Sensor.h",
+    "Adafruit_GFX.h",
+    "Adafruit_SSD1306.h",
+    "Adafruit_NeoPixel.h",
+    "Adafruit_BME280.h",
+    "Adafruit_MAX31855.h",
+    "max6675.h",
+    "PubSubClient.h",
+    "OneWire.h",
+    "DallasTemperature.h",
+    "WiFiManager.h",
+    "ESP32Servo.h",
+    "GxEPD2_BW.h",
+    "ArduinoJson.h",
+    "LiquidCrystal.h",
+    "RF24.h"
+  ]
+}
