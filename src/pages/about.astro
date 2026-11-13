@@ -1,7 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import { link } from "../lib/paths";
-import { PROBEHARBOR } from "../lib/site";
+import { PROBEHARBOR, SITE } from "../lib/site";
 import { AFFILIATE_DISCLOSURE } from "../lib/shop";
 import { PROJECTS } from "../data/projects";
 
@@ -61,6 +61,15 @@ const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
       <a href={PROBEHARBOR.repo}>GitHub</a>.
     </p>
 
+    <h2>Source and contributing</h2>
+    <p>
+      ESP32 Bench is open source: the site, the sketches, the report API, the uptime monitor and the hardware lab
+      runner are all in the <a href={SITE.repo}>esp32-bench repository</a> on GitHub. Corrections, new projects and
+      build reports are welcome as issues or pull requests; the repository's CONTRIBUTING guide explains how. Comments
+      on the site's pages live separately, in the
+      <a href={`https://github.com/${SITE.giscus.repo}/discussions`}>esp32-bench-community</a> discussions.
+    </p>
+
     <h2>License</h2>
     <p>
       The code, including every sketch on the site, is MIT licensed. The written content and data are licensed
@@ -78,11 +87,25 @@ const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
     <h2>Contact and corrections</h2>
     <p>
       Found a wrong pin, a broken link or a bug? Every page has a "Report a mistake on this page" link at the bottom.
-      Built a project? Its page has a link to send a build report; working reports become the hardware checks shown on
-      that page. Anything else, use the <a href={link("/report/?kind=message")}>contact form</a>. Everything sent
-      through these forms goes by email to the person who runs the site and is never published. The form uses
-      Cloudflare Turnstile to keep bots out.
+      Built a project? Its page has a link to send a build report. Anything else, use the
+      <a href={link("/report/?kind=message")}>contact form</a>. Everything sent through these forms goes by email to
+      the person who runs the site. A build report only appears on its project page, under Community builds, if you
+      tick "Publish it" and the site owner approves it; your email address is never shown. The form uses Cloudflare
+      Turnstile to keep bots out.
     </p>
+
+    {
+      SITE.giscus.enabled && SITE.giscus.categoryId && (
+        <>
+          <h2>Comments</h2>
+        <p>
+          Project and error pages have a discussion section powered by giscus, which stores comments as GitHub
+          Discussions in a public repository. It loads from giscus.app when you scroll to it, and you sign in with GitHub
+          to comment. Nothing else on the site needs an account.
+        </p>
+        </>
+      )
+    }
 
     <p class="when">See <a href={link("/changes/")}>what's new</a> for the release history.</p>
   </section>

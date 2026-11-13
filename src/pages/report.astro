@@ -69,6 +69,20 @@ const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
         </label>
       </div>
 
+      <fieldset class="publish" data-for="build">
+        <legend>Publish it?</legend>
+        <label class="check">
+          <input type="checkbox" name="publish" />
+          Show this build report on the project page, so others know it works on this board
+        </label>
+        <label>
+          Name to show <span class="opt">optional, leave empty to appear as Anonymous</span>
+          <input name="publicName" maxlength="40" autocomplete="nickname" />
+        </label>
+        <p class="opt">Published reports show the board, core version, result, notes and serial output, after a check by the
+        person who runs the site. Your email address is never shown.</p>
+      </fieldset>
+
       <label class="wide" data-for="correction">
         Page
         <input name="page" maxlength="300" placeholder="https://esp32bench.dev/..." />
@@ -126,6 +140,10 @@ const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
   .kinds legend { font: 600 0.72rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
   .kinds label { flex-direction: row; align-items: center; gap: 6px; font-size: 0.95rem; }
   .human { min-height: 65px; }
+  .publish { border: 1px solid var(--line); margin: 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .publish legend { font: 600 0.72rem/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px; }
+  .reportform label.check { flex-direction: row; align-items: flex-start; gap: 8px; font-weight: 400; }
+  .reportform label.check input { margin-top: 4px; }
   .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
   .status-msg { font-size: 0.92rem; font-weight: 500; }
   .status-msg.bad { color: var(--accent); }

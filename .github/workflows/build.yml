@@ -1,13 +1,15 @@
 name: Build
 
-# Installs dependencies and builds the site on every push.
-# If the repository has no lockfile yet, the first run commits one.
+# Installs dependencies, builds the site and runs every test suite on every push
+# and on pull requests, including ones from forks. It only reads the repository
+# and uses no secrets, so it is safe to run on other people's changes.
 on:
   push:
+  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: build-${{ github.ref }}
@@ -28,17 +30,6 @@ jobs:
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
           npm ls astro esp-web-tools --depth=0
 
-      - name: Commit the lockfile if it is new
-        if: github.event_name == 'push'
-        run: |
-          if [ -n "$(git status --porcelain package-lock.json)" ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package-lock.json
-            git commit -m "Add package-lock.json [skip ci]"
-            git push
-          fi
-
       - name: Build
         run: |
           set -o pipefail
@@ -57,16 +48,34 @@ jobs:
             echo "::error title=astro build failed::$msg"
           fi
 
+      - name: Test the wiring diagrams and kit cards against every project
+        run: |
+          DUMP_WIRING=1 DUMP_KIT=1 npx astro build > /dev/null
+          node --experimental-strip-types tests/wiring-diagram.test.ts
+          node --experimental-strip-types tests/kit.test.ts
+
+      - name: Type check
+        run: |
+          npm install --no-save @astrojs/check typescript@6
+          npx astro check
+
       - name: Test the site's libraries
         run: |
           node --experimental-strip-types tests/share.test.ts
+          node --experimental-strip-types tests/previews.test.ts
+          node --experimental-strip-types tests/lab-expect.test.ts
+          node --experimental-strip-types tests/settings.test.ts
+          node --experimental-strip-types tests/editor.test.ts
+          bash tests/settings-snippet/run.sh
           node scripts/test-tools.mjs
           node --experimental-strip-types scripts/test-search.mjs
 
       - name: Test the report API and the monitor
         run: |
-          (cd api && npm ci && node --experimental-strip-types test/report.test.ts && node --experimental-strip-types test/turnstile.test.ts)
+          (cd api && npm ci && node --experimental-strip-types test/report.test.ts && node --experimental-strip-types test/turnstile.test.ts && node --experimental-strip-types test/builds.test.ts && node --experimental-strip-types test/oidc.test.ts && node --experimental-strip-types test/lab.test.ts)
+          (cd lab && pip install -q -r requirements.txt && python3 -m unittest discover -s tests)
           (cd monitor && npm ci && node --experimental-strip-types test/checks.test.ts)
+          (cd compile && npm ci && node --experimental-strip-types test/shared.test.ts)
 
       - name: List built pages
         run: find dist -name '*.html' | sort

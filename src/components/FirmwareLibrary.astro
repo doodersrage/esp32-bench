@@ -1,0 +1,48 @@
+---
+// "Flash it from the browser" for a library project, from the prebuilt firmware
+// at SITE.fwBase. Rendered hidden; a small script fetches the library's index
+// and shows the block only when this project has images (the copy-the-sketch
+// route stays either way). The settings worker inserts its form right after it.
+import Flasher from "./Flasher.astro";
+import { SITE } from "../lib/site";
+
+interface Props {
+  projectId: string;
+  /** Board ids the project supports, in page order, for the per-board picker */
+  boards: { id: string; name: string }[];
+}
+
+const { projectId, boards } = Astro.props;
+const manifest = `${SITE.fwBase}/${projectId}/manifest.json`;
+---
+
+<div class="stack tight fwlib" id="fwlib" data-fw-base={SITE.fwBase} data-project={projectId} hidden>
+  <h2 class="h3">Flash it from the browser</h2>
+  <p>
+    No Arduino IDE needed: this is the sketch above, already compiled. Plug the board in and press the button.{" "}
+    <span data-fw-built></span>
+  </p>
+  <Flasher manifest={manifest} version="" families="" />
+  <label class="fwpick" data-fw-pick hidden>
+    <span class="swlabel">Board</span>
+    <select data-fw-select>
+      <option value="">Detect the chip (DevKit boards)</option>
+      {boards.map((b) => <option value={b.id}>{b.name}</option>)}
+    </select>
+  </label>
+  <p class="cap left">
+    Prebuilt firmware uses the sketch's default settings. Flashing erases what is on the board. Afterwards, open the
+    bench to watch it run.
+  </p>
+</div>
+<!-- settings form -->
+
+<style>
+  .fwlib { padding: 14px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--ok); }
+  .fwpick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.9rem; }
+  .fwpick select { padding: 7px 8px; border: 1px solid var(--line); background: var(--panel); border-radius: 2px; min-width: 0; max-width: 100%; }
+</style>
+
+<script>
+  import "../scripts/firmware-library.ts";
+</script>

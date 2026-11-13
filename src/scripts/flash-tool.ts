@@ -2,6 +2,7 @@
 // Web Serial, write them at their offsets, reset. esptool-js loads only when
 // the user connects, so the page itself stays light.
 import type { ESPLoader, Transport } from "esptool-js";
+import { closeSession, openSession, writeAndReset, type FlashSession } from "../lib/esp-flash";
 import { ROLE_LABEL, bootloaderOffset, checkPlan, guessRole, hex, parseOffset, type PlanFile, type Role } from "../lib/flash-plan";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
@@ -25,8 +26,8 @@ interface Entry extends PlanFile {
   data: Uint8Array;
 }
 let files: Entry[] = [];
+let session: FlashSession | null = null;
 let loader: ESPLoader | null = null;
-let transport: Transport | null = null;
 let chipName = "";
 let bootOffset: number | null = null;
 let flashBytes: number | undefined;
@@ -154,12 +155,11 @@ async function connect() {
   try {
     const port = await serialApi!.requestPort();
     log("Loading the flasher...");
-    const { ESPLoader, Transport } = await import("esptool-js");
-    transport = new Transport(port, false);
-    loader = new ESPLoader({ transport, baudrate: Number(baud.value), terminal, debugLogging: false });
-    const description = await loader.main();
-    chipName = loader.chip.CHIP_NAME;
-    bootOffset = typeof loader.chip.BOOTLOADER_FLASH_OFFSET === "number" ? loader.chip.BOOTLOADER_FLASH_OFFSET : bootloaderOffset(chipName);
+    session = await openSession(port, Number(baud.value), terminal);
+    loader = session.loader;
+    const description = session.description;
+    chipName = session.chipName;
+    bootOffset = session.bootOffset;
     const [features, crystal, mac, size] = await Promise.all([
       loader.chip.getChipFeatures(loader).catch(() => [] as string[]),
       loader.chip.getCrystalFreq(loader).catch(() => 0),
@@ -188,41 +188,26 @@ async function connect() {
 }
 
 async function cleanup() {
-  try {
-    await transport?.disconnect();
-  } catch {
-    // Already closed.
-  }
+  await closeSession(session);
+  session = null;
   loader = null;
-  transport = null;
 }
 
 async function flash() {
-  if (!loader) return;
+  if (!session) return;
   if (eraseFirst.checked && !confirmErase()) return;
   busy = true;
   render();
   const fileArray = files.map((f) => ({ data: f.data, address: resolvedOffset(f) ?? 0 }));
-  const total = fileArray.reduce((n, f) => n + f.data.length, 0);
-  const done = new Array(fileArray.length).fill(0);
   progress.hidden = false;
   try {
-    await loader.writeFlash({
-      fileArray,
-      flashSize: "keep",
-      flashMode: "keep",
-      flashFreq: "keep",
+    await writeAndReset(session, fileArray, {
       eraseAll: eraseFirst.checked,
-      compress: true,
-      reportProgress: (index, written, size) => {
-        done[index] = (written / size) * fileArray[index].data.length;
-        const pct = Math.min(100, Math.round((done.reduce((a, b) => a + b, 0) / total) * 100));
+      onProgress: (pct, index) => {
         progbar.style.width = `${pct}%`;
         progtext.textContent = `${pct}%: writing ${files[index].name} at ${hex(fileArray[index].address)}`;
       },
     });
-    progtext.textContent = "Done. Resetting the board...";
-    await loader.after("hard_reset");
     log("Flashed and reset. Open the bench to watch it start.");
     progtext.textContent = "Done. The board has been reset and is running the new firmware.";
     await cleanup();

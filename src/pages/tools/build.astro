@@ -1,0 +1,31 @@
+---
+import Base from "../../layouts/Base.astro";
+import SketchBuilder from "../../components/SketchBuilder.astro";
+import { link } from "../../lib/paths";
+import { BOARDS } from "../../data/boards";
+import { PROJECTS, forBoard } from "../../data/projects";
+
+const blink = PROJECTS.find((p) => p.id === "blink");
+const starter = (blink && forBoard(blink, "esp32").code) ?? "void setup() {\n}\n\nvoid loop() {\n}\n";
+const boards = BOARDS.map((b) => ({ id: b.id, name: b.name }));
+---
+
+<Base
+  title="Build an ESP32 sketch online: compile and flash without the Arduino IDE"
+  current="tools"
+  image="/og/tools/build.png"
+  description="Paste an Arduino sketch, pick an ESP32, S2, S3, C3 or C6 board and the libraries it uses, compile it online with the Arduino-ESP32 core, see errors by line, and flash it from Chrome or Edge."
+>
+  <section class="view">
+    <a class="back" href={link("/tools/")}>← All tools</a>
+    <div class="stack tight">
+      <h1 class="h2">Build a sketch</h1>
+      <p class="lede">
+        Paste or write an Arduino sketch, pick your board and the libraries it includes, and press Build. The compiler
+        answers with errors pointing at the line, or with firmware you can flash from this page or download. Every
+        project in the library has the same editor under its sketch.
+      </p>
+    </div>
+    <SketchBuilder mode="tool" boards={boards} starter={starter} />
+  </section>
+</Base>

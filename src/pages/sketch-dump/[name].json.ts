@@ -12,7 +12,7 @@ export const GET: APIRoute = () =>
   new Response(
     JSON.stringify(
       PROJECTS.filter((p) => p.code !== undefined).flatMap((p) =>
-        boardsOf(p).map((board) => ({ id: p.id, board, libs: p.libs, code: forBoard(p, board).code })),
+        boardsOf(p).map((board) => ({ id: p.id, name: p.name, board, libs: p.libs, settings: p.settings, code: forBoard(p, board).code })),
       ),
     ),
     { headers: { "Content-Type": "application/json" } },

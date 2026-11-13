@@ -13,6 +13,12 @@ export interface Report {
 	notes: string;
 	name: string;
 	email: string;
+	/** Project id from the site, e.g. "dht22"; build reports only */
+	projectId: string;
+	/** The sender agreed to publish this build report on the project page */
+	publish: boolean;
+	/** Name to show with a published report; "" shows as Anonymous */
+	publicName: string;
 }
 
 const LIMITS: Record<keyof Report, number> = {
@@ -26,6 +32,9 @@ const LIMITS: Record<keyof Report, number> = {
 	notes: 4000,
 	name: 80,
 	email: 120,
+	projectId: 60,
+	publish: 5,
+	publicName: 40,
 };
 
 /** Minimum time between showing the form and sending it; bots are faster. */
@@ -53,11 +62,14 @@ export function checkReport(body: unknown, now: number): Checked {
 
 	const report = { kind } as Report;
 	for (const key of Object.keys(LIMITS) as (keyof Report)[]) {
-		if (key === "kind") continue;
+		if (key === "kind" || key === "publish") continue;
 		const value = str(b[key]);
 		if (value.length > LIMITS[key]) return { ok: false, status: 400, error: `The ${key} field is too long.` };
-		report[key] = value;
+		(report as unknown as Record<string, string>)[key] = value;
 	}
+	report.publish = kind === "build" && b.publish === true;
+	if (report.projectId && !/^[a-z0-9-]{1,60}$/.test(report.projectId)) return { ok: false, status: 400, error: "Unknown project." };
+	if (report.publish && !report.projectId) return { ok: false, status: 400, error: "Choose a project to publish a build report." };
 	if (report.email && !EMAIL_RE.test(report.email)) return { ok: false, status: 400, error: "That email address does not look right." };
 	if (kind === "build" && (!report.project || !report.board || !report.result)) {
 		return { ok: false, status: 400, error: "Say which project, which board and whether it worked." };
@@ -82,6 +94,7 @@ export function textFor(r: Report, meta: { country: string; agent: string }): st
 		["Board", r.board],
 		["Core version", r.core],
 		["Result", r.result],
+		["Publish", r.kind === "build" ? (r.publish ? `yes, as ${r.publicName || "Anonymous"}` : "no") : ""],
 		["From", [r.name, r.email].filter(Boolean).join(" ")],
 		["Country", meta.country],
 		["Browser", meta.agent.slice(0, 200)],

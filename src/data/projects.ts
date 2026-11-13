@@ -1,8 +1,10 @@
 import type { BoardId } from "./boards";
 import { BOM } from "../lib/shop";
 import { PROBEHARBOR_SKETCHES } from "./probeharbor";
+import { WIFI, benchSettings, type Setting } from "./bench-settings";
+export type { Setting } from "./bench-settings";
 
-export type Tag = "motion" | "no-parts" | "sensors" | "display" | "lights" | "wifi" | "bluetooth" | "power" | "flash" | "probeharbor";
+export type Tag = "games" | "motion" | "no-parts" | "sensors" | "display" | "lights" | "wifi" | "bluetooth" | "power" | "flash" | "probeharbor";
 
 /** A check done on real hardware. `board` says which board it was done on. */
 export interface Verified {
@@ -50,6 +52,19 @@ export interface Project {
   flash?: { manifest: string; version: string; after: string[] };
   /** Show the form that sends ProbeHarbor settings to the board over USB */
   setup?: "probeharbor";
+  /**
+   * Settings the sketch reads from flash (its "ESP32 Bench settings block"), so
+   * prebuilt firmware works without editing code. The project page's settings
+   * form sends them over USB. Keys must match the sketch's BENCH_KEYS.
+   */
+  settings?: Setting[];
+  /**
+   * ProbeHarbor projects written here rather than copied from ProbeHarbor:
+   * "reads" shows readings from a share link, "sends" posts to a push device.
+   */
+  probeharbor?: "reads" | "sends";
+  /** A second sketch for another board, such as the Uno end of a radio link */
+  extraCode?: { title: string; board: string; code: string };
   /** Checks done on real hardware */
   verified?: Verified[];
   /** Things that have only been compiled or are still untested */
@@ -77,6 +92,23 @@ export const DRAWER = {
   servo: "Hobby servo (SG90 or similar)",
   relay: "Relay module",
   epaper: "SPI e-paper display",
+  led: "LEDs and 220 Ω resistors",
+  buzzer: "Passive buzzer or piezo",
+  pot: "10 kΩ potentiometers",
+  soil: "Capacitive soil moisture sensor",
+  sharpir: "Sharp IR distance sensor",
+  mpu6050: "MPU-6050 accelerometer and gyro",
+  joystick: "Analog thumb joystick",
+  pir: "PIR motion sensor (HC-SR501)",
+  shiftreg: "74HC595 shift register",
+  sevenseg: "7-segment LED digit",
+  dcmotor: "Small DC motor",
+  transistor: "NPN transistor and diode",
+  ldr: "Photoresistor (light sensor)",
+  lcd1602: "16x2 character LCD",
+  encoder: "Rotary encoder",
+  nrf24: "Two nRF24L01+ radio modules",
+  rgbled: "RGB LED",
 } as const;
 export type DrawerPart = keyof typeof DRAWER;
 
@@ -85,6 +117,7 @@ export const TAGS: [Tag | "all", string][] = [
   ["flash", "Browser flash"],
   ["probeharbor", "ProbeHarbor"],
   ["no-parts", "No extra parts"],
+  ["games", "Games and toys"],
   ["sensors", "Sensors"],
   ["display", "Display"],
   ["lights", "Lights"],
@@ -139,12 +172,16 @@ export const PROJECTS: Project[] = [
     wiring: [
       ["Sensor VCC", "3V3", ""],
       ["Sensor GND", "GND", ""],
-      ["DS18B20 or DHT22 data", "GPIO 4", "4.7 kΩ pull-up to 3V3. Up to four DS18B20s share the line"],
+      ["DS18B20 or DHT22 data", "GPIO 4", "Up to four DS18B20s share the line"],
+      ["4.7 kΩ pull-up resistor", "GPIO 4 to 3V3", "Holds the data line high"],
       ["I2C sensor SDA", "GPIO %SDA%", "SHT31, BME280 or AHT20, found at boot"],
       ["I2C sensor SCL", "GPIO %SCL%", ""],
-      ["Leak contact", "GPIO %LEAK%", "Other wire to GND. Only read when enabled in setup"],
-      ["Door reed switch", "GPIO %DOOR%", "Other wire to GND. Only read when enabled in setup"],
-      ["Battery divider midpoint", "GPIO %BAT%", "1:1 divider from a single Li-ion cell. Only read when enabled"],
+      ["Optional: leak contact, wire A", "GPIO %LEAK%", "Only read when enabled in setup"],
+      ["Optional: leak contact, wire B", "GND", ""],
+      ["Optional: door reed switch, wire A", "GPIO %DOOR%", "Only read when enabled in setup"],
+      ["Optional: door reed switch, wire B", "GND", ""],
+      ["Optional: battery + through 100 kΩ", "GPIO %BAT%", "1:1 divider from a single Li-ion cell. Only read when enabled"],
+      ["Optional: 100 kΩ from GPIO %BAT%", "GND", "Divider bottom: the pin sees half the battery voltage"],
     ],
     sourceUrl: "https://github.com/doodersrage/probeharbor/tree/main/firmware/probeharbor-probe",
     flash: {
@@ -286,7 +323,12 @@ void loop() {
     boards: ["esp32", "esp32s3", "esp32c3"],
     pins: ["3V3", "GND", "4"], libs: ["DHT sensor library (Adafruit)", "Adafruit Unified Sensor"], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "DHT22 (AM2302) sensor"], [1, "10 kΩ resistor, only for a bare sensor without a breakout"], [3, "Jumper wires"]],
-    wiring: [["DHT22 VCC", "3V3", ""], ["DHT22 DATA", "GPIO 4", "10 kΩ pull-up to 3V3 on a bare sensor"], ["DHT22 GND", "GND", ""]],
+    wiring: [
+      ["DHT22 VCC", "3V3", ""],
+      ["DHT22 DATA", "GPIO 4", ""],
+      ["DHT22 GND", "GND", ""],
+      ["Optional: 10 kΩ pull-up resistor", "GPIO 4 to 3V3", "Only for a bare 4-pin sensor. Modules on a small board have one built in"],
+    ],
     code: R`#include <DHT.h>
 
 DHT dht(4, DHT22);
@@ -350,7 +392,7 @@ void loop() {
     sum: "Measure distance with an ultrasonic sensor. The echo pin is 5 V, so it goes through a divider.",
     pins: ["5V", "GND", "5", "18"], libs: [], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "HC-SR04 ultrasonic sensor"], [1, "1 kΩ resistor"], [1, "2 kΩ resistor"], [4, "Jumper wires"]],
-    wiring: [["HC-SR04 VCC", "5V", ""], ["HC-SR04 GND", "GND", ""], ["HC-SR04 TRIG", "GPIO 5", ""], ["HC-SR04 ECHO, through 1 kΩ", "GPIO 18", "Add 2 kΩ from GPIO 18 to GND to drop 5 V to 3.3 V"]],
+    wiring: [["HC-SR04 VCC", "5V", ""], ["HC-SR04 GND", "GND", ""], ["HC-SR04 TRIG", "GPIO 5", ""], ["HC-SR04 ECHO, through 1 kΩ", "GPIO 18", "The divider's top resistor"], ["2 kΩ resistor", "GPIO 18 to GND", "The divider's bottom resistor: drops the 5 V echo to 3.3 V"]],
     code: R`const int TRIG = 5;
 const int ECHO = 18;
 
@@ -412,9 +454,11 @@ void loop() {}`,
 const char* WIFI_NAME = "your-network";
 const char* WIFI_PASS = "your-password";
 const int LED = 2;
+${benchSettings(["wifi_ssid", "wifi_pass"])}
 
 WebServer server(80);
 bool on = false;
+String wifiName, wifiPass;
 
 void page() {
   String h = "<!doctype html><meta name=viewport content='width=device-width'>";
@@ -427,7 +471,11 @@ void page() {
 void setup() {
   Serial.begin(115200);
   pinMode(LED, OUTPUT);
-  WiFi.begin(WIFI_NAME, WIFI_PASS);
+  benchSettingsBoot();
+  wifiName = benchSetting("wifi_ssid", WIFI_NAME);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  benchNeeds("Wi-Fi name", wifiName, "your-network", "WIFI_NAME");
+  WiFi.begin(wifiName.c_str(), wifiPass.c_str());
   while (WiFi.status() != WL_CONNECTED) {
     delay(300);
     Serial.print(".");
@@ -445,9 +493,11 @@ void setup() {
 }
 
 void loop() {
+  benchSettingsPoll();
   server.handleClient();
 }`,
-    sample: [".......", "Open http://192.168.1.57"]
+    settings: WIFI,
+    sample: ["SETTINGS\twifi_ssid=set\twifi_pass=set", ".......", "Open http://192.168.1.57"]
   },
   {
     id: "touch-piano", needs: [], name: "Touch piano", level: "Starter", mins: 10, tags: ["no-parts", "sensors"],
@@ -722,7 +772,8 @@ void loop() {
     wiring: [
       ["DS18B20 VDD (red)", "3V3", ""],
       ["DS18B20 GND (black)", "GND", ""],
-      ["DS18B20 DATA (yellow)", "GPIO 4", "4.7 kΩ pull-up from DATA to 3V3"],
+      ["DS18B20 DATA (yellow)", "GPIO 4", ""],
+      ["4.7 kΩ pull-up resistor", "GPIO 4 to 3V3", "Holds the data line high"],
     ],
     code: R`#include <WiFi.h>
 #include <PubSubClient.h>
@@ -735,7 +786,10 @@ const char* MQTT_HOST = "192.168.1.10";  // your broker, often the Home Assistan
 const int MQTT_PORT = 1883;
 const char* MQTT_USER = "";  // leave empty if the broker allows anonymous clients
 const char* MQTT_PASS = "";
+${benchSettings(["wifi_ssid", "wifi_pass", "mqtt_host", "mqtt_port", "mqtt_user", "mqtt_pass"])}
 
+String wifiName, wifiPass, mqttHost, mqttUser, mqttPass;
+int mqttPort = MQTT_PORT;
 OneWire oneWire(4);
 DallasTemperature probes(&oneWire);
 WiFiClient net;
@@ -757,10 +811,11 @@ void announce() {
 }
 
 void connectMqtt() {
-  const char* user = strlen(MQTT_USER) > 0 ? MQTT_USER : nullptr;
-  const char* pass = strlen(MQTT_PASS) > 0 ? MQTT_PASS : nullptr;
+  const char* user = mqttUser.length() > 0 ? mqttUser.c_str() : nullptr;
+  const char* pass = mqttPass.length() > 0 ? mqttPass.c_str() : nullptr;
   while (!mqtt.connected()) {
-    Serial.printf("mqtt connecting to %s\n", MQTT_HOST);
+    benchSettingsPoll();
+    Serial.printf("mqtt connecting to %s\n", mqttHost.c_str());
     // The last will marks the sensor unavailable if the board drops off.
     if (mqtt.connect(id.c_str(), user, pass, statusTopic.c_str(), 1, true, "offline")) {
       mqtt.publish(statusTopic.c_str(), "online", true);
@@ -776,10 +831,19 @@ void connectMqtt() {
 void setup() {
   Serial.begin(115200);
   probes.begin();
+  benchSettingsBoot();
+  wifiName = benchSetting("wifi_ssid", WIFI_NAME);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  mqttHost = benchSetting("mqtt_host", MQTT_HOST);
+  mqttPort = benchSetting("mqtt_port", String(MQTT_PORT).c_str()).toInt();
+  mqttUser = benchSetting("mqtt_user", MQTT_USER);
+  mqttPass = benchSetting("mqtt_pass", MQTT_PASS);
+  benchNeeds("Wi-Fi name", wifiName, "your-network", "WIFI_NAME");
+  benchNeeds("MQTT broker", mqttHost, "", "MQTT_HOST");
 
-  Serial.printf("wifi joining %s\n", WIFI_NAME);
+  Serial.printf("wifi joining %s\n", wifiName.c_str());
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_NAME, WIFI_PASS);
+  WiFi.begin(wifiName.c_str(), wifiPass.c_str());
   while (WiFi.status() != WL_CONNECTED) delay(300);
   Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
 
@@ -790,11 +854,12 @@ void setup() {
   stateTopic = String("esp32bench/") + id + "/temperature";
   statusTopic = String("esp32bench/") + id + "/status";
 
-  mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  mqtt.setServer(mqttHost.c_str(), mqttPort);
   mqtt.setBufferSize(512);  // the discovery message is longer than the 256-byte default
 }
 
 void loop() {
+  benchSettingsPoll();
   if (!mqtt.connected()) connectMqtt();
   mqtt.loop();
 
@@ -818,6 +883,13 @@ void loop() {
       "mqtt failed, state -2 means the broker could not be reached: check MQTT_HOST and that port 1883 is open. State 4 or 5 means the user name or password was refused.",
       "The sketch raises PubSubClient's buffer to 512 bytes. With the default 256 the discovery message is silently dropped and nothing appears in Home Assistant.",
       "The device id comes from the board's MAC address, so each board shows up as its own device.",
+    ],
+    settings: [
+      ...WIFI,
+      { key: "mqtt_host", label: "MQTT broker address", kind: "text", hint: "Often the Home Assistant machine, e.g. 192.168.1.10.", required: true },
+      { key: "mqtt_port", label: "MQTT port", kind: "number", hint: "1883 unless you changed it." },
+      { key: "mqtt_user", label: "MQTT user name", kind: "text", hint: "Leave empty for a broker that allows anonymous clients." },
+      { key: "mqtt_pass", label: "MQTT password", kind: "password" },
     ],
     sample: [
       "wifi joining your-network",
@@ -895,32 +967,42 @@ const char* WIFI_NAME = "your-network";
 const char* WIFI_PASS = "your-password";
 const char* OTA_NAME = "esp32-bench";  // the board appears as esp32-bench.local
 const char* OTA_PASS = "change-me";    // asked for on every network upload
+${benchSettings(["wifi_ssid", "wifi_pass", "ota_name", "ota_pass"])}
 
+String wifiName, wifiPass, otaName, otaPass;
 unsigned long lastBeat = 0;
 
 void setup() {
   Serial.begin(115200);
+  benchSettingsBoot();
+  wifiName = benchSetting("wifi_ssid", WIFI_NAME);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  otaName = benchSetting("ota_name", OTA_NAME);
+  otaPass = benchSetting("ota_pass", OTA_PASS);
+  benchNeeds("Wi-Fi name", wifiName, "your-network", "WIFI_NAME");
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_NAME, WIFI_PASS);
-  Serial.printf("wifi joining %s\n", WIFI_NAME);
+  WiFi.begin(wifiName.c_str(), wifiPass.c_str());
+  Serial.printf("wifi joining %s\n", wifiName.c_str());
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("wifi failed, retrying in 5 s");
     delay(5000);
-    WiFi.begin(WIFI_NAME, WIFI_PASS);
+    benchSettingsPoll();
+    WiFi.begin(wifiName.c_str(), wifiPass.c_str());
   }
 
-  ArduinoOTA.setHostname(OTA_NAME);
-  ArduinoOTA.setPassword(OTA_PASS);
+  ArduinoOTA.setHostname(otaName.c_str());
+  ArduinoOTA.setPassword(otaPass.c_str());
   ArduinoOTA
     .onStart([]() { Serial.printf("ota start: %s\n", ArduinoOTA.getCommand() == U_FLASH ? "sketch" : "filesystem"); })
     .onProgress([](unsigned int done, unsigned int total) { Serial.printf("ota %u percent\r", done * 100 / total); })
     .onEnd([]() { Serial.println("\nota done, restarting"); })
     .onError([](ota_error_t error) { Serial.printf("ota error %u\n", error); });
   ArduinoOTA.begin();
-  Serial.printf("ota ready: %s.local at %s\n", OTA_NAME, WiFi.localIP().toString().c_str());
+  Serial.printf("ota ready: %s.local at %s\n", otaName.c_str(), WiFi.localIP().toString().c_str());
 }
 
 void loop() {
+  benchSettingsPoll();
   ArduinoOTA.handle();  // call often: uploads only happen while this runs
 
   if (millis() - lastBeat > 10000) {
@@ -936,6 +1018,11 @@ void loop() {
       "Your computer and the board must be on the same network, and some guest or mesh networks block the mDNS lookups the IDE uses to find the board.",
       "In PlatformIO, set upload_protocol = espota, upload_port = esp32-bench.local and upload_flags = --auth=change-me.",
       "To update from a browser instead, the core's HTTPUpdateServer example serves an upload page for the compiled .bin file.",
+    ],
+    settings: [
+      ...WIFI,
+      { key: "ota_name", label: "Board name", kind: "text", hint: "The board appears as <name>.local on your network." },
+      { key: "ota_pass", label: "OTA password", kind: "password", hint: "Asked for on every network upload." },
     ],
     sample: [
       "wifi joining your-network",
@@ -962,7 +1049,8 @@ void loop() {
     wiring: [
       ["DS18B20 VDD (red)", "3V3", ""],
       ["DS18B20 GND (black)", "GND", ""],
-      ["DS18B20 DATA (yellow)", "GPIO 4", "4.7 kΩ pull-up from DATA to 3V3"],
+      ["DS18B20 DATA (yellow)", "GPIO 4", ""],
+      ["4.7 kΩ pull-up resistor", "GPIO 4 to 3V3", "Holds the data line high"],
       ["Battery + through 100 kΩ", "GPIO %BAT%", "Divider top. Never connect the battery straight to a GPIO"],
       ["100 kΩ from GPIO %BAT%", "GND", "Divider bottom: the pin sees half the battery voltage"],
     ],
@@ -1145,7 +1233,10 @@ void loop() {
       ["Display DC", "GPIO %DC%", ""],
       ["Display RST", "GPIO %RST%", ""],
       ["Display BUSY", "GPIO %BUSY%", ""],
-      ["DS18B20 DATA (yellow)", "GPIO %PROBE%", "4.7 kΩ pull-up to 3V3. Red to 3V3, black to GND"],
+      ["DS18B20 VDD (red)", "3V3", ""],
+      ["DS18B20 GND (black)", "GND", ""],
+      ["DS18B20 DATA (yellow)", "GPIO %PROBE%", ""],
+      ["4.7 kΩ pull-up resistor", "GPIO %PROBE% to 3V3", "Holds the data line high"],
     ],
     code: R`#include <SPI.h>
 #include <GxEPD2_BW.h>
@@ -1261,6 +1352,7 @@ const char* WIFI_PASS = "your-password";
 
 Adafruit_BME280 bme;
 WebServer server(80);
+String wifiName, wifiPass;
 unsigned long lastLog = 0;
 
 const char PAGE[] = R"html(<!doctype html>
@@ -1295,6 +1387,8 @@ function tick() {
 tick(); setInterval(tick, 2000);
 </script></body></html>)html";
 
+${benchSettings(["wifi_ssid", "wifi_pass"])}
+
 void sendData() {
   char json[96];
   snprintf(json, sizeof json, "{\"t\":%.2f,\"h\":%.1f,\"p\":%.1f}",
@@ -1310,9 +1404,13 @@ void setup() {
     for (;;) delay(1000);
   }
 
+  benchSettingsBoot();
+  wifiName = benchSetting("wifi_ssid", WIFI_NAME);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  benchNeeds("Wi-Fi name", wifiName, "your-network", "WIFI_NAME");
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_NAME, WIFI_PASS);
-  Serial.printf("wifi joining %s\n", WIFI_NAME);
+  WiFi.begin(wifiName.c_str(), wifiPass.c_str());
+  Serial.printf("wifi joining %s\n", wifiName.c_str());
   while (WiFi.status() != WL_CONNECTED) delay(300);
 
   server.on("/", []() { server.send(200, "text/html", PAGE); });
@@ -1322,6 +1420,7 @@ void setup() {
 }
 
 void loop() {
+  benchSettingsPoll();
   server.handleClient();
   if (millis() - lastLog > 10000) {
     lastLog = millis();
@@ -1335,6 +1434,9 @@ void loop() {
       "Address 0x76 or 0x77 depends on the board's SDO pin; the sketch tries both. Run the I2C scanner project if neither answers.",
       "The BME280 warms itself a little when read constantly. Readings every two seconds are fine; for accurate room temperature, keep the sensor away from the ESP32's own heat.",
       "/data.json is plain JSON, so Home Assistant's REST sensor or a script can read it too.",
+    ],
+    settings: [
+      ...WIFI,
     ],
     sample: [
       "wifi joining your-network",
@@ -1359,8 +1461,10 @@ void loop() {
 
 const int BOOT_BUTTON = %BOOT%;     // the board's BOOT button
 const char* AP_PASS = "bench1234";  // password for the setup network, at least 8 characters
+${benchSettings(["ap_pass"])}
 
 Preferences prefs;
+String apPass;
 WebServer server(80);
 DNSServer dns;
 bool portal = false;
@@ -1410,7 +1514,7 @@ void startPortal() {
 
   char name[24];
   snprintf(name, sizeof name, "ESP32-Setup-%04x", (unsigned)(ESP.getEfuseMac() >> 32) & 0xffff);
-  WiFi.softAP(name, AP_PASS);
+  WiFi.softAP(name, apPass.c_str());
   delay(100);
   dns.start(53, "*", WiFi.softAPIP());  // answer every name with the board, so phones open the page
 
@@ -1421,13 +1525,16 @@ void startPortal() {
     server.send(302, "text/plain", "");
   });
   server.begin();
-  Serial.printf("portal up: join %s (password %s), then open http://192.168.4.1\n", name, AP_PASS);
+  Serial.printf("portal up: join %s (password %s), then open http://192.168.4.1\n", name, apPass.c_str());
 }
 
 void setup() {
   Serial.begin(115200);
   pinMode(BOOT_BUTTON, INPUT_PULLUP);
   prefs.begin("wifi", false);
+  benchSettingsBoot();
+  apPass = benchSetting("ap_pass", AP_PASS);
+  if (apPass.length() < 8) apPass = AP_PASS;  // the ESP32 refuses a shorter one
 
   // Holding BOOT while the board resets enters download mode, so the button is
   // only checked in the first two seconds after start-up.
@@ -1460,6 +1567,7 @@ void setup() {
 }
 
 void loop() {
+  benchSettingsPoll();
   if (portal) {
     dns.processNextRequest();
     server.handleClient();
@@ -1479,6 +1587,9 @@ void loop() {
       "To change networks, reset the board and hold BOOT within two seconds. Holding it while pressing reset puts the board in download mode instead.",
       "If the saved network is out of reach at start-up, the portal opens again, so a board that moves house can be set up without a cable.",
       "The WiFiManager library does the same with more polish. This sketch shows how it works in about a hundred lines with only built-in libraries.",
+    ],
+    settings: [
+      { key: "ap_pass", label: "Setup network password", kind: "password", hint: "At least 8 characters. The portal's own network uses it." },
     ],
     sample: [
       "hold BOOT now to forget the saved network",
@@ -1517,6 +1628,8 @@ void loop() {
 
 const char* WIFI_SSID = "your-network";
 const char* WIFI_PASS = "your-password";
+${benchSettings(["wifi_ssid", "wifi_pass"])}
+String wifiSsid, wifiPass;
 
 // AI-Thinker ESP32-CAM pins, from Espressif's CameraWebServer example
 #define PWDN_GPIO_NUM  32
@@ -1630,7 +1743,11 @@ void setup() {
   }
   Serial.println("Camera ready");
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  benchSettingsBoot();
+  wifiSsid = benchSetting("wifi_ssid", WIFI_SSID);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  benchNeeds("Wi-Fi name", wifiSsid, "your-network", "WIFI_SSID");
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
   WiFi.setSleep(false);
   Serial.print("Joining Wi-Fi");
   while (WiFi.status() != WL_CONNECTED) {
@@ -1644,8 +1761,10 @@ void setup() {
 }
 
 void loop() {
-  delay(10000);
+  benchSettingsPoll();
+  delay(100);
 }`,
+    settings: WIFI,
     open: ["Not tested on hardware yet. Compiles for the AI Thinker ESP32-CAM with Arduino-ESP32 core 3.3.12."],
     notes: [
       "Select AI Thinker ESP32-CAM as the board. It turns PSRAM on, which the camera needs for VGA and larger frames.",
@@ -1658,6 +1777,3430 @@ void loop() {
       "Camera ready",
       "Joining Wi-Fi......",
       "Stream ready: open http://192.168.1.48/ in a browser",
+    ],
+  },
+  {
+    id: "reaction-timer", needs: [], name: "Reaction timer", level: "Starter", mins: 5, tags: ["games", "no-parts"],
+    sum: "How fast are you? The onboard LED lights after a random wait and you slap the BOOT button. Your best time survives a power cut.",
+    boards: ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32s3"],
+    vars: {
+      esp32: { LED: "2", BTN: "0", RGB: "false", ON: "HIGH", XLED: "GPIO 2", XGND: "GND" },
+      esp32s3: { LED: "38", BTN: "0", RGB: "true", ON: "HIGH", XLED: "Not used on this board: it has its own LED", XGND: "Not used on this board: it has its own LED" },
+      esp32c3: { LED: "8", BTN: "9", RGB: "true", ON: "HIGH", XLED: "Not used on this board: it has its own LED", XGND: "Not used on this board: it has its own LED" },
+      esp32s2: { LED: "18", BTN: "0", RGB: "true", ON: "HIGH", XLED: "Not used on this board: it has its own LED", XGND: "Not used on this board: it has its own LED" },
+      esp32c6: { LED: "8", BTN: "9", RGB: "true", ON: "HIGH", XLED: "Not used on this board: it has its own LED", XGND: "Not used on this board: it has its own LED" },
+      "xiao-esp32s3": { LED: "21", BTN: "0", RGB: "false", ON: "LOW", XLED: "Not used on this board: it has its own LED", XGND: "Not used on this board: it has its own LED" },
+    },
+    pins: ["%LED%", "%BTN%"], libs: ["Preferences (built in)"], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "LED and 220 Ω resistor, only on a board without its own LED"]],
+    wiring: [
+      ["Onboard LED", "GPIO %LED%", "Already on the board"],
+      ["Optional: LED anode, through 220 Ω", "%XLED%", "Only on a board without its own LED, such as the classic ESP32-DevKitC"],
+      ["Optional: LED cathode", "%XGND%", ""],
+      ["BOOT button", "GPIO %BTN%", "Already on the board"],
+    ],
+    code: R`// Reaction timer: the LED lights after a random wait, press BOOT as fast as you can.
+#include <Preferences.h>
+
+const int LED = %LED%;          // the board's LED
+const bool LED_IS_RGB = %RGB%;  // an addressable RGB LED rather than a plain one
+const int LED_ON = %ON%;        // the level that lights a plain LED
+const int BUTTON = %BTN%;       // the BOOT button
+
+Preferences prefs;
+unsigned long best = 0;  // best time in ms, 0 until the first round
+
+void led(bool on) {
+  if (LED_IS_RGB) rgbLedWrite(LED, 0, on ? 64 : 0, 0);  // green
+  else digitalWrite(LED, on ? LED_ON : !LED_ON);
+}
+
+bool pressed() {
+  return digitalRead(BUTTON) == LOW;
+}
+
+void waitForRelease() {
+  while (pressed()) delay(5);
+  delay(30);  // let the contacts settle
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  pinMode(BUTTON, INPUT_PULLUP);
+  if (!LED_IS_RGB) pinMode(LED, OUTPUT);
+  led(false);
+  prefs.begin("reaction", false);
+  best = prefs.getULong("best", 0);
+  randomSeed(esp_random());
+  Serial.println("Reaction timer. Press BOOT when the LED lights.");
+  if (best) Serial.printf("best so far: %lu ms\n", best);
+}
+
+void loop() {
+  Serial.println("get ready...");
+  waitForRelease();
+  unsigned long wait = random(1500, 5000);
+  unsigned long start = millis();
+  while (millis() - start < wait) {
+    if (pressed()) {
+      Serial.println("false start! wait for the light");
+      for (int i = 0; i < 6; i++) {
+        led(i % 2 == 0);
+        delay(80);
+      }
+      led(false);
+      waitForRelease();
+      delay(1000);
+      return;
+    }
+    delay(1);
+  }
+
+  led(true);
+  unsigned long lit = micros();
+  while (!pressed()) {
+    if (micros() - lit > 3000000UL) {
+      led(false);
+      Serial.println("too slow, try again");
+      delay(1000);
+      return;
+    }
+  }
+  unsigned long ms = (micros() - lit) / 1000;
+  led(false);
+  Serial.printf("reaction=%lu ms\n", ms);
+  if (best == 0 || ms < best) {
+    best = ms;
+    prefs.putULong("best", best);
+    Serial.printf("new best: %lu ms\n", best);
+  }
+  waitForRelease();
+  delay(1500);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The classic ESP32-DevKitC V4 has no user LED. Many 30-pin clones have one on GPIO 2; otherwise add an LED and a 220 Ω resistor from GPIO 2 to GND.",
+      "The S3, C3, S2 and C6 DevKits have an addressable RGB LED instead, driven with rgbLedWrite(). On the first S3-DevKitC-1 revision it is on GPIO 48, not 38.",
+      "The XIAO ESP32S3's LED lights when its pin is low, which is why LED_ON is LOW there.",
+      "Do not hold BOOT while the board resets: that puts it in download mode. Start pressing once it prints 'get ready'.",
+      "The best time is kept with Preferences, so it survives a power cut. Erasing the whole flash clears it.",
+      "Most people land between 200 and 300 ms. Under 150 ms is usually a lucky guess.",
+    ],
+    sample: [
+      "Reaction timer. Press BOOT when the LED lights.",
+      "get ready...", "reaction=312 ms", "new best: 312 ms",
+      "get ready...", "reaction=287 ms", "new best: 287 ms",
+      "get ready...", "false start! wait for the light",
+      "get ready...", "reaction=301 ms",
+      "get ready...", "reaction=264 ms", "new best: 264 ms",
+      "get ready...", "reaction=279 ms",
+    ],
+  },
+  {
+    id: "morse-decoder", needs: [], name: "Morse code decoder", level: "Starter", mins: 10, tags: ["games", "no-parts"],
+    sum: "Tap Morse on the BOOT button and watch it turn into letters. It learns your speed as you go, and a buzzer adds a sidetone if you have one.",
+    boards: ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32c3", "xiao-esp32s3"],
+    vars: {
+      esp32: { BTN: "0", BUZZ: "25" },
+      esp32s3: { BTN: "0", BUZZ: "15" },
+      esp32c3: { BTN: "9", BUZZ: "4" },
+      esp32s2: { BTN: "0", BUZZ: "15" },
+      esp32c6: { BTN: "9", BUZZ: "21" },
+      "xiao-esp32c3": { BTN: "9", BUZZ: "4" },
+      "xiao-esp32s3": { BTN: "0", BUZZ: "4" },
+    },
+    pins: ["%BTN%", "%BUZZ%", "GND"], libs: [], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "Optional passive buzzer or piezo", BOM.piezoBuzzer]],
+    wiring: [
+      ["BOOT button", "GPIO %BTN%", "Already on the board. It is the Morse key"],
+      ["Buzzer +", "GPIO %BUZZ%", "Optional sidetone. A passive buzzer or piezo"],
+      ["Buzzer -", "GND", ""],
+    ],
+    code: R`// Morse code decoder. The BOOT button is the key: short press = dot, long press = dash.
+const int KEY = %BTN%;      // the BOOT button
+const int BUZZER = %BUZZ%;  // optional sidetone, leave unconnected if you have no buzzer
+const int TONE_HZ = 650;
+
+const char* LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const char* CODES[] = {
+  ".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---", "-.-", ".-..", "--",
+  "-.", "---", ".--.", "--.-", ".-.", "...", "-", "..-", "...-", ".--", "-..-", "-.--", "--..",
+  "-----", ".----", "..---", "...--", "....-", ".....", "-....", "--...", "---..", "----.",
+};
+
+float unit = 120;      // length of one dot in ms; adapts to your speed
+String symbol;         // dots and dashes of the letter being keyed
+bool keyDown = false;
+bool inWord = false;
+unsigned long changedAt = 0;
+
+char decode(const String& s) {
+  for (int i = 0; i < 36; i++) {
+    if (s == CODES[i]) return LETTERS[i];
+  }
+  return '?';
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  pinMode(KEY, INPUT_PULLUP);
+  Serial.println("Morse decoder. Key with the BOOT button: short press = dot, long press = dash.");
+}
+
+void loop() {
+  bool down = digitalRead(KEY) == LOW;
+  unsigned long now = millis();
+  unsigned long held = now - changedAt;
+
+  if (down != keyDown && held > 15) {  // 15 ms debounce
+    if (keyDown) {
+      // Key released: was it a dot or a dash?
+      noTone(BUZZER);
+      if (held < 2 * unit) {
+        symbol += '.';
+        unit = (unit * 3 + held) / 4;
+      } else {
+        symbol += '-';
+        unit = (unit * 3 + held / 3.0f) / 4;
+      }
+      unit = constrain(unit, 40.0f, 400.0f);
+    } else {
+      tone(BUZZER, TONE_HZ);
+    }
+    keyDown = down;
+    changedAt = now;
+    return;
+  }
+
+  if (!keyDown) {
+    if (symbol.length() > 0 && held > 3 * unit) {
+      Serial.print(decode(symbol));  // gap between letters
+      symbol = "";
+      inWord = true;
+    } else if (inWord && held > 7 * unit) {
+      Serial.printf("  wpm=%d\n", (int)(1200 / unit));  // gap between words
+      inWord = false;
+    }
+  }
+  delay(2);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Start slowly and evenly. The decoder takes a dash as anything longer than two dots, and adjusts the dot length after every symbol.",
+      "A gap of three dots ends a letter and seven dots ends a word, as in real Morse. Speed is printed as words per minute at the end of each word.",
+      "Do not hold BOOT while the board resets, or it enters download mode.",
+      "Try SOS (... --- ...), then your name. A real Morse key or any push button wired from the BOOT pin to GND works too.",
+    ],
+    sample: [
+      "Morse decoder. Key with the BOOT button: short press = dot, long press = dash.",
+      "SOS  wpm=9",
+      "HELLO  wpm=11",
+      "ESP32  wpm=12",
+      "BENCH  wpm=13",
+    ],
+  },
+  {
+    id: "simon", needs: [["led"], ["button"], ["buzzer"]], name: "Simon memory game", level: "Intermediate", mins: 40, tags: ["games"],
+    sum: "Four lights, four buttons, four tones. Repeat the growing pattern for as long as you can; the high score is saved.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { LA: "16", LB: "17", LC: "18", LD: "19", KA: "25", KB: "26", KC: "27", KD: "32", BUZZ: "23" },
+      esp32s3: { LA: "4", LB: "5", LC: "6", LD: "7", KA: "15", KB: "16", KC: "17", KD: "18", BUZZ: "10" },
+      esp32c3: { LA: "0", LB: "1", LC: "3", LD: "4", KA: "2", KB: "5", KC: "7", KD: "10", BUZZ: "6" },
+    },
+    pins: ["%LA%", "%LB%", "%LC%", "%LD%", "%KA%", "%KB%", "%KC%", "%KD%", "%BUZZ%", "GND"], libs: ["Preferences (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [4, "LEDs: green, red, yellow and blue"],
+      [4, "220 Ω resistors"],
+      [4, "Push buttons", BOM.tactileButtons],
+      [1, "Passive buzzer or piezo", BOM.piezoBuzzer],
+      [16, "Jumper wires"],
+    ],
+    wiring: [
+      ["Green LED anode, through 220 Ω", "GPIO %LA%", "The anode is the longer leg"],
+      ["Green LED cathode", "GND", ""],
+      ["Red LED anode, through 220 Ω", "GPIO %LB%", ""],
+      ["Red LED cathode", "GND", ""],
+      ["Yellow LED anode, through 220 Ω", "GPIO %LC%", ""],
+      ["Yellow LED cathode", "GND", ""],
+      ["Blue LED anode, through 220 Ω", "GPIO %LD%", ""],
+      ["Blue LED cathode", "GND", ""],
+      ["Green button, side A", "GPIO %KA%", "The internal pull-ups do the rest"],
+      ["Green button, side B", "GND", ""],
+      ["Red button, side A", "GPIO %KB%", ""],
+      ["Red button, side B", "GND", ""],
+      ["Yellow button, side A", "GPIO %KC%", ""],
+      ["Yellow button, side B", "GND", ""],
+      ["Blue button, side A", "GPIO %KD%", ""],
+      ["Blue button, side B", "GND", ""],
+      ["Buzzer +", "GPIO %BUZZ%", ""],
+      ["Buzzer -", "GND", ""],
+    ],
+    code: R`// Simon: repeat the growing sequence of lights and tones.
+#include <Preferences.h>
+
+const int LEDS[] = {%LA%, %LB%, %LC%, %LD%};     // green, red, yellow, blue
+const int BUTTONS[] = {%KA%, %KB%, %KC%, %KD%};  // in the same order
+const int BUZZER = %BUZZ%;
+const int TONES[] = {415, 310, 252, 209};       // the classic Simon pitches
+const int MAX_STEPS = 64;
+
+Preferences prefs;
+int sequence[MAX_STEPS];
+int length = 0;
+int best = 0;
+
+void show(int i, int ms) {
+  digitalWrite(LEDS[i], HIGH);
+  tone(BUZZER, TONES[i]);
+  delay(ms);
+  noTone(BUZZER);
+  digitalWrite(LEDS[i], LOW);
+}
+
+// Wait for one button press and release. Returns the button, or -1 after 4 s.
+int readButton() {
+  unsigned long start = millis();
+  while (millis() - start < 4000) {
+    for (int i = 0; i < 4; i++) {
+      if (digitalRead(BUTTONS[i]) == LOW) {
+        digitalWrite(LEDS[i], HIGH);
+        tone(BUZZER, TONES[i]);
+        delay(30);
+        while (digitalRead(BUTTONS[i]) == LOW) delay(5);
+        noTone(BUZZER);
+        digitalWrite(LEDS[i], LOW);
+        delay(30);
+        return i;
+      }
+    }
+    delay(2);
+  }
+  return -1;
+}
+
+void gameOver(int score) {
+  tone(BUZZER, 110, 800);
+  for (int k = 0; k < 3; k++) {
+    for (int i = 0; i < 4; i++) digitalWrite(LEDS[i], HIGH);
+    delay(150);
+    for (int i = 0; i < 4; i++) digitalWrite(LEDS[i], LOW);
+    delay(150);
+  }
+  if (score > best) {
+    best = score;
+    prefs.putInt("best", best);
+  }
+  Serial.printf("score=%d  best=%d\n", score, best);
+  Serial.println("Press any button to start.");
+  length = 0;
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  for (int i = 0; i < 4; i++) {
+    pinMode(LEDS[i], OUTPUT);
+    pinMode(BUTTONS[i], INPUT_PULLUP);
+  }
+  prefs.begin("simon", false);
+  best = prefs.getInt("best", 0);
+  randomSeed(esp_random());
+  Serial.println("Simon. Press any button to start.");
+}
+
+void loop() {
+  if (length == 0) {
+    while (readButton() < 0) {
+    }
+    delay(600);
+  }
+  if (length == MAX_STEPS) {
+    Serial.println("You beat the game!");
+    gameOver(MAX_STEPS);
+    return;
+  }
+  sequence[length++] = random(4);
+  Serial.printf("round=%d\n", length);
+  int speed = max(150, 450 - length * 15);  // it speeds up as you go
+  for (int i = 0; i < length; i++) {
+    show(sequence[i], speed);
+    delay(speed / 2);
+  }
+  for (int i = 0; i < length; i++) {
+    int pressed = readButton();
+    if (pressed != sequence[i]) {
+      Serial.println(pressed < 0 ? "too slow! game over" : "wrong button! game over");
+      gameOver(length - 1);
+      return;
+    }
+  }
+  delay(700);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The buttons use the chip's internal pull-ups, so each one only needs a wire to its GPIO and one to GND.",
+      "On the C3 the red button is on GPIO 2, a strapping pin that must be high at reset. An open button does not change that; just do not hold it while the board starts.",
+      "Use a passive buzzer or piezo. An active buzzer plays one fixed pitch whatever tone() asks for.",
+      "The high score is kept with Preferences and survives a power cut.",
+    ],
+    sample: [
+      "Simon. Press any button to start.",
+      "round=1", "round=2", "round=3", "round=4", "round=5", "round=6", "round=7",
+      "wrong button! game over",
+      "score=6  best=6",
+      "Press any button to start.",
+    ],
+  },
+  {
+    id: "theremin", needs: [["hcsr04"], ["buzzer"]], name: "Ultrasonic theremin", level: "Intermediate", mins: 20, tags: ["games", "sensors"],
+    sum: "Play music by waving your hand over an ultrasonic sensor. Closer is higher. Open the bench to watch distance and pitch chart live.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { TRIG: "5", ECHO: "18", BUZZ: "25" },
+      esp32s3: { TRIG: "4", ECHO: "5", BUZZ: "6" },
+      esp32c3: { TRIG: "4", ECHO: "5", BUZZ: "10" },
+    },
+    pins: ["5V", "GND", "%TRIG%", "%ECHO%", "%BUZZ%"], libs: [], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "HC-SR04 ultrasonic sensor"],
+      [1, "1 kΩ resistor"],
+      [1, "2 kΩ resistor"],
+      [1, "Passive buzzer or piezo", BOM.piezoBuzzer],
+      [7, "Jumper wires"],
+    ],
+    wiring: [
+      ["HC-SR04 VCC", "5V", ""],
+      ["HC-SR04 GND", "GND", ""],
+      ["HC-SR04 TRIG", "GPIO %TRIG%", ""],
+      ["HC-SR04 ECHO, through 1 kΩ", "GPIO %ECHO%", "The divider's top resistor"],
+      ["2 kΩ resistor", "GPIO %ECHO% to GND", "The divider's bottom resistor: drops the 5 V echo to 3.3 V"],
+      ["Buzzer +", "GPIO %BUZZ%", ""],
+      ["Buzzer -", "GND", ""],
+    ],
+    code: R`// Ultrasonic theremin: hand distance sets the pitch. Closer is higher.
+const int TRIG = %TRIG%;
+const int ECHO = %ECHO%;
+const int BUZZER = %BUZZ%;
+
+const float NEAR_CM = 5;    // highest note here
+const float FAR_CM = 60;    // lowest note here; further away is silence
+const float LOW_HZ = 220;   // A3
+const int OCTAVES = 3;      // up to A6
+const bool SNAP = true;     // round to the nearest semitone, so it plays in tune
+
+float readCm() {
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+  unsigned long us = pulseIn(ECHO, HIGH, 25000);  // about 4 m round trip
+  return us == 0 ? -1 : us * 0.0343f / 2;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+  Serial.println("Theremin ready. Wave a hand 5 to 60 cm above the sensor.");
+}
+
+void loop() {
+  float cm = readCm();
+  int hz = 0;
+  if (cm >= NEAR_CM && cm <= FAR_CM) {
+    float f = LOW_HZ * powf(2.0f, (FAR_CM - cm) / (FAR_CM - NEAR_CM) * OCTAVES);
+    if (SNAP) f = 440.0f * powf(2.0f, roundf(12 * log2f(f / 440.0f)) / 12.0f);
+    hz = (int)(f + 0.5f);
+    tone(BUZZER, hz);
+  } else {
+    noTone(BUZZER);
+  }
+  Serial.printf("distance_cm=%.1f, freq=%d\n", cm < 0 ? 0.0f : cm, hz);
+  delay(60);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The HC-SR04's echo pin is 5 V. The 1 kΩ and 2 kΩ divider brings it down to about 3.3 V, the same as the HC-SR04 distance project.",
+      "Set SNAP to false for a smooth, swooping theremin sound instead of notes.",
+      "A flat hand works better than fingers: more surface sends back a stronger echo.",
+      "Open the bench at 115200 baud: the plotter charts distance_cm and freq side by side as you play.",
+      "No HC-SR04? A Sharp GP2Y0A21 IR distance sensor works too: power it from 5 V, read its output on an ADC1 pin and convert volts to cm as the IR sonar sweep project does. It only sees 10 to 80 cm.",
+    ],
+    sample: [
+      "Theremin ready. Wave a hand 5 to 60 cm above the sensor.",
+      "distance_cm=42.3, freq=440",
+      "distance_cm=35.8, freq=554",
+      "distance_cm=28.4, freq=740",
+      "distance_cm=21.0, freq=988",
+      "distance_cm=15.6, freq=1175",
+      "distance_cm=11.2, freq=1397",
+      "distance_cm=8.9, freq=1480",
+      "distance_cm=12.7, freq=1319",
+      "distance_cm=19.5, freq=1047",
+      "distance_cm=30.2, freq=698",
+      "distance_cm=0.0, freq=0",
+    ],
+  },
+  {
+    id: "oled-pong", needs: [["oled"], ["pot"]], name: "OLED Pong", level: "Intermediate", mins: 30, tags: ["games", "display"],
+    sum: "Classic Pong on a tiny OLED with two knobs as paddles. Play a friend, or set one side to the computer.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SDA: "21", SCL: "22", PA: "34", PB: "35" },
+      esp32s3: { SDA: "8", SCL: "9", PA: "1", PB: "2" },
+      esp32c3: { SDA: "6", SCL: "7", PA: "0", PB: "1" },
+    },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%", "%PA%", "%PB%"], libs: ["Adafruit SSD1306", "Adafruit GFX Library"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "0.96 inch SSD1306 OLED, I2C, address 0x3C"],
+      [2, "10 kΩ potentiometers", BOM.pot10k],
+      [10, "Jumper wires"],
+    ],
+    wiring: [
+      ["OLED VCC", "3V3", ""],
+      ["OLED GND", "GND", ""],
+      ["OLED SDA", "GPIO %SDA%", ""],
+      ["OLED SCL", "GPIO %SCL%", ""],
+      ["Left knob, middle pin", "GPIO %PA%", ""],
+      ["Left knob, outer pin", "3V3", "3V3, never 5V"],
+      ["Left knob, other outer pin", "GND", ""],
+      ["Right knob, middle pin", "GPIO %PB%", "Skip the right knob and set TWO_PLAYERS to false to play the computer"],
+      ["Right knob, outer pin", "3V3", ""],
+      ["Right knob, other outer pin", "GND", ""],
+    ],
+    code: R`// Pong on a 128 x 64 SSD1306 with two potentiometers as paddles.
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+const int KNOB_LEFT = %PA%;    // ADC1 pins
+const int KNOB_RIGHT = %PB%;
+const bool TWO_PLAYERS = true;  // false: the right paddle plays itself
+const int WIN_SCORE = 7;
+
+const int W = 128, H = 64, PADDLE_H = 14, PADDLE_W = 3;
+Adafruit_SSD1306 display(W, H, &Wire, -1);
+
+float ballX, ballY, velX, velY;
+float leftY = 25, rightY = 25;
+int scoreLeft = 0, scoreRight = 0;
+
+void serve(int direction) {
+  ballX = W / 2;
+  ballY = H / 2;
+  velX = 1.6f * direction;
+  velY = random(-10, 11) / 10.0f;
+}
+
+float knobToY(int pin, float current) {
+  float target = analogRead(pin) * (H - PADDLE_H) / 4095.0f;
+  return current + (target - current) * 0.5f;  // a little smoothing
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(%SDA%, %SCL%);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("SSD1306 not found at 0x3C");
+    for (;;) delay(1000);
+  }
+  analogReadResolution(12);
+  randomSeed(esp_random());
+  serve(1);
+  Serial.printf("Pong ready. Left paddle: GPIO %d, right paddle: %s\n", KNOB_LEFT, TWO_PLAYERS ? "knob" : "computer");
+}
+
+void loop() {
+  leftY = knobToY(KNOB_LEFT, leftY);
+  if (TWO_PLAYERS) {
+    rightY = knobToY(KNOB_RIGHT, rightY);
+  } else {
+    float aim = ballY - PADDLE_H / 2;
+    rightY += constrain(aim - rightY, -1.3f, 1.3f);  // beatable on purpose
+    rightY = constrain(rightY, 0.0f, (float)(H - PADDLE_H));
+  }
+
+  ballX += velX;
+  ballY += velY;
+  if (ballY <= 0 || ballY >= H - 2) velY = -velY;
+
+  // Paddles: the bounce angle depends on where the ball hits.
+  if (velX < 0 && ballX <= 4 && ballY + 2 >= leftY && ballY <= leftY + PADDLE_H) {
+    velX = -velX * 1.05f;
+    velY = (ballY - (leftY + PADDLE_H / 2)) / 4;
+  }
+  if (velX > 0 && ballX >= W - 6 && ballY + 2 >= rightY && ballY <= rightY + PADDLE_H) {
+    velX = -velX * 1.05f;
+    velY = (ballY - (rightY + PADDLE_H / 2)) / 4;
+  }
+  velX = constrain(velX, -4.0f, 4.0f);
+
+  if (ballX < 0 || ballX > W) {
+    bool leftScored = ballX > W;
+    if (leftScored) scoreLeft++;
+    else scoreRight++;
+    Serial.printf("point to %s, score %d-%d\n", leftScored ? "left" : "right", scoreLeft, scoreRight);
+    if (scoreLeft == WIN_SCORE || scoreRight == WIN_SCORE) {
+      Serial.printf("%s wins %d-%d\n", scoreLeft > scoreRight ? "left" : "right", scoreLeft, scoreRight);
+      display.clearDisplay();
+      display.setTextSize(2);
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(10, 24);
+      display.print(scoreLeft > scoreRight ? "LEFT WINS" : "RIGHT WINS");
+      display.display();
+      delay(3000);
+      scoreLeft = scoreRight = 0;
+    }
+    serve(leftScored ? -1 : 1);
+    delay(500);
+  }
+
+  display.clearDisplay();
+  for (int y = 0; y < H; y += 6) display.drawFastVLine(W / 2, y, 3, SSD1306_WHITE);
+  display.fillRect(1, (int)leftY, PADDLE_W, PADDLE_H, SSD1306_WHITE);
+  display.fillRect(W - 1 - PADDLE_W, (int)rightY, PADDLE_W, PADDLE_H, SSD1306_WHITE);
+  display.fillRect((int)ballX, (int)ballY, 2, 2, SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(W / 2 - 18, 0);
+  display.print(scoreLeft);
+  display.setCursor(W / 2 + 13, 0);
+  display.print(scoreRight);
+  display.display();
+  delay(16);  // about 60 frames a second
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The knobs are on ADC1 pins. On the classic ESP32 those are GPIO 32 to 39; GPIO 34 and 35 are input only, which is all a knob needs.",
+      "Wire the knobs' outer pins to 3V3 and GND. Using 5V would put 5 V on the GPIO when the knob is turned all the way.",
+      "No second knob? Set TWO_PLAYERS to false and the right paddle plays itself. It is slow on purpose, so you can win.",
+      "If a paddle jitters, add a 100 nF capacitor from the knob's middle pin to GND.",
+    ],
+    sample: [
+      "Pong ready. Left paddle: GPIO %PA%, right paddle: knob",
+      "point to left, score 1-0",
+      "point to right, score 1-1",
+      "point to left, score 2-1",
+      "point to left, score 3-1",
+      "point to right, score 3-2",
+      "point to left, score 4-2",
+    ],
+  },
+  {
+    id: "dice", needs: [["oled"], ["button"]], name: "Electronic dice", level: "Starter", mins: 20, tags: ["games", "display"],
+    sum: "Press a button to roll two dice on an OLED, with a tumbling animation. The serial port keeps score, so you can check how fair the dice are.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SDA: "21", SCL: "22", BTN: "4" },
+      esp32s3: { SDA: "8", SCL: "9", BTN: "4" },
+      esp32c3: { SDA: "6", SCL: "7", BTN: "4" },
+    },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%", "%BTN%"], libs: ["Adafruit SSD1306", "Adafruit GFX Library"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "0.96 inch SSD1306 OLED, I2C, address 0x3C"],
+      [1, "Push button", BOM.tactileButtons],
+      [6, "Jumper wires"],
+    ],
+    wiring: [
+      ["OLED VCC", "3V3", ""],
+      ["OLED GND", "GND", ""],
+      ["OLED SDA", "GPIO %SDA%", ""],
+      ["OLED SCL", "GPIO %SCL%", ""],
+      ["Button, side A", "GPIO %BTN%", "The internal pull-up does the rest"],
+      ["Button, side B", "GND", ""],
+    ],
+    code: R`// Electronic dice on an SSD1306. Press the button to roll.
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+const int BUTTON = %BTN%;
+const int DICE = 2;  // 1 or 2
+
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+int counts[13];  // how often each total came up
+int rolls = 0;
+
+void drawDie(int x, int y, int value) {
+  const int S = 44, R = 4;
+  display.drawRoundRect(x, y, S, S, 6, SSD1306_WHITE);
+  int a = x + 11, b = x + S / 2, c = x + S - 11;  // pip columns
+  int d = y + 11, e = y + S / 2, f = y + S - 11;  // pip rows
+  if (value % 2 == 1) display.fillCircle(b, e, R, SSD1306_WHITE);
+  if (value >= 2) {
+    display.fillCircle(a, d, R, SSD1306_WHITE);
+    display.fillCircle(c, f, R, SSD1306_WHITE);
+  }
+  if (value >= 4) {
+    display.fillCircle(c, d, R, SSD1306_WHITE);
+    display.fillCircle(a, f, R, SSD1306_WHITE);
+  }
+  if (value == 6) {
+    display.fillCircle(a, e, R, SSD1306_WHITE);
+    display.fillCircle(c, e, R, SSD1306_WHITE);
+  }
+}
+
+void showDice(int one, int two) {
+  display.clearDisplay();
+  if (DICE == 1) {
+    drawDie(42, 10, one);
+  } else {
+    drawDie(12, 10, one);
+    drawDie(72, 10, two);
+  }
+  display.display();
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUTTON, INPUT_PULLUP);
+  Wire.begin(%SDA%, %SCL%);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("SSD1306 not found at 0x3C");
+    for (;;) delay(1000);
+  }
+  showDice(6, 6);
+  Serial.println("Dice ready. Press the button to roll.");
+}
+
+void loop() {
+  if (digitalRead(BUTTON) == HIGH) return;
+
+  // Tumble: quick random faces that slow down, like a die settling.
+  int one = 1, two = 1;
+  for (int wait = 30; wait < 220; wait += 20) {
+    one = 1 + esp_random() % 6;
+    two = 1 + esp_random() % 6;
+    showDice(one, two);
+    delay(wait);
+  }
+  int total = DICE == 1 ? one : one + two;
+  counts[total]++;
+  rolls++;
+  if (DICE == 1) Serial.printf("die1=%d\n", one);
+  else Serial.printf("die1=%d die2=%d sum=%d\n", one, two, total);
+
+  if (rolls % 12 == 0) {
+    Serial.printf("after %d rolls:", rolls);
+    for (int t = DICE; t <= DICE * 6; t++) Serial.printf(" %d:%d", t, counts[t]);
+    Serial.println();
+  }
+  while (digitalRead(BUTTON) == LOW) delay(10);
+  delay(50);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "esp_random() uses the chip's hardware random number generator, which is truly random while the radio is on and plenty good for dice when it is off.",
+      "With two dice, 7 should come up most often: about one roll in six. The summary every 12 rolls lets you watch that happen.",
+      "Set DICE to 1 for a single die in the middle of the screen.",
+    ],
+    sample: [
+      "Dice ready. Press the button to roll.",
+      "die1=4 die2=3 sum=7",
+      "die1=6 die2=2 sum=8",
+      "die1=1 die2=5 sum=6",
+      "die1=3 die2=3 sum=6",
+      "die1=5 die2=6 sum=11",
+      "die1=2 die2=1 sum=3",
+      "die1=6 die2=1 sum=7",
+      "die1=4 die2=4 sum=8",
+      "die1=3 die2=6 sum=9",
+      "die1=5 die2=2 sum=7",
+      "die1=1 die2=1 sum=2",
+      "die1=4 die2=5 sum=9",
+      "after 12 rolls: 2:1 3:1 4:0 5:0 6:2 7:3 8:2 9:2 10:0 11:1 12:0",
+    ],
+  },
+  {
+    id: "ntp-clock", needs: [["oled"]], name: "NTP internet clock", level: "Starter", mins: 20, tags: ["display", "wifi"],
+    sum: "A desk clock that sets itself from the internet and handles daylight saving on its own. Big digits and the date on a small OLED.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { SDA: "21", SCL: "22" }, esp32s3: { SDA: "8", SCL: "9" }, esp32c3: { SDA: "6", SCL: "7" } },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%"], libs: ["WiFi (built in)", "Adafruit SSD1306", "Adafruit GFX Library"], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "0.96 inch SSD1306 OLED, I2C, address 0x3C"], [4, "Jumper wires"]],
+    wiring: [["OLED VCC", "3V3", ""], ["OLED GND", "GND", ""], ["OLED SDA", "GPIO %SDA%", ""], ["OLED SCL", "GPIO %SCL%", ""]],
+    code: R`// NTP clock: Wi-Fi sets the time, the TZ rule handles daylight saving.
+#include <WiFi.h>
+#include <Wire.h>
+#include <time.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+const char* WIFI_SSID = "your-network";
+const char* WIFI_PASS = "your-password";
+// POSIX time zone rule. US Eastern shown; more examples in the project notes.
+const char* TZ_RULE = "EST5EDT,M3.2.0,M11.1.0";
+${benchSettings(["wifi_ssid", "wifi_pass", "tz_rule"])}
+
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+String wifiSsid, wifiPass, tzRule;
+int lastMinute = -1;
+
+void message(const char* text) {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 28);
+  display.print(text);
+  display.display();
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(%SDA%, %SCL%);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("SSD1306 not found at 0x3C");
+    for (;;) delay(1000);
+  }
+  message("Waiting for settings...");
+  benchSettingsBoot();
+  wifiSsid = benchSetting("wifi_ssid", WIFI_SSID);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  tzRule = benchSetting("tz_rule", TZ_RULE);
+  benchNeeds("Wi-Fi name", wifiSsid, "your-network", "WIFI_SSID");
+  message("Joining Wi-Fi...");
+  Serial.printf("wifi joining %s\n", wifiSsid.c_str());
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
+  while (WiFi.status() != WL_CONNECTED) delay(250);
+  Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
+
+  message("Setting the time...");
+  configTzTime(tzRule.c_str(), "pool.ntp.org", "time.google.com");
+  struct tm now;
+  while (!getLocalTime(&now, 10000)) Serial.println("waiting for NTP");
+  char text[48];
+  strftime(text, sizeof text, "%a %d %b %Y %H:%M:%S %Z", &now);
+  Serial.printf("time synced: %s\n", text);
+}
+
+void loop() {
+  benchSettingsPoll();
+  struct tm now;
+  if (!getLocalTime(&now, 100)) return;
+
+  char hhmm[6], ss[3], date[20];
+  strftime(hhmm, sizeof hhmm, "%H:%M", &now);
+  strftime(ss, sizeof ss, "%S", &now);
+  strftime(date, sizeof date, "%a %d %b %Y", &now);
+
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(3);
+  display.setCursor(4, 12);
+  display.print(hhmm);
+  display.setTextSize(2);
+  display.setCursor(100, 19);
+  display.print(ss);
+  display.setTextSize(1);
+  display.setCursor(4, 50);
+  display.print(date);
+  if (WiFi.status() != WL_CONNECTED) display.print(" *");  // still keeping time, just not syncing
+  display.display();
+
+  if (now.tm_min != lastMinute) {
+    lastMinute = now.tm_min;
+    char line[48];
+    strftime(line, sizeof line, "%H:%M:%S %a %d %b %Y %Z", &now);
+    Serial.println(line);
+  }
+  delay(200);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Change TZ_RULE for your time zone. Examples: Central US \"CST6CDT,M3.2.0,M11.1.0\", Pacific US \"PST8PDT,M3.2.0,M11.1.0\", UK \"GMT0BST,M3.5.0/1,M10.5.0\", Central Europe \"CET-1CEST,M3.5.0,M10.5.0/3\", Japan \"JST-9\".",
+      "The ESP32 re-syncs with the time servers about once an hour. If Wi-Fi drops, the clock keeps running on its own crystal and a * appears after the date.",
+      "Set WIFI_SSID and WIFI_PASS first. The ESP32 only joins 2.4 GHz networks.",
+    ],
+    settings: [
+      ...WIFI,
+      { key: "tz_rule", label: "Time zone rule", kind: "text", hint: 'POSIX form, e.g. "CST6CDT,M3.2.0,M11.1.0". Examples are in the notes.' },
+    ],
+    sample: [
+      "wifi joining your-network",
+      "wifi ok 192.168.1.42",
+      "time synced: Thu 12 Nov 2026 10:41:07 EST",
+      "10:42:00 Thu 12 Nov 2026 EST",
+      "10:43:00 Thu 12 Nov 2026 EST",
+      "10:44:00 Thu 12 Nov 2026 EST",
+    ],
+  },
+  {
+    id: "fire-lamp", needs: [["neopixel"]], name: "NeoPixel fire and lava lamp", level: "Starter", mins: 15, tags: ["lights"],
+    sum: "A flickering fire on a strip of NeoPixels, and a slow lava-lamp glow. The BOOT button switches between them.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { PIX: "16", BTN: "0" }, esp32s3: { PIX: "5", BTN: "0" }, esp32c3: { PIX: "4", BTN: "9" } },
+    pins: ["5V", "GND", "%PIX%", "%BTN%"], libs: ["Adafruit NeoPixel"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "WS2812B strip, 30 LEDs, or a NeoPixel Stick", BOM.neopixelStick],
+      [1, "330 Ω resistor"],
+      [1, "Optional 74AHCT125 level shifter", BOM.levelShifter],
+      [3, "Jumper wires"],
+    ],
+    wiring: [
+      ["Strip 5V or VDC", "5V", "Fine for a short strip at this brightness. Longer strips need their own 5 V supply"],
+      ["Strip GND", "GND", "Join the grounds if the strip has its own supply"],
+      ["Strip DIN, through 330 Ω", "GPIO %PIX%", "The resistor goes next to the strip"],
+      ["BOOT button", "GPIO %BTN%", "Already on the board. Press it to switch effects"],
+    ],
+    code: R`// Fire and lava lamp on a NeoPixel strip. BOOT switches the effect.
+#include <Adafruit_NeoPixel.h>
+
+const int PIN = %PIX%;
+const int COUNT = 30;       // LEDs on your strip
+const int BUTTON = %BTN%;   // the BOOT button
+const int COOLING = 55;     // fire: higher makes shorter flames
+const int SPARKING = 120;   // fire: higher makes a busier fire
+
+Adafruit_NeoPixel strip(COUNT, PIN, NEO_GRB + NEO_KHZ800);
+uint8_t heat[COUNT];
+bool lava = false;
+int lastButton = HIGH;
+unsigned long frames = 0, reportAt = 0;
+
+// Black, red, orange, yellow, white as heat rises.
+uint32_t heatColor(uint8_t t) {
+  uint8_t scaled = (t * 191) / 255;  // 0 to 191, three bands of 64
+  uint8_t ramp = (scaled & 63) << 2;
+  if (scaled > 127) return strip.Color(255, 255, ramp);
+  if (scaled > 63) return strip.Color(255, ramp, 0);
+  return strip.Color(ramp, 0, 0);
+}
+
+void fire() {
+  // The classic Fire2012 idea: each cell cools, heat drifts up, new sparks at the bottom.
+  for (int i = 0; i < COUNT; i++) {
+    int cool = random(0, ((COOLING * 10) / COUNT) + 2);
+    heat[i] = heat[i] > cool ? heat[i] - cool : 0;
+  }
+  for (int k = COUNT - 1; k >= 2; k--) heat[k] = (heat[k - 1] + 2 * heat[k - 2]) / 3;
+  if (random(255) < SPARKING) {
+    int y = random(min(7, COUNT));
+    heat[y] = min(255, heat[y] + (int)random(160, 255));
+  }
+  for (int j = 0; j < COUNT; j++) strip.setPixelColor(j, heatColor(heat[j]));
+}
+
+void lavaLamp() {
+  // Two slow waves of warm colour drifting past each other.
+  float t = millis() / 1000.0f;
+  for (int i = 0; i < COUNT; i++) {
+    float a = (sinf(i * 0.35f + t * 0.6f) + 1) / 2;
+    float b = (sinf(i * 0.17f - t * 0.4f + 2) + 1) / 2;
+    uint16_t hue = 60000 + (uint16_t)(a * 9000);  // magenta through red to orange
+    uint8_t value = 60 + (uint8_t)(b * 195);
+    strip.setPixelColor(i, strip.gamma32(strip.ColorHSV(hue, 255, value)));
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUTTON, INPUT_PULLUP);
+  strip.begin();
+  strip.setBrightness(60);  // about a quarter: easy on USB power
+  strip.show();
+  randomSeed(esp_random());
+  Serial.printf("%d LEDs on GPIO %d. Press BOOT to switch effects.\n", COUNT, PIN);
+  Serial.println("mode: fire");
+}
+
+void loop() {
+  int button = digitalRead(BUTTON);
+  if (lastButton == HIGH && button == LOW) {
+    lava = !lava;
+    Serial.println(lava ? "mode: lava lamp" : "mode: fire");
+    delay(30);
+  }
+  lastButton = button;
+
+  if (lava) lavaLamp();
+  else fire();
+  strip.show();
+  frames++;
+
+  if (millis() - reportAt >= 5000) {
+    Serial.printf("fps=%lu\n", frames * 1000 / (millis() - reportAt));
+    frames = 0;
+    reportAt = millis();
+  }
+  delay(lava ? 30 : 16);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Each LED can draw about 60 mA at full white. Thirty LEDs at this brightness are fine on USB; at full brightness use a separate 5 V supply and a 1000 µF capacitor across it.",
+      "WS2812B LEDs on 5 V expect data near 5 V. Most accept 3.3 V; if the first LED flickers or stays dark, put a 74AHCT125 level shifter in the data line.",
+      "Hang the strip vertically for the fire: the flames rise from LED 0. A paper tube or a frosted jar over it makes it look far better.",
+      "Tune COOLING and SPARKING to change the fire. The fps lines on the bench show how fast the strip is updating.",
+    ],
+    sample: [
+      "30 LEDs on GPIO %PIX%. Press BOOT to switch effects.",
+      "mode: fire",
+      "fps=58",
+      "fps=57",
+      "fps=58",
+      "mode: lava lamp",
+      "fps=31",
+      "fps=31",
+      "mode: fire",
+      "fps=58",
+    ],
+  },
+  {
+    id: "talking-plant", needs: [["soil"]], name: "Talking plant", level: "Starter", mins: 15, tags: ["games", "sensors"],
+    sum: "Give a house plant a voice. A soil moisture sensor tells you when it is thirsty, and the plant says so on the serial port.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { SOIL: "34" }, esp32s3: { SOIL: "2" }, esp32c3: { SOIL: "3" } },
+    pins: ["3V3", "GND", "%SOIL%"], libs: [], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Capacitive soil moisture sensor, v1.2 or similar, with analog output"],
+      [3, "Jumper wires"],
+    ],
+    wiring: [
+      ["Sensor VCC", "3V3", "3.3 V keeps the analog output inside the ESP32's range"],
+      ["Sensor GND", "GND", ""],
+      ["Sensor AOUT", "GPIO %SOIL%", "An ADC1 pin"],
+    ],
+    code: R`// Talking plant: a capacitive soil sensor gives the plant a voice.
+const int SOIL = %SOIL%;       // an ADC1 pin
+// Calibrate: read the raw value with the sensor in dry air, then in a glass of water.
+const int AIR_RAW = 2800;
+const int WATER_RAW = 1200;
+const unsigned long EVERY_MS = 10000;
+
+enum Mood { PARCHED, THIRSTY, HAPPY, SOGGY, UNKNOWN };
+Mood mood = UNKNOWN;
+
+int readRaw() {
+  long sum = 0;
+  for (int i = 0; i < 16; i++) {
+    sum += analogRead(SOIL);
+    delay(5);
+  }
+  return sum / 16;
+}
+
+Mood moodFor(int pct) {
+  // A few percent of slack around the extremes, so the plant does not dither.
+  const int slack = 3;
+  if (mood == PARCHED && pct < 20 + slack) return PARCHED;
+  if (mood == SOGGY && pct > 85 - slack) return SOGGY;
+  if (pct < 20) return PARCHED;
+  if (pct < 40) return THIRSTY;
+  if (pct <= 85) return HAPPY;
+  return SOGGY;
+}
+
+void say(Mood next) {
+  if (next == HAPPY && (mood == PARCHED || mood == THIRSTY)) Serial.println("Plant: Ahh, that's better. Thank you!");
+  else if (next == HAPPY) Serial.println("Plant: Feeling good.");
+  else if (next == THIRSTY) Serial.println("Plant: I could use a drink soon.");
+  else if (next == PARCHED) Serial.println("Plant: I'm parched! Water, please.");
+  else Serial.println("Plant: Glub. That's plenty, my roots need air too.");
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(500);
+  analogReadResolution(12);
+  Serial.println("Talking plant. Calibrate AIR_RAW and WATER_RAW in the sketch for your sensor.");
+}
+
+void loop() {
+  int raw = readRaw();
+  int pct = constrain(map(raw, AIR_RAW, WATER_RAW, 0, 100), 0, 100);
+  Serial.printf("moisture=%d%% raw=%d\n", pct, raw);
+  Mood next = moodFor(pct);
+  if (next != mood) {
+    say(next);
+    mood = next;
+  }
+  delay(EVERY_MS);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Every sensor reads a little differently. Set AIR_RAW and WATER_RAW to the raw values you see in dry air and in a glass of water, and the percentages start to mean something.",
+      "Wetter soil gives a lower raw number on capacitive sensors, which is why WATER_RAW is the smaller one.",
+      "Only push the sensor in up to the line printed on it. The electronics at the top are not waterproof; a coat of nail varnish or hot glue on the edges helps it last.",
+      "On a battery, read once and go to deep sleep for half an hour with esp_sleep_enable_timer_wakeup() and esp_deep_sleep_start(). Power the sensor from a GPIO so it is off while the board sleeps.",
+      "The sensor is on an ADC1 pin, so the same wiring keeps working if you add Wi-Fi later.",
+    ],
+    sample: [
+      "Talking plant. Calibrate AIR_RAW and WATER_RAW in the sketch for your sensor.",
+      "moisture=18% raw=2512",
+      "Plant: I'm parched! Water, please.",
+      "moisture=17% raw=2528",
+      "moisture=17% raw=2531",
+      "moisture=52% raw=1968",
+      "Plant: Ahh, that's better. Thank you!",
+      "moisture=58% raw=1872",
+      "moisture=61% raw=1824",
+      "moisture=60% raw=1840",
+    ],
+  },
+  {
+    id: "ir-sweep", needs: [["sharpir"], ["servo"]], name: "IR sonar sweep", level: "Intermediate", mins: 30, tags: ["sensors", "motion"],
+    sum: "A servo swings a Sharp IR distance sensor back and forth like a radar dish. The bench charts every reading and each sweep ends with a little map of what it saw.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SERVO: "18", IR: "34" },
+      esp32s3: { SERVO: "5", IR: "2" },
+      esp32c3: { SERVO: "4", IR: "3" },
+    },
+    pins: ["5V", "GND", "%SERVO%", "%IR%"], libs: ["ESP32Servo"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Sharp GP2Y0A21YK0F IR distance sensor, 10 to 80 cm", BOM.sharpIr],
+      [1, "Micro servo, SG90 or similar", BOM.microServo],
+      [1, "100 µF electrolytic capacitor"],
+      [6, "Jumper wires"],
+    ],
+    wiring: [
+      ["Sharp VCC (red)", "5V", "The sensor needs 5 V. Its output stays below about 3.1 V, so it is safe for the ESP32"],
+      ["Sharp GND (black)", "GND", ""],
+      ["100 µF capacitor", "5V to GND", "Right at the sensor, longer leg (+) to 5V. It smooths the sensor's current pulses"],
+      ["Sharp Vo (yellow or white)", "GPIO %IR%", "An ADC1 pin, so it keeps working if you add Wi-Fi later"],
+      ["Servo red", "5V", "One micro servo is fine from USB"],
+      ["Servo brown", "GND", ""],
+      ["Servo orange", "GPIO %SERVO%", ""],
+    ],
+    code: R`// IR sonar sweep: a servo swings a Sharp IR distance sensor from side to side
+// and maps what it sees. Open the bench: angle and cm chart live, and each sweep
+// ends with a little top-down map.
+#include <ESP32Servo.h>
+
+const int SERVO_PIN = %SERVO%;
+const int IR_PIN = %IR%;               // an ADC1 pin: the sensor's analog output
+const int STEP_DEG = 10;               // degrees per step
+const int SETTLE_MS = 60;              // let the servo arrive and the sensor update (it refreshes every ~40 ms)
+const int SAMPLES = 8;                 // readings averaged per step: the sensor is noisy
+const float MIN_CM = 10, MAX_CM = 80;  // the GP2Y0A21's useful range
+
+Servo servo;
+float distances[180 / STEP_DEG + 1];
+
+// The GP2Y0A21YK's output falls as distance rises, roughly as a power curve.
+// cm = 27.86 * V^-1.15 is a common fit to the datasheet's typical curve from
+// 10 to 80 cm. Measure a few known distances and adjust it for real accuracy.
+float readCm() {
+  uint32_t mv = 0;
+  for (int i = 0; i < SAMPLES; i++) {
+    mv += analogReadMilliVolts(IR_PIN);
+    delay(2);
+  }
+  const float volts = mv / (float)SAMPLES / 1000.0f;
+  if (volts < 0.35f) return MAX_CM + 1;  // nothing in range
+  const float cm = 27.86f * powf(volts, -1.15f);
+  return constrain(cm, MIN_CM - 1, MAX_CM + 1);
+}
+
+// A top-down map of one sweep: the sensor at the bottom middle, '*' where it saw
+// something. It contains no digits, so the bench's plotter ignores it.
+void drawMap() {
+  const int W = 41, H = 11;
+  char grid[H][W + 1];
+  for (int y = 0; y < H; y++) {
+    memset(grid[y], ' ', W);
+    grid[y][W] = 0;
+  }
+  for (int i = 0; i * STEP_DEG <= 180; i++) {
+    const float cm = distances[i];
+    if (cm > MAX_CM) continue;
+    const float a = radians(i * STEP_DEG);
+    const int x = W / 2 + (int)roundf(cosf(a) * cm / MAX_CM * (W / 2));
+    const int y = H - 1 - (int)roundf(sinf(a) * cm / MAX_CM * (H - 1));
+    if (x >= 0 && x < W && y >= 0 && y < H) grid[y][x] = '*';
+  }
+  grid[H - 1][W / 2] = 'S';
+  Serial.println("+-----------------------------------------+");
+  for (int y = 0; y < H; y++) Serial.printf("|%s|\n", grid[y]);
+  Serial.println("+-----------------------------------------+");
+}
+
+void setup() {
+  Serial.begin(115200);
+  analogSetPinAttenuation(IR_PIN, ADC_11db);  // the full 0 to 3.1 V range
+  servo.setPeriodHertz(50);
+  servo.attach(SERVO_PIN, 500, 2400);  // pulse range for SG90-class servos
+  servo.write(0);
+  delay(500);
+  Serial.println("IR sweep ready");
+}
+
+int sweep = 0;
+
+void loop() {
+  sweep++;
+  const bool forward = sweep % 2 == 1;  // sweep back and forth, so the servo never jumps
+  float nearest = MAX_CM + 1;
+  int nearestAt = -1;
+  for (int i = 0; i * STEP_DEG <= 180; i++) {
+    const int angle = forward ? i * STEP_DEG : 180 - i * STEP_DEG;
+    servo.write(angle);
+    delay(SETTLE_MS);
+    const float cm = readCm();
+    distances[angle / STEP_DEG] = cm;
+    Serial.printf("angle = %d, cm = %.1f\n", angle, cm);
+    if (cm < nearest) {
+      nearest = cm;
+      nearestAt = angle;
+    }
+  }
+  drawMap();
+  if (nearestAt >= 0 && nearest <= MAX_CM) {
+    Serial.printf("sweep = %d, nearest_cm = %.1f, nearest_angle = %d\n", sweep, nearest, nearestAt);
+  }
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Stick the IR sensor on the servo horn with tape or a dab of hot glue so it points the way the horn turns.",
+      "The Sharp sensor draws its current in short bursts, which makes its output jumpy. The 100 µF capacitor across its power pins smooths that; the sketch also averages eight readings per step.",
+      "It only measures from about 10 to 80 cm. Closer than 10 cm the reading folds back and looks farther away, so keep the first 10 cm in front of it clear.",
+      "The cm figure comes from a typical curve for the GP2Y0A21. Check it with a ruler at two or three distances and adjust the 27.86 and -1.15 in readCm() if yours reads high or low.",
+      "Dark, shiny or very angled surfaces send back less infrared light and may read farther than they are. A sheet of paper makes a good test target.",
+      "Open the bench at 115200 baud: angle and cm chart live, and each sweep prints a top-down map with the sensor at the bottom.",
+    ],
+    sample: [
+      "IR sweep ready",
+      "angle = 0, cm = 80.6",
+      "angle = 10, cm = 81.6",
+      "angle = 20, cm = 80.6",
+      "angle = 30, cm = 81.6",
+      "angle = 40, cm = 80.6",
+      "angle = 50, cm = 78.9",
+      "angle = 60, cm = 68.9",
+      "angle = 70, cm = 64.5",
+      "angle = 80, cm = 26.1",
+      "angle = 90, cm = 25.6",
+      "angle = 100, cm = 26.1",
+      "angle = 110, cm = 64.5",
+      "angle = 120, cm = 68.9",
+      "angle = 130, cm = 78.9",
+      "angle = 140, cm = 80.6",
+      "angle = 150, cm = 81.6",
+      "angle = 160, cm = 80.6",
+      "angle = 170, cm = 81.6",
+      "angle = 180, cm = 80.6",
+      "+-----------------------------------------+",
+      "|                                         |",
+      "|                                         |",
+      "|       *      *           *      *       |",
+      "|           *                 *           |",
+      "|                                         |",
+      "|                                         |",
+      "|                                         |",
+      "|                   ***                   |",
+      "|                                         |",
+      "|                                         |",
+      "|                    S                    |",
+      "+-----------------------------------------+",
+      "sweep = 1, nearest_cm = 25.6, nearest_angle = 90",
+      "angle = 180, cm = 81.3",
+      "angle = 170, cm = 81.3",
+      "angle = 160, cm = 81.3",
+      "angle = 150, cm = 81.3",
+      "angle = 140, cm = 81.3",
+      "angle = 130, cm = 78.6",
+      "angle = 120, cm = 69.6",
+      "angle = 110, cm = 64.2",
+    ],
+  },
+  {
+    id: "level-platform", needs: [["mpu6050"], ["servo"]], name: "Self-levelling platform", level: "Intermediate", mins: 45, tags: ["sensors", "motion"],
+    sum: "Tilt the base and two servos tilt the plate the other way, so a marble stays put. An MPU-6050 measures the tilt and a complementary filter keeps it steady.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SDA: "21", SCL: "22", SX: "18", SY: "19" },
+      esp32s3: { SDA: "8", SCL: "9", SX: "5", SY: "6" },
+      esp32c3: { SDA: "6", SCL: "7", SX: "4", SY: "5" },
+    },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%", "%SX%", "%SY%"], libs: ["Wire (built in)", "ESP32Servo"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "MPU-6050 accelerometer and gyro board (GY-521)"],
+      [2, "Micro servos, SG90 or similar", BOM.microServo],
+      [1, "5 V supply for the servos, such as a USB power bank or a 5 V 2 A adapter"],
+      [1, "Small plate and base: card, plywood or a 3D print"],
+      [10, "Jumper wires"],
+    ],
+    wiring: [
+      ["MPU-6050 VCC", "3V3", "The GY-521 board also accepts 5 V, but 3V3 keeps its I2C lines at the ESP32's level"],
+      ["MPU-6050 GND", "GND", ""],
+      ["MPU-6050 SDA", "GPIO %SDA%", "The board has its own pull-up resistors"],
+      ["MPU-6050 SCL", "GPIO %SCL%", ""],
+      ["Roll servo signal", "GPIO %SX%", "Tilts the plate left and right"],
+      ["Pitch servo signal", "GPIO %SY%", "Tilts the plate forward and back"],
+      ["Both servos red", "5 V supply +", "Not the ESP32's 3V3 pin. Two servos moving at once can draw an amp"],
+      ["Both servos brown", "GND", ""],
+      ["5 V supply -", "GND", "Joins the servo supply's ground to the ESP32's"],
+    ],
+    code: R`// Self-levelling platform: an MPU-6050 on the base measures how far it is
+// tilted, and two servos tilt the plate the other way so it stays level.
+// Talks to the MPU-6050 directly over I2C, so no extra library is needed.
+#include <Wire.h>
+#include <ESP32Servo.h>
+
+const int SDA_PIN = %SDA%;
+const int SCL_PIN = %SCL%;
+const int SERVO_X_PIN = %SX%;  // tilts the plate left and right (roll)
+const int SERVO_Y_PIN = %SY%;  // tilts the plate forward and back (pitch)
+
+const uint8_t MPU = 0x68;      // 0x69 if the board's AD0 pin is tied high
+const float ALPHA = 0.98f;     // complementary filter: 98 % gyro, 2 % accelerometer
+const float GAIN_X = 1.0f;     // servo degrees per degree of tilt; depends on your linkage
+const float GAIN_Y = 1.0f;
+const bool INVERT_X = false;   // flip if a servo makes the tilt worse instead of better
+const bool INVERT_Y = false;
+const int CENTER = 90, TRAVEL = 45;  // servo centre and how far either way it may go
+
+Servo servoX, servoY;
+float gyroBiasX = 0, gyroBiasY = 0;
+float pitch = 0, roll = 0;          // filtered tilt, degrees
+float pitchZero = 0, rollZero = 0;  // the tilt at start-up counts as level
+unsigned long lastUs = 0;
+
+void writeReg(uint8_t reg, uint8_t value) {
+  Wire.beginTransmission(MPU);
+  Wire.write(reg);
+  Wire.write(value);
+  Wire.endTransmission();
+}
+
+// Accelerometer in g and gyro in degrees per second, from one 14-byte read.
+bool readMpu(float& ax, float& ay, float& az, float& gx, float& gy) {
+  Wire.beginTransmission(MPU);
+  Wire.write(0x3B);  // ACCEL_XOUT_H
+  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.requestFrom(MPU, (uint8_t)14) != 14) return false;
+  int16_t raw[7];
+  for (int i = 0; i < 7; i++) raw[i] = (int16_t)((Wire.read() << 8) | Wire.read());
+  ax = raw[0] / 16384.0f;  // ±2 g range
+  ay = raw[1] / 16384.0f;
+  az = raw[2] / 16384.0f;
+  gx = raw[4] / 131.0f;    // ±250 °/s range; raw[3] is temperature
+  gy = raw[5] / 131.0f;
+  return true;
+}
+
+void accelAngles(float ax, float ay, float az, float& p, float& r) {
+  p = degrees(atan2f(-ax, sqrtf(ay * ay + az * az)));
+  r = degrees(atan2f(ay, az));
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(SDA_PIN, SCL_PIN, 400000);
+  Wire.beginTransmission(MPU);
+  if (Wire.endTransmission() != 0) {
+    Serial.println("MPU-6050 not found at 0x68: check SDA, SCL, 3V3 and GND");
+    while (true) delay(1000);
+  }
+  writeReg(0x6B, 0x00);  // PWR_MGMT_1: wake up
+  writeReg(0x1A, 0x03);  // CONFIG: 44 Hz low-pass filter to calm the servos
+  writeReg(0x1B, 0x00);  // GYRO_CONFIG: ±250 °/s
+  writeReg(0x1C, 0x00);  // ACCEL_CONFIG: ±2 g
+
+  servoX.setPeriodHertz(50);
+  servoY.setPeriodHertz(50);
+  servoX.attach(SERVO_X_PIN, 500, 2400);
+  servoY.attach(SERVO_Y_PIN, 500, 2400);
+  servoX.write(CENTER);
+  servoY.write(CENTER);
+
+  // Calibrate: hold still for two seconds while the gyro's drift and the
+  // starting tilt are measured.
+  Serial.println("Calibrating: keep the base still and level");
+  delay(500);
+  float sumGx = 0, sumGy = 0, sumP = 0, sumR = 0;
+  int n = 0;
+  for (int i = 0; i < 400; i++) {
+    float ax, ay, az, gx, gy;
+    if (readMpu(ax, ay, az, gx, gy)) {
+      float p, r;
+      accelAngles(ax, ay, az, p, r);
+      sumGx += gx;
+      sumGy += gy;
+      sumP += p;
+      sumR += r;
+      n++;
+    }
+    delay(5);
+  }
+  if (n > 0) {
+    gyroBiasX = sumGx / n;
+    gyroBiasY = sumGy / n;
+    pitchZero = sumP / n;
+    rollZero = sumR / n;
+  }
+  pitch = pitchZero;
+  roll = rollZero;
+  lastUs = micros();
+  Serial.println("Levelling. Tilt the base and watch the plate.");
+}
+
+unsigned long lastPrint = 0;
+
+void loop() {
+  float ax, ay, az, gx, gy;
+  if (!readMpu(ax, ay, az, gx, gy)) {
+    Serial.println("MPU-6050 read failed");
+    delay(100);
+    return;
+  }
+  const unsigned long now = micros();
+  const float dt = (now - lastUs) / 1e6f;
+  lastUs = now;
+
+  // Complementary filter: the gyro is smooth but drifts, the accelerometer is
+  // noisy but never drifts. Mix them.
+  float ap, ar;
+  accelAngles(ax, ay, az, ap, ar);
+  roll = ALPHA * (roll + (gx - gyroBiasX) * dt) + (1 - ALPHA) * ar;
+  pitch = ALPHA * (pitch + (gy - gyroBiasY) * dt) + (1 - ALPHA) * ap;
+
+  // Tilt the plate against the base's tilt.
+  const float tiltX = roll - rollZero, tiltY = pitch - pitchZero;
+  const int sx = constrain((int)roundf(CENTER + (INVERT_X ? 1 : -1) * GAIN_X * tiltX), CENTER - TRAVEL, CENTER + TRAVEL);
+  const int sy = constrain((int)roundf(CENTER + (INVERT_Y ? 1 : -1) * GAIN_Y * tiltY), CENTER - TRAVEL, CENTER + TRAVEL);
+  servoX.write(sx);
+  servoY.write(sy);
+
+  if (millis() - lastPrint >= 100) {
+    lastPrint = millis();
+    Serial.printf("pitch = %.1f, roll = %.1f, servo_x = %d, servo_y = %d\n", tiltY, tiltX, sx, sy);
+  }
+  delay(5);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Fix the MPU-6050 to the base, not the plate. The sketch measures how far the base tilts and turns the servos the other way.",
+      "Keep the base still and level for the first two seconds after power-up: the sketch measures the gyro's drift and takes the starting position as level.",
+      "If the plate tilts the wrong way on one axis, set INVERT_X or INVERT_Y. If it under- or over-corrects, change GAIN_X and GAIN_Y: the right value depends on how far each servo arm moves the plate.",
+      "The complementary filter trusts the gyro 98 % (ALPHA) for smooth, quick moves and the accelerometer 2 % to stop the gyro drifting. Lower ALPHA if it slowly wanders, raise it if it jitters.",
+      "Many cheap MPU-6050 boards are clones. If the board is not found, run the I2C scanner project: it may answer at 0x69 if its AD0 pin is high.",
+      "Servos that jitter or reset the board are short of current. Power them from their own 5 V supply and join the grounds.",
+    ],
+    sample: [
+      "Calibrating: keep the base still and level",
+      "Levelling. Tilt the base and watch the plate.",
+      "pitch = 0.0, roll = -0.0, servo_x = 90, servo_y = 90",
+      "pitch = 2.9, roll = -3.0, servo_x = 93, servo_y = 87",
+      "pitch = 5.6, roll = -5.3, servo_x = 95, servo_y = 84",
+      "pitch = 8.0, roll = -6.4, servo_x = 96, servo_y = 82",
+      "pitch = 9.9, roll = -6.0, servo_x = 96, servo_y = 80",
+      "pitch = 11.2, roll = -4.2, servo_x = 94, servo_y = 79",
+      "pitch = 11.9, roll = -1.5, servo_x = 92, servo_y = 78",
+      "pitch = 11.9, roll = 1.5, servo_x = 88, servo_y = 78",
+      "pitch = 11.2, roll = 4.2, servo_x = 86, servo_y = 79",
+      "pitch = 9.9, roll = 6.0, servo_x = 84, servo_y = 80",
+      "pitch = 8.0, roll = 6.4, servo_x = 84, servo_y = 82",
+      "pitch = 5.6, roll = 5.3, servo_x = 85, servo_y = 84",
+      "pitch = 2.9, roll = 3.0, servo_x = 87, servo_y = 87",
+      "pitch = 0.0, roll = 0.0, servo_x = 90, servo_y = 90",
+    ],
+  },
+  {
+    id: "joystick-turret", needs: [["joystick"], ["servo"]], name: "Joystick pan-tilt turret", level: "Starter", mins: 30, tags: ["games", "motion"],
+    sum: "Steer two servos with a thumb joystick, like a camera turret. Add an MPU-6050 and a click of the stick switches to tilt steering: point your hand and the turret follows.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { JX: "34", JY: "35", JB: "27", PAN: "18", TILT: "19", SDA: "21", SCL: "22" },
+      esp32s3: { JX: "1", JY: "2", JB: "4", PAN: "5", TILT: "6", SDA: "8", SCL: "9" },
+      esp32c3: { JX: "0", JY: "1", JB: "10", PAN: "4", TILT: "5", SDA: "6", SCL: "7" },
+    },
+    pins: ["3V3", "5V", "GND", "%JX%", "%JY%", "%JB%", "%PAN%", "%TILT%"], libs: ["Wire (built in)", "ESP32Servo"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Analog thumb joystick with select button", BOM.thumbJoystick],
+      [2, "Micro servos, SG90 or similar", BOM.microServo],
+      [1, "Optional: MPU-6050 board (GY-521) for tilt steering"],
+      [1, "Optional: a pan-tilt bracket, or tape the tilt servo to the pan servo's horn"],
+      [10, "Jumper wires"],
+    ],
+    wiring: [
+      ["Joystick +5V or VCC", "3V3", "3V3, not 5 V: at 5 V the stick could send more than 3.3 V into the ESP32"],
+      ["Joystick GND", "GND", ""],
+      ["Joystick VRx", "GPIO %JX%", "An ADC1 pin"],
+      ["Joystick VRy", "GPIO %JY%", "An ADC1 pin"],
+      ["Joystick SW", "GPIO %JB%", "The internal pull-up does the rest"],
+      ["Pan servo signal", "GPIO %PAN%", ""],
+      ["Tilt servo signal", "GPIO %TILT%", ""],
+      ["Both servos red", "5V", "Fine from USB for two micro servos that move gently; use a separate 5 V supply if the board resets"],
+      ["Both servos brown", "GND", ""],
+      ["Optional: MPU-6050 VCC", "3V3", ""],
+      ["Optional: MPU-6050 GND", "GND", ""],
+      ["Optional: MPU-6050 SDA and SCL", "GPIO %SDA% and %SCL%", "Found automatically at start-up"],
+    ],
+    code: R`// Joystick pan-tilt turret: push the stick and two servos follow. Click the stick
+// to switch to tilt mode, where an MPU-6050 in your hand steers instead (if one
+// is wired; without it the button does nothing).
+#include <Wire.h>
+#include <ESP32Servo.h>
+
+const int JOY_X = %JX%;     // ADC1 pins
+const int JOY_Y = %JY%;
+const int JOY_BTN = %JB%;   // the stick's push button (SW)
+const int PAN_PIN = %PAN%;
+const int TILT_PIN = %TILT%;
+const int SDA_PIN = %SDA%;  // optional MPU-6050 for tilt mode
+const int SCL_PIN = %SCL%;
+
+const float DEADZONE = 0.08f;    // ignore the stick this close to centre (fraction of full throw)
+const float MAX_SPEED = 120.0f;  // degrees per second at full throw
+const int MIN_ANGLE = 10, MAX_ANGLE = 170;
+const float TILT_GAIN = 1.5f;    // tilt mode: servo degrees per degree of hand tilt
+const uint8_t MPU = 0x68;
+
+Servo pan, tilt;
+float panAngle = 90, tiltAngle = 90;
+int centerX = 2048, centerY = 2048;
+bool hasMpu = false, tiltMode = false;
+unsigned long lastMs = 0, lastPrint = 0;
+
+int averageRead(int pin) {
+  long sum = 0;
+  for (int i = 0; i < 16; i++) sum += analogRead(pin);
+  return sum / 16;
+}
+
+// Stick position from -1 to 1, with the dead zone removed and the rest rescaled.
+float axis(int pin, int center) {
+  const int raw = averageRead(pin);
+  const float span = raw >= center ? 4095 - center : center;
+  float v = (raw - center) / (span > 0 ? span : 1);
+  if (fabsf(v) < DEADZONE) return 0;
+  v = (fabsf(v) - DEADZONE) / (1 - DEADZONE) * (v > 0 ? 1 : -1);
+  return constrain(v, -1.0f, 1.0f);
+}
+
+bool readTilt(float& pitch, float& roll) {
+  Wire.beginTransmission(MPU);
+  Wire.write(0x3B);
+  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.requestFrom(MPU, (uint8_t)6) != 6) return false;
+  const float ax = (int16_t)((Wire.read() << 8) | Wire.read()) / 16384.0f;
+  const float ay = (int16_t)((Wire.read() << 8) | Wire.read()) / 16384.0f;
+  const float az = (int16_t)((Wire.read() << 8) | Wire.read()) / 16384.0f;
+  pitch = degrees(atan2f(-ax, sqrtf(ay * ay + az * az)));
+  roll = degrees(atan2f(ay, az));
+  return true;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(JOY_BTN, INPUT_PULLUP);
+  analogSetPinAttenuation(JOY_X, ADC_11db);
+  analogSetPinAttenuation(JOY_Y, ADC_11db);
+
+  pan.setPeriodHertz(50);
+  tilt.setPeriodHertz(50);
+  pan.attach(PAN_PIN, 500, 2400);
+  tilt.attach(TILT_PIN, 500, 2400);
+  pan.write(90);
+  tilt.write(90);
+
+  // The stick rests at its centre now: remember where that is.
+  delay(300);
+  centerX = averageRead(JOY_X);
+  centerY = averageRead(JOY_Y);
+
+  Wire.begin(SDA_PIN, SCL_PIN);
+  Wire.beginTransmission(MPU);
+  hasMpu = Wire.endTransmission() == 0;
+  if (hasMpu) {
+    Wire.beginTransmission(MPU);
+    Wire.write(0x6B);  // PWR_MGMT_1: wake up
+    Wire.write(0);
+    Wire.endTransmission();
+  }
+  Serial.printf("Turret ready. MPU-6050 %s.\n", hasMpu ? "found: click the stick for tilt mode" : "not found: stick only");
+  lastMs = millis();
+}
+
+void loop() {
+  const unsigned long now = millis();
+  const float dt = (now - lastMs) / 1000.0f;
+  lastMs = now;
+
+  // Click to switch modes, only when an MPU-6050 is there to steer with.
+  if (hasMpu && digitalRead(JOY_BTN) == LOW) {
+    tiltMode = !tiltMode;
+    Serial.println(tiltMode ? "Tilt mode: steer by tilting the MPU-6050" : "Stick mode");
+    while (digitalRead(JOY_BTN) == LOW) delay(10);
+    delay(30);  // debounce the release
+  }
+
+  float pitch, roll;
+  if (tiltMode && readTilt(pitch, roll)) {
+    panAngle = 90 + roll * TILT_GAIN;
+    tiltAngle = 90 + pitch * TILT_GAIN;
+  } else {
+    // Stick mode: the further you push, the faster it turns, and it stays put when you let go.
+    panAngle += axis(JOY_X, centerX) * MAX_SPEED * dt;
+    tiltAngle += axis(JOY_Y, centerY) * MAX_SPEED * dt;
+  }
+  panAngle = constrain(panAngle, (float)MIN_ANGLE, (float)MAX_ANGLE);
+  tiltAngle = constrain(tiltAngle, (float)MIN_ANGLE, (float)MAX_ANGLE);
+  pan.write((int)roundf(panAngle));
+  tilt.write((int)roundf(tiltAngle));
+
+  if (now - lastPrint >= 150) {
+    lastPrint = now;
+    Serial.printf("pan = %d, tilt = %d\n", (int)roundf(panAngle), (int)roundf(tiltAngle));
+  }
+  delay(15);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Leave the stick alone while the board starts: it reads the resting position as the centre, so the turret does not creep.",
+      "In stick mode the turret moves faster the further you push and stays where it is when you let go. Change MAX_SPEED to taste, and DEADZONE if it drifts with the stick at rest.",
+      "Without an MPU-6050 the stick's button does nothing. With one, a click switches to tilt mode, where the servos copy the board's tilt: hold it like a remote.",
+      "Many joystick modules are labelled +5V. Power them from 3V3 anyway: the stick is just two potentiometers, and at 5 V their outputs could reach 5 V.",
+      "On the C3 the two axes use GPIO 0 and 1, the only free ADC pins once I2C and the servos are wired.",
+    ],
+    sample: [
+      "Turret ready. MPU-6050 found: click the stick for tilt mode.",
+      "pan = 102, tilt = 90",
+      "pan = 114, tilt = 90",
+      "pan = 126, tilt = 90",
+      "pan = 138, tilt = 90",
+      "pan = 150, tilt = 90",
+      "pan = 150, tilt = 81",
+      "pan = 150, tilt = 72",
+      "pan = 150, tilt = 63",
+      "pan = 150, tilt = 54",
+      "pan = 135, tilt = 60",
+      "pan = 120, tilt = 66",
+      "pan = 105, tilt = 72",
+      "Tilt mode: steer by tilting the MPU-6050",
+      "pan = 96, tilt = 84",
+      "pan = 104, tilt = 79",
+      "pan = 111, tilt = 75",
+      "pan = 103, tilt = 88",
+    ],
+  },
+  {
+    id: "visitor-counter", needs: [["pir"], ["shiftreg"], ["sevenseg"], ["buzzer"]], name: "Visitor counter", level: "Intermediate", mins: 40, tags: ["games", "sensors"],
+    sum: "A motion sensor counts people walking past and chirps for each one. A 74HC595 shift register drives a 7-segment digit with just three wires, and the count survives a power cut.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { PIR: "27", SER: "23", CLK: "18", LATCH: "19", BUZZ: "25", BTN: "0" },
+      esp32s3: { PIR: "4", SER: "5", CLK: "6", LATCH: "7", BUZZ: "10", BTN: "0" },
+      esp32c3: { PIR: "10", SER: "4", CLK: "5", LATCH: "6", BUZZ: "7", BTN: "9" },
+    },
+    pins: ["5V", "3V3", "GND", "%PIR%", "%SER%", "%CLK%", "%LATCH%", "%BUZZ%", "%BTN%"], libs: ["Preferences (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "PIR motion sensor (HC-SR501 type)", BOM.pirSensor],
+      [1, "74HC595 shift register", BOM.shiftRegister595],
+      [1, "Single 7-segment LED digit, common cathode or common anode"],
+      [8, "330 Ω resistors, one per segment"],
+      [1, "0.1 µF ceramic capacitor"],
+      [1, "Passive buzzer or piezo", BOM.piezoBuzzer],
+      [1, "Breadboard and jumper wires"],
+    ],
+    wiring: [
+      ["PIR VCC", "5V", "The HC-SR501 needs 5 V or more, but its OUT pin only goes to 3.3 V"],
+      ["PIR GND", "GND", ""],
+      ["PIR OUT", "GPIO %PIR%", ""],
+      ["74HC595 VCC (pin 16)", "3V3", ""],
+      ["0.1 µF capacitor", "3V3 to GND", "Right at the chip, across pins 16 and 8"],
+      ["74HC595 GND (pin 8)", "GND", ""],
+      ["74HC595 SER (pin 14)", "GPIO %SER%", "Data in"],
+      ["74HC595 SRCLK (pin 11)", "GPIO %CLK%", "Shift clock"],
+      ["74HC595 RCLK (pin 12)", "GPIO %LATCH%", "Latch: shows the new pattern"],
+      ["74HC595 OE (pin 13)", "GND", "Outputs always on"],
+      ["74HC595 MR (pin 10)", "3V3", "Never clear the register"],
+      ["74HC595 Q0 to Q6 (pins 15, 1 to 6)", "Digit segments a to g", "Each through its own 330 Ω resistor"],
+      ["74HC595 Q7 (pin 7)", "Digit decimal point", "Through 330 Ω"],
+      ["Digit common pin", "GND or 3V3", "GND for common cathode, 3V3 for common anode (then set COMMON_ANODE)"],
+      ["Buzzer +", "GPIO %BUZZ%", ""],
+      ["Buzzer -", "GND", ""],
+    ],
+    code: R`// Visitor counter: a PIR sensor counts people walking past, a 74HC595 shift
+// register drives a 7-segment digit, and a piezo chirps for each visitor.
+// The digit shows the last digit of the count; after each visit it spells out
+// the whole number, one digit at a time. The count survives a power cut.
+#include <Preferences.h>
+
+const int PIR_PIN = %PIR%;
+const int SER_PIN = %SER%;      // 74HC595 SER (DS), pin 14
+const int CLOCK_PIN = %CLK%;    // 74HC595 SRCLK (SHCP), pin 11
+const int LATCH_PIN = %LATCH%;  // 74HC595 RCLK (STCP), pin 12
+const int BUZZER = %BUZZ%;
+const int BUTTON = %BTN%;       // the BOOT button: hold 3 s to reset the count
+
+const bool COMMON_ANODE = false;     // set true for a common-anode digit (common pin to 3V3)
+const unsigned long WARMUP_MS = 30000;  // a PIR needs about 30 s after power-up to settle
+const unsigned long REARM_MS = 2000;    // quiet time after a visit before the next one counts
+
+// Segments a to g on the 595's outputs Q0 to Q6, the decimal point on Q7.
+const uint8_t DIGITS[10] = {
+  0b00111111, 0b00000110, 0b01011011, 0b01001111, 0b01100110,
+  0b01101101, 0b01111101, 0b00000111, 0b01111111, 0b01101111,
+};
+const uint8_t DOT = 0b10000000;
+
+Preferences prefs;
+uint32_t count = 0;
+bool wasHigh = false;
+unsigned long lastLow = 0;
+
+void show(uint8_t segments) {
+  if (COMMON_ANODE) segments = ~segments;  // a common-anode segment lights when its pin is low
+  digitalWrite(LATCH_PIN, LOW);
+  shiftOut(SER_PIN, CLOCK_PIN, MSBFIRST, segments);
+  digitalWrite(LATCH_PIN, HIGH);  // the new pattern appears on the outputs all at once
+}
+
+void showCount() {
+  show(DIGITS[count % 10]);
+}
+
+// Spell the whole count, one digit at a time, with the dot on the last one.
+void spellCount() {
+  char text[12];
+  snprintf(text, sizeof(text), "%lu", (unsigned long)count);
+  for (int i = 0; text[i]; i++) {
+    uint8_t seg = DIGITS[text[i] - '0'];
+    if (!text[i + 1]) seg |= DOT;
+    show(0);
+    delay(120);
+    show(seg);
+    delay(450);
+  }
+  showCount();
+}
+
+void chirp() {
+  tone(BUZZER, 1800, 50);
+  delay(70);
+  tone(BUZZER, 2400, 50);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(PIR_PIN, INPUT);
+  pinMode(SER_PIN, OUTPUT);
+  pinMode(CLOCK_PIN, OUTPUT);
+  pinMode(LATCH_PIN, OUTPUT);
+  pinMode(BUTTON, INPUT_PULLUP);
+
+  prefs.begin("visitors", false);
+  count = prefs.getUInt("count", 0);
+  Serial.printf("Visitor counter. Warming up the PIR for %lu s.\n", WARMUP_MS / 1000);
+
+  // Warm-up: a spinning segment, so you know it is not counting yet.
+  const uint8_t spin[] = {0b00000001, 0b00000010, 0b00000100, 0b00001000, 0b00010000, 0b00100000};
+  for (unsigned long start = millis(); millis() - start < WARMUP_MS;) {
+    show(spin[(millis() / 120) % 6]);
+    delay(20);
+  }
+  showCount();
+  lastLow = millis();
+  Serial.println("Counting.");
+}
+
+void loop() {
+  const bool motion = digitalRead(PIR_PIN) == HIGH;
+  const unsigned long now = millis();
+
+  if (!motion) {
+    if (wasHigh) lastLow = now;
+    wasHigh = false;
+  } else if (!wasHigh) {
+    wasHigh = true;
+    // A new visit only counts after REARM_MS of quiet, so one person is one count.
+    if (now - lastLow >= REARM_MS) {
+      count++;
+      prefs.putUInt("count", count);
+      Serial.printf("count = %lu\n", (unsigned long)count);
+      chirp();
+      spellCount();
+    }
+  }
+
+  // Hold BOOT for three seconds to start again from zero.
+  if (digitalRead(BUTTON) == LOW) {
+    const unsigned long pressed = now;
+    while (digitalRead(BUTTON) == LOW) {
+      if (millis() - pressed > 3000) {
+        count = 0;
+        prefs.putUInt("count", 0);
+        Serial.println("Count reset.");
+        showCount();
+        while (digitalRead(BUTTON) == LOW) delay(10);
+        break;
+      }
+      delay(10);
+    }
+  }
+  delay(20);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The shift register turns three ESP32 pins into eight outputs: the sketch clocks one byte into SER with SRCLK, then pulses RCLK so all eight segments change at once.",
+      "Not sure whether your digit is common cathode or common anode? Wire the common pin to GND and run it. If everything except the right segments lights, move the common pin to 3V3 and set COMMON_ANODE to true.",
+      "Use 330 Ω per segment, not one shared resistor: an 8 lights at once and the 74HC595 can only supply about 70 mA in total.",
+      "On the HC-SR501, turn the time knob fully anticlockwise (shortest hold) and set the jumper to single trigger (L) if it has one. The sketch also waits 2 s of quiet before counting the next visitor.",
+      "A PIR needs about 30 s after power-up to settle and may trigger at random until then. The digit spins while it warms up.",
+      "Hold BOOT for three seconds to reset the count. Do not hold it while the board starts: that puts it into download mode.",
+      "On the C3 the PIR uses GPIO 10 and the shift register GPIO 4, 5 and 6; GPIO 9 is the BOOT button itself.",
+    ],
+    sample: [
+      "Visitor counter. Warming up the PIR for 30 s.",
+      "Counting.",
+      "count = 41",
+      "count = 42",
+      "count = 43",
+      "count = 44",
+      "count = 45",
+      "count = 46",
+      "count = 47",
+    ],
+  },
+  {
+    id: "auto-fan", needs: [["dcmotor"], ["transistor"], ["ldr"]], name: "Automatic fan", level: "Intermediate", mins: 30, tags: ["sensors", "motion"],
+    sum: "A small DC motor fan that speeds up as the room gets brighter, or warmer with a DS18B20. The ESP32 drives it through a transistor with smooth, silent PWM.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { MOTOR: "25", LDR: "34", OW: "4" },
+      esp32s3: { MOTOR: "5", LDR: "2", OW: "4" },
+      esp32c3: { MOTOR: "5", LDR: "3", OW: "4" },
+    },
+    pins: ["5V", "3V3", "GND", "%MOTOR%", "%LDR%", "%OW%"], libs: ["OneWire", "DallasTemperature"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Small DC motor (130 size) with a propeller or fan blade"],
+      [1, "NPN transistor, PN2222 or 2N2222", BOM.pn2222],
+      [1, "1N4001 diode", BOM.diode1n4001],
+      [1, "470 Ω resistor, for the transistor's base"],
+      [1, "Photoresistor (light sensor)", BOM.photocell],
+      [1, "10 kΩ resistor, for the light sensor"],
+      [1, "Optional: DS18B20 temperature probe", BOM.ds18b20],
+      [1, "Optional: 4.7 kΩ resistor for the DS18B20", BOM.resistor4k7],
+      [8, "Jumper wires"],
+    ],
+    wiring: [
+      ["Motor +", "5V", "From USB or a separate 5 V supply, never from a GPIO pin"],
+      ["Motor -", "Transistor collector", ""],
+      ["Transistor emitter", "GND", "Check your transistor's pin order before wiring: a PN2222A is emitter, base, collector with the flat side facing you, but many parts sold as 2N2222 (such as P2N2222A) are collector, base, emitter"],
+      ["Transistor base, through 470 Ω", "GPIO %MOTOR%", "About 5 mA of base current, enough to switch the motor fully on"],
+      ["1N4001 across the motor", "Stripe to motor +, other end to motor -", "Catches the voltage spike when the motor switches off. Backwards it shorts the supply"],
+      ["Photoresistor", "3V3 to GPIO %LDR%", "Either way round"],
+      ["10 kΩ resistor", "GPIO %LDR% to GND", "With the photoresistor, brighter light gives a higher reading"],
+      ["Optional: DS18B20 VDD (red)", "3V3", ""],
+      ["Optional: DS18B20 GND (black)", "GND", ""],
+      ["Optional: DS18B20 DATA (yellow)", "GPIO %OW%", "Then set SOURCE to USE_TEMPERATURE"],
+      ["Optional: 4.7 kΩ pull-up resistor", "GPIO %OW% to 3V3", "Holds the probe's data line high"],
+    ],
+    code: R`// Automatic fan: a small DC motor spins faster as the light gets brighter (a
+// sunny window warms a room), or as a DS18B20 reads warmer if you wire one and
+// set SOURCE to USE_TEMPERATURE. The motor runs through an NPN transistor with
+// a flyback diode; the ESP32 pin only sends the PWM signal.
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+const int MOTOR_PIN = %MOTOR%;  // to the transistor's base, through 470 Ω
+const int LDR_PIN = %LDR%;      // ADC1 pin: photoresistor and 10 kΩ divider
+const int TEMP_PIN = %OW%;      // optional DS18B20 data line (4.7 kΩ pull-up to 3V3)
+
+enum Source { USE_LIGHT, USE_TEMPERATURE };
+const Source SOURCE = USE_LIGHT;
+
+const int PWM_HZ = 20000;  // above hearing, so the motor does not whine
+const int PWM_BITS = 8;    // duty from 0 to 255
+const int MIN_DUTY = 90;   // below this the motor hums but does not turn; tune for yours
+
+// Light mode: fan off in the dark, full speed in bright light (percent of the ADC range).
+const int LIGHT_OFF = 20, LIGHT_FULL = 80;
+// Temperature mode: fan off below TEMP_OFF, full speed at TEMP_FULL (°C).
+const float TEMP_OFF = 24.0, TEMP_FULL = 30.0;
+
+OneWire oneWire(TEMP_PIN);
+DallasTemperature probe(&oneWire);
+int lastDuty = 0;
+
+// Duty from 0 (off) to 1 (full) for a reading between the off and full points.
+float fraction(float value, float off, float full) {
+  return constrain((value - off) / (full - off), 0.0f, 1.0f);
+}
+
+void setDuty(float f) {
+  int duty = f <= 0 ? 0 : MIN_DUTY + (int)roundf(f * (255 - MIN_DUTY));
+  if (duty > 0 && lastDuty == 0) {
+    ledcWrite(MOTOR_PIN, 255);  // a short kick gets a stopped motor turning
+    delay(150);
+  }
+  ledcWrite(MOTOR_PIN, duty);
+  lastDuty = duty;
+}
+
+void setup() {
+  Serial.begin(115200);
+  ledcAttach(MOTOR_PIN, PWM_HZ, PWM_BITS);  // Arduino-ESP32 core 3.x LEDC API
+  ledcWrite(MOTOR_PIN, 0);
+  analogSetPinAttenuation(LDR_PIN, ADC_11db);
+  if (SOURCE == USE_TEMPERATURE) {
+    probe.begin();
+    if (probe.getDeviceCount() == 0) Serial.println("No DS18B20 found: check the data wire and the 4.7 kΩ pull-up");
+  }
+  Serial.println(SOURCE == USE_LIGHT ? "Auto fan: following the light" : "Auto fan: following the temperature");
+}
+
+void loop() {
+  float f;
+  if (SOURCE == USE_LIGHT) {
+    long sum = 0;
+    for (int i = 0; i < 16; i++) sum += analogRead(LDR_PIN);
+    const int light = (int)roundf(sum / 16.0f * 100.0f / 4095.0f);
+    f = fraction(light, LIGHT_OFF, LIGHT_FULL);
+    setDuty(f);
+    Serial.printf("light = %d%%, duty = %d%%\n", light, lastDuty * 100 / 255);
+  } else {
+    probe.requestTemperatures();
+    const float c = probe.getTempCByIndex(0);
+    if (c == DEVICE_DISCONNECTED_C) {
+      setDuty(1);  // fail safe: run the fan if the sensor is lost
+      Serial.println("sensor lost: fan on full");
+    } else {
+      f = fraction(c, TEMP_OFF, TEMP_FULL);
+      setDuty(f);
+      Serial.printf("temp_c = %.1f, duty = %d%%\n", c, lastDuty * 100 / 255);
+    }
+  }
+  delay(500);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Never run a motor straight from a GPIO pin. The transistor switches the motor's current from the 5 V supply; the pin only drives the transistor's base through 470 Ω. With 1 kΩ the transistor may not switch fully on and runs warm.",
+      "The diode matters: a motor is a coil, and when the transistor switches it off the coil kicks back a voltage spike. The diode, stripe towards 5 V, gives that spike somewhere harmless to go.",
+      "A PN2222 handles a small 130 motor. A bigger motor, or one that stalls, can draw more than its 600 mA limit and get hot: use a logic-level MOSFET instead.",
+      "PWM runs at 20 kHz so the motor does not whine. Below MIN_DUTY a motor hums without turning; tune it until the slowest setting still spins, and the sketch gives a stopped motor a short full-power kick.",
+      "A 9 V battery is a poor supply for this: it sags quickly under a motor's load. A USB power bank or a 5 V adapter lasts far longer.",
+      "Light mode suits a sunny window that warms a room. For a real temperature fan, wire the DS18B20 and set SOURCE to USE_TEMPERATURE; if the sensor is lost the fan runs at full speed to be safe.",
+    ],
+    sample: [
+      "Auto fan: following the light",
+      "light = 12%, duty = 0%",
+      "light = 18%, duty = 0%",
+      "light = 26%, duty = 41%",
+      "light = 35%, duty = 51%",
+      "light = 47%, duty = 64%",
+      "light = 58%, duty = 76%",
+      "light = 66%, duty = 85%",
+      "light = 74%, duty = 93%",
+      "light = 83%, duty = 100%",
+      "light = 88%, duty = 100%",
+      "light = 71%, duty = 90%",
+      "light = 52%, duty = 69%",
+      "light = 30%, duty = 46%",
+      "light = 15%, duty = 0%",
+    ],
+  },
+  {
+    id: "ph-display", needs: [["oled"]], name: "ProbeHarbor readout display", level: "Intermediate", mins: 20, tags: ["probeharbor", "display", "wifi"],
+    probeharbor: "reads",
+    sum: "Show your ProbeHarbor sensors on a small OLED by the door: each probe's latest reading, how old it is, and a flashing warning for freezing, water or lost power.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SDA: "21", SCL: "22", BTN: "0" },
+      esp32s3: { SDA: "8", SCL: "9", BTN: "0" },
+      esp32c3: { SDA: "6", SCL: "7", BTN: "9" },
+    },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%", "%BTN%"],
+    libs: ["ArduinoJson", "Adafruit SSD1306", "Adafruit GFX Library", "WiFi (built in)", "HTTPClient (built in)"],
+    baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "0.96 inch SSD1306 OLED, I2C, address 0x3C"],
+      [4, "Jumper wires"],
+    ],
+    wiring: [
+      ["OLED VCC", "3V3", ""],
+      ["OLED GND", "GND", ""],
+      ["OLED SDA", "GPIO %SDA%", "Same I2C pins as the other OLED projects"],
+      ["OLED SCL", "GPIO %SCL%", ""],
+      ["BOOT button", "GPIO %BTN%", "Already on the board. Press it to show the next sensor"],
+    ],
+    code: R`// ProbeHarbor readout: shows your ProbeHarbor sensors on an OLED, one per page.
+// Reads a ProbeHarbor share link (read-only, works on the free plan) once a minute.
+// Libraries: ArduinoJson, Adafruit SSD1306, Adafruit GFX.
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <ArduinoJson.h>
+#include <time.h>
+
+// ---- Your settings ----
+const char* WIFI_SSID = "your-wifi";
+const char* WIFI_PASS = "your-password";
+// ProbeHarbor: Dashboard, Share, create a live link, copy its readings address.
+const char* SHARE_URL = "https://probeharbor.dev/api/share/YOUR_SHARE_TOKEN/readings";
+const unsigned REFRESH_SECONDS = 60;  // ProbeHarbor allows 60 requests a minute per link
+const unsigned PAGE_SECONDS = 5;      // how long each sensor stays on screen
+const float FREEZE_F = 35.0;          // temperatures at or below this flash a warning
+// Probes meant to be cold (a freezer, a fridge) never raise the freeze warning.
+// Any sensor or device whose name contains one of these words is left out.
+const char* COLD_ON_PURPOSE[] = {"Freezer", "Fridge"};
+const unsigned STALE_MINUTES = 30;    // readings older than this are marked stale
+String wifiSsid, wifiPass, shareUrl;
+
+// ---- Pins ----
+const int SDA_PIN = %SDA%;
+const int SCL_PIN = %SCL%;
+const int BUTTON = %BTN%;  // the BOOT button: next sensor
+
+// Root certificates for probeharbor.dev: Google Trust Services R1 and R4, and
+// Let's Encrypt ISRG X1 and X2. Cloudflare issues the site's certificate from one of these.
+const char* ROOT_CAS = R"PEM(
+-----BEGIN CERTIFICATE-----
+MIIFVzCCAz+gAwIBAgINAgPlk28xsBNJiGuiFzANBgkqhkiG9w0BAQwFADBHMQsw
+CQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEU
+MBIGA1UEAxMLR1RTIFJvb3QgUjEwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAw
+MDAwWjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZp
+Y2VzIExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjEwggIiMA0GCSqGSIb3DQEBAQUA
+A4ICDwAwggIKAoICAQC2EQKLHuOhd5s73L+UPreVp0A8of2C+X0yBoJx9vaMf/vo
+27xqLpeXo4xL+Sv2sfnOhB2x+cWX3u+58qPpvBKJXqeqUqv4IyfLpLGcY9vXmX7w
+Cl7raKb0xlpHDU0QM+NOsROjyBhsS+z8CZDfnWQpJSMHobTSPS5g4M/SCYe7zUjw
+TcLCeoiKu7rPWRnWr4+wB7CeMfGCwcDfLqZtbBkOtdh+JhpFAz2weaSUKK0Pfybl
+qAj+lug8aJRT7oM6iCsVlgmy4HqMLnXWnOunVmSPlk9orj2XwoSPwLxAwAtcvfaH
+szVsrBhQf4TgTM2S0yDpM7xSma8ytSmzJSq0SPly4cpk9+aCEI3oncKKiPo4Zor8
+Y/kB+Xj9e1x3+naH+uzfsQ55lVe0vSbv1gHR6xYKu44LtcXFilWr06zqkUspzBmk
+MiVOKvFlRNACzqrOSbTqn3yDsEB750Orp2yjj32JgfpMpf/VjsPOS+C12LOORc92
+wO1AK/1TD7Cn1TsNsYqiA94xrcx36m97PtbfkSIS5r762DL8EGMUUXLeXdYWk70p
+aDPvOmbsB4om3xPXV2V4J95eSRQAogB/mqghtqmxlbCluQ0WEdrHbEg8QOB+DVrN
+VjzRlwW5y0vtOUucxD/SVRNuJLDWcfr0wbrM7Rv1/oFB2ACYPTrIrnqYNxgFlQID
+AQABo0IwQDAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E
+FgQU5K8rJnEaK0gnhS9SZizv8IkTcT4wDQYJKoZIhvcNAQEMBQADggIBAJ+qQibb
+C5u+/x6Wki4+omVKapi6Ist9wTrYggoGxval3sBOh2Z5ofmmWJyq+bXmYOfg6LEe
+QkEzCzc9zolwFcq1JKjPa7XSQCGYzyI0zzvFIoTgxQ6KfF2I5DUkzps+GlQebtuy
+h6f88/qBVRRiClmpIgUxPoLW7ttXNLwzldMXG+gnoot7TiYaelpkttGsN/H9oPM4
+7HLwEXWdyzRSjeZ2axfG34arJ45JK3VmgRAhpuo+9K4l/3wV3s6MJT/KYnAK9y8J
+ZgfIPxz88NtFMN9iiMG1D53Dn0reWVlHxYciNuaCp+0KueIHoI17eko8cdLiA6Ef
+MgfdG+RCzgwARWGAtQsgWSl4vflVy2PFPEz0tv/bal8xa5meLMFrUKTX5hgUvYU/
+Z6tGn6D/Qqc6f1zLXbBwHSs09dR2CQzreExZBfMzQsNhFRAbd03OIozUhfJFfbdT
+6u9AWpQKXCBfTkBdYiJ23//OYb2MI3jSNwLgjt7RETeJ9r/tSQdirpLsQBqvFAnZ
+0E6yove+7u7Y/9waLd64NnHi/Hm3lCXRSHNboTXns5lndcEZOitHTtNCjv0xyBZm
+2tIMPNuzjsmhDYAPexZ3FL//2wmUspO8IFgV6dtxQ/PeEMMA3KgqlbbC1j+Qa3bb
+bP6MvPJwNQzcmRk13NfIRmPVNnGuV/u3gm3c
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD
+VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEUMBIG
+A1UEAxMLR1RTIFJvb3QgUjQwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAwMDAw
+WjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2Vz
+IExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjQwdjAQBgcqhkjOPQIBBgUrgQQAIgNi
+AATzdHOnaItgrkO4NcWBMHtLSZ37wWHO5t5GvWvVYRg1rkDdc/eJkTBa6zzuhXyi
+QHY7qca4R9gq55KRanPpsXI5nymfopjTX15YhmUPoYRlBtHci8nHc8iMai/lxKvR
+HYqjQjBAMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW
+BBSATNbrdP9JNqPV2Py1PsVq8JQdjDAKBggqhkjOPQQDAwNpADBmAjEA6ED/g94D
+9J+uHXqnLrmvT/aDHQ4thQEd0dlq7A/Cr8deVl5c1RxYIigL9zC2L7F8AjEA8GE8
+p/SgguMh1YQdc4acLa/KNJvxn7kjNuK8YAOdgLOaVsjh4rsUecrNIdSUtUlD
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICGzCCAaGgAwIBAgIQQdKd0XLq7qeAwSxs6S+HUjAKBggqhkjOPQQDAzBPMQsw
+CQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJuZXQgU2VjdXJpdHkgUmVzZWFyY2gg
+R3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBYMjAeFw0yMDA5MDQwMDAwMDBaFw00
+MDA5MTcxNjAwMDBaME8xCzAJBgNVBAYTAlVTMSkwJwYDVQQKEyBJbnRlcm5ldCBT
+ZWN1cml0eSBSZXNlYXJjaCBHcm91cDEVMBMGA1UEAxMMSVNSRyBSb290IFgyMHYw
+EAYHKoZIzj0CAQYFK4EEACIDYgAEzZvVn4CDCuwJSvMWSj5cz3es3mcFDR0HttwW
++1qLFNvicWDEukWVEYmO6gbf9yoWHKS5xcUy4APgHoIYOIvXRdgKam7mAHf7AlF9
+ItgKbppbd9/w+kHsOdx1ymgHDB/qo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0T
+AQH/BAUwAwEB/zAdBgNVHQ4EFgQUfEKWrt5LSDv6kviejM9ti6lyN5UwCgYIKoZI
+zj0EAwMDaAAwZQIwe3lORlCEwkSHRhtFcP9Ymd70/aTSVaYgLXTWNLxBo1BfASdW
+tL4ndQavEi51mI38AjEAi/V3bNTIZargCyzuFJ0nN6T5U6VR5CmD1/iQMVtCnwr1
+/q4AaOeMSQ+2b1tbFfLn
+-----END CERTIFICATE-----
+)PEM";
+
+Adafruit_SSD1306 oled(128, 64, &Wire, -1);
+
+struct Reading {
+  char device[24];
+  char label[24];
+  char kind[14];
+  char unit[10];
+  bool hasNum, hasBool;
+  float num;
+  bool flag;
+  time_t at;
+};
+const int MAX_READINGS = 16;
+Reading readings[MAX_READINGS];
+int count = 0, page = 0;
+char status[40] = "Starting";
+unsigned long lastFetch = 0, lastPage = 0, retryAfterMs = 0;
+
+${benchSettings(["wifi_ssid", "wifi_pass", "share_url"])}
+
+// Days since 1970-01-01 for a civil date (Howard Hinnant's algorithm), so we can
+// turn "2026-11-12T15:50:44Z" into a UTC timestamp without timegm().
+long daysFromCivil(int y, unsigned m, unsigned d) {
+  y -= m <= 2;
+  const long era = (y >= 0 ? y : y - 399) / 400;
+  const unsigned yoe = (unsigned)(y - era * 400);
+  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  return era * 146097 + (long)doe - 719468;
+}
+
+time_t parseTime(const char* s) {
+  int Y, M, D, h, m, sec;
+  if (!s || sscanf(s, "%4d-%2d-%2d%*c%2d:%2d:%2d", &Y, &M, &D, &h, &m, &sec) != 6) return 0;
+  time_t t = (time_t)daysFromCivil(Y, M, D) * 86400 + h * 3600 + m * 60 + sec;
+  // Optional offset after the seconds: Z, +HH, +HH:MM, -HHMM ...
+  const char* p = s + 19;
+  while (*p == '.' || isdigit((unsigned char)*p)) p++;
+  if (*p == '+' || *p == '-') {
+    int oh = 0, om = 0;
+    sscanf(p + 1, "%2d%*[:]%2d", &oh, &om);
+    if (om == 0) sscanf(p + 1, "%2d%2d", &oh, &om);
+    const long off = oh * 3600L + om * 60L;
+    t += (*p == '+') ? -off : off;
+  }
+  return t;
+}
+
+void copyText(char* to, size_t size, const char* from) {
+  snprintf(to, size, "%s", from ? from : "");
+}
+
+// The OLED's font has no ° or µ: draw ° with the font's degree sign, spell the rest in ASCII.
+void printUnit(const char* unit) {
+  for (const char* p = unit; *p; p++) {
+    if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB0) { oled.write(248); p++; }      // °
+    else if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB5) { oled.write('u'); p++; }  // µ
+    else if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB3) { oled.write('3'); p++; }  // ³
+    else if ((uint8_t)p[0] < 0x80) oled.write(p[0]);
+  }
+}
+
+const char* boolWord(const Reading& r) {
+  if (!strcmp(r.kind, "door")) return r.flag ? "OPEN" : "CLOSED";
+  if (!strcmp(r.kind, "power")) return r.flag ? "ON" : "OFF";
+  if (!strcmp(r.kind, "flood")) return r.flag ? "WET" : "DRY";
+  if (!strcmp(r.kind, "motion")) return r.flag ? "MOTION" : "CLEAR";
+  return r.flag ? "YES" : "NO";
+}
+
+// The things ProbeHarbor exists to catch: freezing, water, lost power.
+// Case-insensitive "does text contain word".
+bool containsWord(const char* text, const char* word) {
+  const size_t n = strlen(word);
+  for (const char* t = text; *t; t++) {
+    size_t i = 0;
+    while (i < n && t[i] && tolower((unsigned char)t[i]) == tolower((unsigned char)word[i])) i++;
+    if (i == n) return true;
+  }
+  return false;
+}
+
+bool coldOnPurpose(const Reading& r) {
+  for (const char* w : COLD_ON_PURPOSE) {
+    if (containsWord(r.label, w) || containsWord(r.device, w)) return true;
+  }
+  return false;
+}
+
+bool alarming(const Reading& r) {
+  if (r.hasNum && !strcmp(r.kind, "temperature")) {
+    if (coldOnPurpose(r)) return false;
+    const bool celsius = strstr(r.unit, "C") != nullptr;
+    return r.num <= (celsius ? (FREEZE_F - 32) * 5 / 9 : FREEZE_F);
+  }
+  if (r.hasBool && !strcmp(r.kind, "flood")) return r.flag;
+  if (r.hasBool && !strcmp(r.kind, "power")) return !r.flag;
+  return false;
+}
+
+long ageMinutes(const Reading& r) {
+  const time_t now = time(nullptr);
+  if (now < 1700000000 || r.at == 0) return -1;  // clock not set yet
+  return (long)(now - r.at) / 60;
+}
+
+void fetchReadings() {
+  WiFiClientSecure tls;
+  tls.setCACert(ROOT_CAS);
+  HTTPClient http;
+  http.useHTTP10(true);  // a plain body, so ArduinoJson can read it as it arrives
+  const char* keep[] = {"Retry-After"};
+  http.collectHeaders(keep, 1);
+  if (!http.begin(tls, shareUrl)) {
+    copyText(status, sizeof(status), "Bad SHARE_URL");
+    return;
+  }
+  const int code = http.GET();
+  if (code == 200) {
+    JsonDocument filter;
+    JsonObject f = filter["readings"].add<JsonObject>();
+    for (const char* k : {"device", "label", "kind", "unit", "value_num", "value_bool", "recorded_at"}) f[k] = true;
+    JsonDocument doc;
+    const DeserializationError err = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
+    if (err) {
+      snprintf(status, sizeof(status), "Bad reply: %s", err.c_str());
+    } else {
+      count = 0;
+      for (JsonObject r : doc["readings"].as<JsonArray>()) {
+        if (count == MAX_READINGS) break;
+        Reading& x = readings[count++];
+        copyText(x.device, sizeof(x.device), r["device"] | "");
+        copyText(x.label, sizeof(x.label), r["label"] | "");
+        copyText(x.kind, sizeof(x.kind), r["kind"] | "generic");
+        copyText(x.unit, sizeof(x.unit), r["unit"] | "");
+        x.hasNum = r["value_num"].is<float>();
+        x.num = r["value_num"] | 0.0f;
+        x.hasBool = r["value_bool"].is<bool>();
+        x.flag = r["value_bool"] | false;
+        x.at = parseTime(r["recorded_at"] | "");
+      }
+      snprintf(status, sizeof(status), "%d sensors", count);
+      if (page >= count) page = 0;
+      for (int i = 0; i < count; i++) {
+        const Reading& r = readings[i];
+        // "Garage: Freezer_probe = 4.2 °F (at 15:50 UTC)": one name per sensor, so the bench plots each one.
+        char name[sizeof(r.label)];
+        copyText(name, sizeof(name), r.label);
+        for (char* c = name; *c; c++) if (!isalnum((unsigned char)*c)) *c = '_';
+        Serial.printf("%s: %s = ", r.device, name);
+        if (r.hasNum) Serial.printf("%.1f %s", r.num, r.unit);
+        else if (r.hasBool) Serial.print(boolWord(r));
+        else Serial.print("no value");
+        if (r.at) {
+          struct tm t;
+          gmtime_r(&r.at, &t);
+          Serial.printf(" (at %02d:%02d UTC)", t.tm_hour, t.tm_min);
+        }
+        Serial.println();
+        if (alarming(r)) Serial.printf("ALERT %s: %s\n", r.device, r.label);
+      }
+    }
+  } else if (code == 404) {
+    copyText(status, sizeof(status), "Link invalid or expired");
+  } else if (code == 429) {
+    retryAfterMs = 1000UL * (unsigned long)max(60L, http.header("Retry-After").toInt());
+    copyText(status, sizeof(status), "Too many requests");
+  } else {
+    snprintf(status, sizeof(status), "HTTP %d", code);
+  }
+  if (code != 200) Serial.printf("ProbeHarbor: %s\n", status);
+  http.end();
+}
+
+void draw() {
+  oled.clearDisplay();
+  oled.setTextColor(SSD1306_WHITE);
+  oled.setTextSize(1);
+  oled.setCursor(0, 0);
+  if (count == 0) {
+    oled.println("ProbeHarbor");
+    oled.println();
+    oled.println(status);
+    oled.display();
+    return;
+  }
+  const Reading& r = readings[page];
+  const bool alarm = alarming(r);
+  // Flash alarming readings by inverting the screen every other second.
+  oled.invertDisplay(alarm && (millis() / 1000) % 2);
+  oled.printf("%.21s\n%.21s\n", r.device, r.label);
+  oled.setTextSize(r.hasNum ? 3 : 2);
+  oled.setCursor(0, 24);
+  if (r.hasNum) {
+    oled.print(r.num, fabs(r.num) < 100 ? 1 : 0);
+    oled.setTextSize(1);
+    oled.print(' ');
+    printUnit(r.unit);
+  } else if (r.hasBool) {
+    oled.print(boolWord(r));
+  } else {
+    oled.print("--");
+  }
+  oled.setTextSize(1);
+  oled.setCursor(0, 56);
+  const long age = ageMinutes(r);
+  if (age >= (long)STALE_MINUTES) oled.printf("STALE %ldm", age);
+  else if (age >= 0) oled.printf("%ldm ago", age);
+  if (alarm) oled.print(strcmp(r.kind, "temperature") ? "  ALERT" : "  FREEZE");
+  oled.setCursor(104, 56);
+  oled.printf("%d/%d", page + 1, count);
+  oled.display();
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUTTON, INPUT_PULLUP);
+  Wire.begin(SDA_PIN, SCL_PIN);
+  if (!oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) Serial.println("OLED not found at 0x3C: check SDA, SCL and power");
+  oled.cp437(true);
+  copyText(status, sizeof(status), "Waiting for settings");
+  draw();
+  benchSettingsBoot();
+  wifiSsid = benchSetting("wifi_ssid", WIFI_SSID);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  shareUrl = benchSetting("share_url", SHARE_URL);
+  benchNeeds("Wi-Fi name", wifiSsid, "your-wifi", "WIFI_SSID");
+  benchNeeds("ProbeHarbor share link", shareUrl, "https://probeharbor.dev/api/share/YOUR_SHARE_TOKEN/readings", "SHARE_URL");
+  copyText(status, sizeof(status), "Joining Wi-Fi");
+  draw();
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
+  while (WiFi.status() != WL_CONNECTED) delay(250);
+  Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
+  configTime(0, 0, "pool.ntp.org", "time.google.com");  // UTC, for "minutes ago"
+  copyText(status, sizeof(status), "Fetching readings");
+  draw();
+}
+
+void loop() {
+  benchSettingsPoll();
+  const unsigned long now = millis();
+  const unsigned long every = retryAfterMs ? retryAfterMs : REFRESH_SECONDS * 1000UL;
+  if (lastFetch == 0 || now - lastFetch >= every) {
+    lastFetch = now ? now : 1;
+    retryAfterMs = 0;
+    if (WiFi.status() == WL_CONNECTED) fetchReadings();
+    else {
+      copyText(status, sizeof(status), "Wi-Fi lost, retrying");
+      WiFi.reconnect();
+    }
+  }
+  if (digitalRead(BUTTON) == LOW) {  // next sensor
+    page = count ? (page + 1) % count : 0;
+    lastPage = now;
+    while (digitalRead(BUTTON) == LOW) delay(10);
+  }
+  if (count && now - lastPage >= PAGE_SECONDS * 1000UL) {
+    page = (page + 1) % count;
+    lastPage = now;
+  }
+  draw();
+  delay(50);
+}
+`,
+    notes: [
+      "It reads a ProbeHarbor share link, which is read-only and works on the free plan. In ProbeHarbor, open Dashboard, Share, create a live link and paste its readings address into SHARE_URL. The display can only read; it never holds a key that can change your account.",
+      "Use a live link, not a history link: a history link also sends seven days of chart points, which is far more than this board needs to download every minute.",
+      "It refreshes once a minute. ProbeHarbor allows 60 requests a minute per link, and if it ever answers 429 the sketch waits as long as the server asks.",
+      "The connection is checked against the root certificates of Google Trust Services and Let's Encrypt, which Cloudflare uses for probeharbor.dev. If ProbeHarbor ever moves to another certificate authority, the display shows an HTTP error and needs that root added.",
+      "Temperatures at or below FREEZE_F (35 °F, or the same in °C when the sensor reports Celsius), water on a flood sensor and lost power flash the screen. Probes meant to be cold are left out of the freeze warning: any sensor or device named with a word from COLD_ON_PURPOSE (Freezer and Fridge to start with). Readings older than STALE_MINUTES are marked stale, which usually means the probe has gone quiet.",
+      "Door, power, flood and motion sensors show OPEN or CLOSED, ON or OFF, WET or DRY and MOTION or CLEAR, as on the ProbeHarbor dashboard.",
+    ],
+    open: ["Not tested on hardware or against a real ProbeHarbor share link yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    settings: [
+      ...WIFI,
+      {
+        key: "share_url",
+        label: "ProbeHarbor share link",
+        kind: "url",
+        hint: "Dashboard, Share, create a live link, then paste its readings address.",
+        required: true,
+      },
+    ],
+    sample: [
+      "wifi ok 192.168.1.73",
+      "Garage: Freezer_probe = 4.2 °F (at 15:49 UTC)",
+      "Garage: Garage_air = 33.8 °F (at 15:49 UTC)",
+      "ALERT Garage: Garage air",
+      "Garage: Door = CLOSED (at 15:44 UTC)",
+      "Crawlspace: Pipe_probe = 41.5 °F (at 15:48 UTC)",
+      "Crawlspace: Leak_pads = DRY (at 15:48 UTC)",
+      "Garage: Freezer_probe = 4.1 °F (at 15:51 UTC)",
+      "Garage: Garage_air = 34.4 °F (at 15:51 UTC)",
+      "ALERT Garage: Garage air",
+      "Garage: Door = CLOSED (at 15:44 UTC)",
+      "Crawlspace: Pipe_probe = 41.3 °F (at 15:50 UTC)",
+      "Crawlspace: Leak_pads = DRY (at 15:50 UTC)",
+      "Garage: Freezer_probe = 4.3 °F (at 15:51 UTC)",
+      "Garage: Garage_air = 35.1 °F (at 15:51 UTC)",
+      "Garage: Door = OPEN (at 15:52 UTC)",
+      "Crawlspace: Pipe_probe = 41.2 °F (at 15:50 UTC)",
+      "Crawlspace: Leak_pads = DRY (at 15:50 UTC)",
+      "Garage: Freezer_probe = 4.2 °F (at 15:53 UTC)",
+      "Garage: Garage_air = 35.9 °F (at 15:53 UTC)",
+      "Garage: Door = CLOSED (at 15:53 UTC)",
+      "Crawlspace: Pipe_probe = 41.0 °F (at 15:52 UTC)",
+      "Crawlspace: Leak_pads = DRY (at 15:52 UTC)",
+    ],
+  },
+  {
+    id: "ph-lcd", needs: [["lcd1602"], ["encoder"]], name: "ProbeHarbor on a 16x2 LCD", level: "Intermediate", mins: 40, tags: ["probeharbor", "display", "wifi"],
+    probeharbor: "reads",
+    sum: "Your ProbeHarbor sensors on the classic 16x2 character LCD. Turn a rotary encoder to step through them, press it for the device and the reading's age, and watch for the ! that marks freezing, water or lost power.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { RS: "13", EN: "14", DA: "25", DB: "26", DC: "27", DD: "33", ENCA: "18", ENCB: "19", ENCSW: "23", SWNOTE: "", BL: "4", BLTO: "GPIO 4", SWTO: "GPIO 23" },
+      esp32s3: { RS: "4", EN: "5", DA: "6", DB: "7", DC: "15", DD: "16", ENCA: "17", ENCB: "18", ENCSW: "8", SWNOTE: "", BL: "9", BLTO: "GPIO 9", SWTO: "GPIO 8" },
+      esp32c3: { RS: "0", EN: "1", DA: "3", DB: "4", DC: "5", DD: "10", ENCA: "6", ENCB: "7", ENCSW: "9", SWNOTE: " (the board's BOOT button: the C3 has no spare pin)", BL: "-1", BLTO: "Not used on the C3: wire the backlight to 5 V", SWTO: "Not wired on the C3: press the BOOT button instead" },
+    },
+    pins: ["5V", "3V3", "GND", "%RS%", "%EN%", "%DA%", "%DB%", "%DC%", "%DD%", "%ENCA%", "%ENCB%", "%ENCSW%", "%BL%"],
+    libs: ["ArduinoJson", "LiquidCrystal", "WiFi (built in)", "HTTPClient (built in)"],
+    baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "16x2 character LCD (HD44780), 5 V"],
+      [1, "10 kΩ trimmer potentiometer, for the contrast"],
+      [1, "Rotary encoder with push button (EC11 or a KY-040 board)"],
+      [1, "Optional: NPN transistor (2N2222, BC547 or similar) and 1 kΩ resistor, to blink the backlight"],
+      [16, "Jumper wires and a breadboard"],
+    ],
+    wiring: [
+      ["LCD 1 VSS", "GND", ""],
+      ["LCD 2 VDD", "5V", "The LCD runs on 5 V"],
+      ["LCD 3 V0", "Trimmer wiper", "Turn the trimmer until the characters show"],
+      ["Trimmer, outer pin", "5V", ""],
+      ["Trimmer, other outer pin", "GND", ""],
+      ["LCD 4 RS", "GPIO %RS%", ""],
+      ["LCD 5 RW", "GND", "Always. Tied low, the LCD only listens and never sends 5 V back to the ESP32"],
+      ["LCD 6 E", "GPIO %EN%", ""],
+      ["LCD 11 D4", "GPIO %DA%", "4-bit mode: D0 to D3 stay unconnected"],
+      ["LCD 12 D5", "GPIO %DB%", ""],
+      ["LCD 13 D6", "GPIO %DC%", ""],
+      ["LCD 14 D7", "GPIO %DD%", ""],
+      ["LCD 15 A (backlight +)", "5V", "Many modules have the backlight resistor on board; if yours does not, add about 100 Ω"],
+      ["LCD 16 K (backlight -)", "GND", "For the optional blink, K goes to the transistor's collector instead"],
+      ["Optional: blink transistor collector", "LCD 16 K (backlight -)", "An NPN such as a PN2222, so the alarm can blink the backlight"],
+      ["Optional: blink transistor emitter", "GND", ""],
+      ["Optional: blink transistor base, through 1 kΩ", "%BLTO%", ""],
+      ["Encoder A / CLK", "GPIO %ENCA%", "Internal pull-ups are used"],
+      ["Encoder B / DT", "GPIO %ENCB%", ""],
+      ["Encoder middle pin (C), or KY-040 GND", "GND", "The encoder's common pin"],
+      ["Encoder push switch / SW", "%SWTO%", ""],
+      ["Encoder push switch, other leg", "GND", "A KY-040 board already joins it to GND"],
+      ["KY-040 board + (if you have one)", "3V3", "Never 5 V: its pull-ups would put 5 V on the GPIOs"],
+    ],
+    code: R`// ProbeHarbor on a 16x2 LCD: turn the knob to step through your sensors,
+// press it for the device name and how old the reading is.
+// Reads a ProbeHarbor share link (read-only, works on the free plan) once a minute.
+// Libraries: ArduinoJson, LiquidCrystal.
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <LiquidCrystal.h>
+#include <ArduinoJson.h>
+#include <time.h>
+
+// ---- Your settings ----
+const char* WIFI_SSID = "your-wifi";
+const char* WIFI_PASS = "your-password";
+// ProbeHarbor: Dashboard, Share, create a live link, copy its readings address.
+const char* SHARE_URL = "https://probeharbor.dev/api/share/YOUR_SHARE_TOKEN/readings";
+const unsigned REFRESH_SECONDS = 60;  // ProbeHarbor allows 60 requests a minute per link
+const float FREEZE_F = 35.0;          // temperatures at or below this raise the alarm
+// Probes meant to be cold (a freezer, a fridge) never raise the freeze warning.
+// Any sensor or device whose name contains one of these words is left out.
+const char* COLD_ON_PURPOSE[] = {"Freezer", "Fridge"};
+const unsigned STALE_MINUTES = 30;    // readings older than this are marked stale
+String wifiSsid, wifiPass, shareUrl;
+
+// ---- Pins ----
+LiquidCrystal lcd(%RS%, %EN%, %DA%, %DB%, %DC%, %DD%);  // RS, E, D4, D5, D6, D7
+const int ENC_A = %ENCA%;       // encoder CLK / A
+const int ENC_B = %ENCB%;       // encoder DT / B
+const int ENC_SW = %ENCSW%;     // encoder push button%SWNOTE%
+const int BACKLIGHT = %BL%;     // transistor that switches the backlight, or -1 if it is wired to 5 V
+
+// Root certificates for probeharbor.dev: Google Trust Services R1 and R4, and
+// Let's Encrypt ISRG X1 and X2. Cloudflare issues the site's certificate from one of these.
+const char* ROOT_CAS = R"PEM(
+-----BEGIN CERTIFICATE-----
+MIIFVzCCAz+gAwIBAgINAgPlk28xsBNJiGuiFzANBgkqhkiG9w0BAQwFADBHMQsw
+CQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEU
+MBIGA1UEAxMLR1RTIFJvb3QgUjEwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAw
+MDAwWjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZp
+Y2VzIExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjEwggIiMA0GCSqGSIb3DQEBAQUA
+A4ICDwAwggIKAoICAQC2EQKLHuOhd5s73L+UPreVp0A8of2C+X0yBoJx9vaMf/vo
+27xqLpeXo4xL+Sv2sfnOhB2x+cWX3u+58qPpvBKJXqeqUqv4IyfLpLGcY9vXmX7w
+Cl7raKb0xlpHDU0QM+NOsROjyBhsS+z8CZDfnWQpJSMHobTSPS5g4M/SCYe7zUjw
+TcLCeoiKu7rPWRnWr4+wB7CeMfGCwcDfLqZtbBkOtdh+JhpFAz2weaSUKK0Pfybl
+qAj+lug8aJRT7oM6iCsVlgmy4HqMLnXWnOunVmSPlk9orj2XwoSPwLxAwAtcvfaH
+szVsrBhQf4TgTM2S0yDpM7xSma8ytSmzJSq0SPly4cpk9+aCEI3oncKKiPo4Zor8
+Y/kB+Xj9e1x3+naH+uzfsQ55lVe0vSbv1gHR6xYKu44LtcXFilWr06zqkUspzBmk
+MiVOKvFlRNACzqrOSbTqn3yDsEB750Orp2yjj32JgfpMpf/VjsPOS+C12LOORc92
+wO1AK/1TD7Cn1TsNsYqiA94xrcx36m97PtbfkSIS5r762DL8EGMUUXLeXdYWk70p
+aDPvOmbsB4om3xPXV2V4J95eSRQAogB/mqghtqmxlbCluQ0WEdrHbEg8QOB+DVrN
+VjzRlwW5y0vtOUucxD/SVRNuJLDWcfr0wbrM7Rv1/oFB2ACYPTrIrnqYNxgFlQID
+AQABo0IwQDAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E
+FgQU5K8rJnEaK0gnhS9SZizv8IkTcT4wDQYJKoZIhvcNAQEMBQADggIBAJ+qQibb
+C5u+/x6Wki4+omVKapi6Ist9wTrYggoGxval3sBOh2Z5ofmmWJyq+bXmYOfg6LEe
+QkEzCzc9zolwFcq1JKjPa7XSQCGYzyI0zzvFIoTgxQ6KfF2I5DUkzps+GlQebtuy
+h6f88/qBVRRiClmpIgUxPoLW7ttXNLwzldMXG+gnoot7TiYaelpkttGsN/H9oPM4
+7HLwEXWdyzRSjeZ2axfG34arJ45JK3VmgRAhpuo+9K4l/3wV3s6MJT/KYnAK9y8J
+ZgfIPxz88NtFMN9iiMG1D53Dn0reWVlHxYciNuaCp+0KueIHoI17eko8cdLiA6Ef
+MgfdG+RCzgwARWGAtQsgWSl4vflVy2PFPEz0tv/bal8xa5meLMFrUKTX5hgUvYU/
+Z6tGn6D/Qqc6f1zLXbBwHSs09dR2CQzreExZBfMzQsNhFRAbd03OIozUhfJFfbdT
+6u9AWpQKXCBfTkBdYiJ23//OYb2MI3jSNwLgjt7RETeJ9r/tSQdirpLsQBqvFAnZ
+0E6yove+7u7Y/9waLd64NnHi/Hm3lCXRSHNboTXns5lndcEZOitHTtNCjv0xyBZm
+2tIMPNuzjsmhDYAPexZ3FL//2wmUspO8IFgV6dtxQ/PeEMMA3KgqlbbC1j+Qa3bb
+bP6MvPJwNQzcmRk13NfIRmPVNnGuV/u3gm3c
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD
+VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEUMBIG
+A1UEAxMLR1RTIFJvb3QgUjQwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAwMDAw
+WjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2Vz
+IExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjQwdjAQBgcqhkjOPQIBBgUrgQQAIgNi
+AATzdHOnaItgrkO4NcWBMHtLSZ37wWHO5t5GvWvVYRg1rkDdc/eJkTBa6zzuhXyi
+QHY7qca4R9gq55KRanPpsXI5nymfopjTX15YhmUPoYRlBtHci8nHc8iMai/lxKvR
+HYqjQjBAMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW
+BBSATNbrdP9JNqPV2Py1PsVq8JQdjDAKBggqhkjOPQQDAwNpADBmAjEA6ED/g94D
+9J+uHXqnLrmvT/aDHQ4thQEd0dlq7A/Cr8deVl5c1RxYIigL9zC2L7F8AjEA8GE8
+p/SgguMh1YQdc4acLa/KNJvxn7kjNuK8YAOdgLOaVsjh4rsUecrNIdSUtUlD
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICGzCCAaGgAwIBAgIQQdKd0XLq7qeAwSxs6S+HUjAKBggqhkjOPQQDAzBPMQsw
+CQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJuZXQgU2VjdXJpdHkgUmVzZWFyY2gg
+R3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBYMjAeFw0yMDA5MDQwMDAwMDBaFw00
+MDA5MTcxNjAwMDBaME8xCzAJBgNVBAYTAlVTMSkwJwYDVQQKEyBJbnRlcm5ldCBT
+ZWN1cml0eSBSZXNlYXJjaCBHcm91cDEVMBMGA1UEAxMMSVNSRyBSb290IFgyMHYw
+EAYHKoZIzj0CAQYFK4EEACIDYgAEzZvVn4CDCuwJSvMWSj5cz3es3mcFDR0HttwW
++1qLFNvicWDEukWVEYmO6gbf9yoWHKS5xcUy4APgHoIYOIvXRdgKam7mAHf7AlF9
+ItgKbppbd9/w+kHsOdx1ymgHDB/qo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0T
+AQH/BAUwAwEB/zAdBgNVHQ4EFgQUfEKWrt5LSDv6kviejM9ti6lyN5UwCgYIKoZI
+zj0EAwMDaAAwZQIwe3lORlCEwkSHRhtFcP9Ymd70/aTSVaYgLXTWNLxBo1BfASdW
+tL4ndQavEi51mI38AjEAi/V3bNTIZargCyzuFJ0nN6T5U6VR5CmD1/iQMVtCnwr1
+/q4AaOeMSQ+2b1tbFfLn
+-----END CERTIFICATE-----
+)PEM";
+
+struct Reading {
+  char device[24];
+  char label[24];
+  char kind[14];
+  char unit[10];
+  bool hasNum, hasBool;
+  float num;
+  bool flag;
+  time_t at;
+};
+const int MAX_READINGS = 16;
+Reading readings[MAX_READINGS];
+int count = 0, page = 0;
+char status[40] = "Starting";
+unsigned long lastFetch = 0, retryAfterMs = 0;
+bool detailView = false;  // true while the device name and age are shown
+
+// ---- Rotary encoder: a table of valid Gray-code steps, so contact bounce cancels out ----
+volatile int encSteps = 0;
+uint8_t encState = 0;
+const int8_t ENC_TABLE[16] = {0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0};
+portMUX_TYPE encLock = portMUX_INITIALIZER_UNLOCKED;
+
+// A small background task samples the encoder every millisecond. That is quick
+// enough for a knob turned by hand, and it keeps counting while loop() waits on
+// ProbeHarbor, without the interrupt and fast-RAM rules an ISR would need.
+void pollEncoder(void*) {
+  for (;;) {
+    encState = (uint8_t)(((encState << 2) | (digitalRead(ENC_A) << 1) | digitalRead(ENC_B)) & 0x0F);
+    const int8_t step = ENC_TABLE[encState];
+    if (step) {
+      taskENTER_CRITICAL(&encLock);
+      encSteps += step;
+      taskEXIT_CRITICAL(&encLock);
+    }
+    vTaskDelay(1);
+  }
+}
+
+// Most EC11 / KY-040 encoders give four steps per click.
+int takeClicks() {
+  taskENTER_CRITICAL(&encLock);
+  const int clicks = encSteps / 4;
+  encSteps -= clicks * 4;
+  taskEXIT_CRITICAL(&encLock);
+  return clicks;
+}
+
+${benchSettings(["wifi_ssid", "wifi_pass", "share_url"])}
+
+// Days since 1970-01-01 for a civil date (Howard Hinnant's algorithm), so we can
+// turn "2026-11-12T15:50:44Z" into a UTC timestamp without timegm().
+long daysFromCivil(int y, unsigned m, unsigned d) {
+  y -= m <= 2;
+  const long era = (y >= 0 ? y : y - 399) / 400;
+  const unsigned yoe = (unsigned)(y - era * 400);
+  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  return era * 146097 + (long)doe - 719468;
+}
+
+time_t parseTime(const char* s) {
+  int Y, M, D, h, m, sec;
+  if (!s || sscanf(s, "%4d-%2d-%2d%*c%2d:%2d:%2d", &Y, &M, &D, &h, &m, &sec) != 6) return 0;
+  time_t t = (time_t)daysFromCivil(Y, M, D) * 86400 + h * 3600 + m * 60 + sec;
+  // Optional offset after the seconds: Z, +HH, +HH:MM, -HHMM ...
+  const char* p = s + 19;
+  while (*p == '.' || isdigit((unsigned char)*p)) p++;
+  if (*p == '+' || *p == '-') {
+    int oh = 0, om = 0;
+    sscanf(p + 1, "%2d%*[:]%2d", &oh, &om);
+    if (om == 0) sscanf(p + 1, "%2d%2d", &oh, &om);
+    const long off = oh * 3600L + om * 60L;
+    t += (*p == '+') ? -off : off;
+  }
+  return t;
+}
+
+void copyText(char* to, size_t size, const char* from) {
+  snprintf(to, size, "%s", from ? from : "");
+}
+
+const char* boolWord(const Reading& r) {
+  if (!strcmp(r.kind, "door")) return r.flag ? "OPEN" : "CLOSED";
+  if (!strcmp(r.kind, "power")) return r.flag ? "ON" : "OFF";
+  if (!strcmp(r.kind, "flood")) return r.flag ? "WET" : "DRY";
+  if (!strcmp(r.kind, "motion")) return r.flag ? "MOTION" : "CLEAR";
+  return r.flag ? "YES" : "NO";
+}
+
+// The things ProbeHarbor exists to catch: freezing, water, lost power.
+// Case-insensitive "does text contain word".
+bool containsWord(const char* text, const char* word) {
+  const size_t n = strlen(word);
+  for (const char* t = text; *t; t++) {
+    size_t i = 0;
+    while (i < n && t[i] && tolower((unsigned char)t[i]) == tolower((unsigned char)word[i])) i++;
+    if (i == n) return true;
+  }
+  return false;
+}
+
+bool coldOnPurpose(const Reading& r) {
+  for (const char* w : COLD_ON_PURPOSE) {
+    if (containsWord(r.label, w) || containsWord(r.device, w)) return true;
+  }
+  return false;
+}
+
+bool alarming(const Reading& r) {
+  if (r.hasNum && !strcmp(r.kind, "temperature")) {
+    if (coldOnPurpose(r)) return false;
+    const bool celsius = strstr(r.unit, "C") != nullptr;
+    return r.num <= (celsius ? (FREEZE_F - 32) * 5 / 9 : FREEZE_F);
+  }
+  if (r.hasBool && !strcmp(r.kind, "flood")) return r.flag;
+  if (r.hasBool && !strcmp(r.kind, "power")) return !r.flag;
+  return false;
+}
+
+long ageMinutes(const Reading& r) {
+  const time_t now = time(nullptr);
+  if (now < 1700000000 || r.at == 0) return -1;  // clock not set yet
+  return (long)(now - r.at) / 60;
+}
+
+void fetchReadings() {
+  WiFiClientSecure tls;
+  tls.setCACert(ROOT_CAS);
+  HTTPClient http;
+  http.useHTTP10(true);  // a plain body, so ArduinoJson can read it as it arrives
+  const char* keep[] = {"Retry-After"};
+  http.collectHeaders(keep, 1);
+  if (!http.begin(tls, shareUrl)) {
+    copyText(status, sizeof(status), "Bad SHARE_URL");
+    return;
+  }
+  const int code = http.GET();
+  if (code == 200) {
+    JsonDocument filter;
+    JsonObject f = filter["readings"].add<JsonObject>();
+    for (const char* k : {"device", "label", "kind", "unit", "value_num", "value_bool", "recorded_at"}) f[k] = true;
+    JsonDocument doc;
+    const DeserializationError err = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
+    if (err) {
+      snprintf(status, sizeof(status), "Bad reply: %s", err.c_str());
+    } else {
+      count = 0;
+      for (JsonObject r : doc["readings"].as<JsonArray>()) {
+        if (count == MAX_READINGS) break;
+        Reading& x = readings[count++];
+        copyText(x.device, sizeof(x.device), r["device"] | "");
+        copyText(x.label, sizeof(x.label), r["label"] | "");
+        copyText(x.kind, sizeof(x.kind), r["kind"] | "generic");
+        copyText(x.unit, sizeof(x.unit), r["unit"] | "");
+        x.hasNum = r["value_num"].is<float>();
+        x.num = r["value_num"] | 0.0f;
+        x.hasBool = r["value_bool"].is<bool>();
+        x.flag = r["value_bool"] | false;
+        x.at = parseTime(r["recorded_at"] | "");
+      }
+      snprintf(status, sizeof(status), "%d sensors", count);
+      if (page >= count) page = 0;
+      for (int i = 0; i < count; i++) {
+        const Reading& r = readings[i];
+        // "Garage: Freezer_probe = 4.2 °F (at 15:50 UTC)": one name per sensor, so the bench plots each one.
+        char name[sizeof(r.label)];
+        copyText(name, sizeof(name), r.label);
+        for (char* c = name; *c; c++) if (!isalnum((unsigned char)*c)) *c = '_';
+        Serial.printf("%s: %s = ", r.device, name);
+        if (r.hasNum) Serial.printf("%.1f %s", r.num, r.unit);
+        else if (r.hasBool) Serial.print(boolWord(r));
+        else Serial.print("no value");
+        if (r.at) {
+          struct tm t;
+          gmtime_r(&r.at, &t);
+          Serial.printf(" (at %02d:%02d UTC)", t.tm_hour, t.tm_min);
+        }
+        Serial.println();
+        if (alarming(r)) Serial.printf("ALERT %s: %s\n", r.device, r.label);
+      }
+    }
+  } else if (code == 404) {
+    copyText(status, sizeof(status), "Link invalid or expired");
+  } else if (code == 429) {
+    retryAfterMs = 1000UL * (unsigned long)max(60L, http.header("Retry-After").toInt());
+    copyText(status, sizeof(status), "Too many requests");
+  } else {
+    snprintf(status, sizeof(status), "HTTP %d", code);
+  }
+  if (code != 200) Serial.printf("ProbeHarbor: %s\n", status);
+  http.end();
+}
+
+// The LCD's character set has a degree sign (0xDF) and a micro sign (0xE4).
+void printUnit(const char* unit) {
+  for (const char* p = unit; *p; p++) {
+    if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB0) { lcd.write((uint8_t)0xDF); p++; }       // °
+    else if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB5) { lcd.write((uint8_t)0xE4); p++; }  // µ
+    else if ((uint8_t)p[0] == 0xC2 && (uint8_t)p[1] == 0xB3) { lcd.write('3'); p++; }             // ³
+    else if ((uint8_t)p[0] < 0x80) lcd.write(p[0]);
+  }
+}
+
+// Print text padded or cut to exactly \`width\` characters, so old text never lingers.
+void printFixed(const char* text, int width) {
+  int n = 0;
+  for (; text[n] && n < width; n++) lcd.write(text[n]);
+  for (; n < width; n++) lcd.write(' ');
+}
+
+void draw() {
+  static char shown[2][17] = {"", ""};
+  char top[17], bottom[17];
+  if (count == 0) {
+    snprintf(top, sizeof(top), "ProbeHarbor");
+    snprintf(bottom, sizeof(bottom), "%.16s", status);
+  } else {
+    const Reading& r = readings[page];
+    const bool alarm = alarming(r);
+    const long age = ageMinutes(r);
+    if (!detailView) {
+      // Top: the sensor's label, with "!" at the end when it is alarming.
+      snprintf(top, sizeof(top), "%-15.15s%c", r.label, alarm ? '!' : ' ');
+      bottom[0] = 0;  // drawn below, because of the unit characters
+    } else {
+      snprintf(top, sizeof(top), "%.16s", r.device);
+      if (age >= (long)STALE_MINUTES) snprintf(bottom, sizeof(bottom), "STALE %ldm", age);
+      else if (age >= 0) snprintf(bottom, sizeof(bottom), "%ldm ago", age);
+      else snprintf(bottom, sizeof(bottom), "time not set");
+    }
+    // Blink the backlight while the shown sensor is alarming, if a transistor drives it.
+    if (BACKLIGHT >= 0) digitalWrite(BACKLIGHT, alarm && (millis() / 500) % 2 ? LOW : HIGH);
+  }
+  if (strcmp(top, shown[0])) {
+    lcd.setCursor(0, 0);
+    printFixed(top, 16);
+    snprintf(shown[0], sizeof(shown[0]), "%s", top);
+  }
+  if (count > 0 && !detailView) {
+    const Reading& r = readings[page];
+    char value[17], pos[8];
+    if (r.hasNum) snprintf(value, sizeof(value), "%.1f ", r.num);
+    else if (r.hasBool) snprintf(value, sizeof(value), "%s", boolWord(r));
+    else snprintf(value, sizeof(value), "--");
+    snprintf(pos, sizeof(pos), "%d/%d", page + 1, count);
+    char key[40];
+    snprintf(key, sizeof(key), "%s|%s|%s", value, r.unit, pos);
+    if (strcmp(key, shown[1])) {  // only redraw when something changed: no flicker
+      lcd.setCursor(0, 1);
+      printFixed("", 16);
+      lcd.setCursor(0, 1);
+      lcd.print(value);
+      if (r.hasNum) printUnit(r.unit);
+      lcd.setCursor(16 - (int)strlen(pos), 1);
+      lcd.print(pos);
+      snprintf(shown[1], sizeof(shown[1]), "%.16s", key);
+    }
+  } else if (strcmp(bottom, shown[1])) {
+    lcd.setCursor(0, 1);
+    printFixed(bottom, 16);
+    snprintf(shown[1], sizeof(shown[1]), "%s", bottom);
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  lcd.begin(16, 2);
+  if (BACKLIGHT >= 0) {
+    pinMode(BACKLIGHT, OUTPUT);
+    digitalWrite(BACKLIGHT, HIGH);
+  }
+  pinMode(ENC_A, INPUT_PULLUP);
+  pinMode(ENC_B, INPUT_PULLUP);
+  pinMode(ENC_SW, INPUT_PULLUP);
+  encState = (uint8_t)((digitalRead(ENC_A) << 1) | digitalRead(ENC_B));
+  xTaskCreate(pollEncoder, "encoder", 2048, nullptr, 2, nullptr);  // above loop()'s priority
+  copyText(status, sizeof(status), "Waiting for settings");
+  draw();
+  benchSettingsBoot();
+  wifiSsid = benchSetting("wifi_ssid", WIFI_SSID);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  shareUrl = benchSetting("share_url", SHARE_URL);
+  benchNeeds("Wi-Fi name", wifiSsid, "your-wifi", "WIFI_SSID");
+  benchNeeds("ProbeHarbor share link", shareUrl, "https://probeharbor.dev/api/share/YOUR_SHARE_TOKEN/readings", "SHARE_URL");
+  copyText(status, sizeof(status), "Joining Wi-Fi");
+  draw();
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
+  while (WiFi.status() != WL_CONNECTED) delay(250);
+  Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
+  configTime(0, 0, "pool.ntp.org", "time.google.com");  // UTC, for "minutes ago"
+  copyText(status, sizeof(status), "Fetching");
+  draw();
+}
+
+void loop() {
+  benchSettingsPoll();
+  const unsigned long now = millis();
+  const unsigned long every = retryAfterMs ? retryAfterMs : REFRESH_SECONDS * 1000UL;
+  if (lastFetch == 0 || now - lastFetch >= every) {
+    lastFetch = now ? now : 1;
+    retryAfterMs = 0;
+    if (WiFi.status() == WL_CONNECTED) fetchReadings();
+    else {
+      copyText(status, sizeof(status), "Wi-Fi lost");
+      WiFi.reconnect();
+    }
+  }
+  const int clicks = takeClicks();
+  if (clicks && count) page = ((page + clicks) % count + count) % count;
+  static bool wasDown = false;
+  const bool down = digitalRead(ENC_SW) == LOW;
+  if (down && !wasDown) detailView = !detailView;  // press: toggle the detail view
+  wasDown = down;
+  draw();
+  delay(20);
+}
+`,
+    notes: [
+      "Probes meant to be cold, such as a freezer or fridge, are left out of the freeze warning: name them with a word from COLD_ON_PURPOSE (Freezer and Fridge to start with) or add your own.",
+      "It reads a ProbeHarbor share link, which is read-only and works on the free plan. In ProbeHarbor, open Dashboard, Share, create a live link and paste its readings address into SHARE_URL.",
+      "The HD44780 runs on 5 V but accepts the ESP32's 3.3 V signals, because it treats anything above 2.2 V as high. That only works one way, which is why RW goes to GND: the LCD never drives its data pins, so no 5 V reaches the ESP32.",
+      "Blank or solid blocks on the top row usually means the contrast: turn the trimmer slowly from one end to the other.",
+      "A small background task reads the encoder every millisecond against a table of valid Gray-code steps, so a bouncy contact cancels itself out instead of skipping sensors, and turns still count while the board is fetching from ProbeHarbor. If one click moves two sensors, change the 4 in takeClicks() to 2.",
+      "On a 16x2 an alarm shows as ! at the end of the sensor's name. With the optional transistor the backlight also blinks while that sensor is on screen. Without it, BACKLIGHT is -1 and the backlight simply stays on.",
+      "The ESP32-C3 has eight pins free of boot, USB and serial duties, and this project needs nine, so on the C3 the board's BOOT button stands in for the encoder's push switch and the backlight blink is left out. Do not hold BOOT while the board resets.",
+      "GPIO 14 on the classic ESP32 wiggles briefly at power-up. On the LCD's E pin that is harmless: the screen is cleared when the sketch starts.",
+    ],
+    open: ["Not tested on hardware or against a real ProbeHarbor share link yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    settings: [
+      ...WIFI,
+      {
+        key: "share_url",
+        label: "ProbeHarbor share link",
+        kind: "url",
+        hint: "Dashboard, Share, create a live link, then paste its readings address.",
+        required: true,
+      },
+    ],
+    sample: [
+      "wifi ok 192.168.1.74",
+      "Garage: Freezer_probe = 4.2 °F (at 15:49 UTC)",
+      "Garage: Garage_air = 33.8 °F (at 15:49 UTC)",
+      "ALERT Garage: Garage air",
+      "Crawlspace: Pipe_probe = 41.5 °F (at 15:48 UTC)",
+      "Garage: Freezer_probe = 4.1 °F (at 15:50 UTC)",
+      "Garage: Garage_air = 34.4 °F (at 15:50 UTC)",
+      "ALERT Garage: Garage air",
+      "Crawlspace: Pipe_probe = 41.3 °F (at 15:50 UTC)",
+      "Garage: Freezer_probe = 4.3 °F (at 15:51 UTC)",
+      "Garage: Garage_air = 35.6 °F (at 15:51 UTC)",
+      "Crawlspace: Pipe_probe = 41.2 °F (at 15:51 UTC)",
+    ],
+  },
+  {
+    id: "ph-motion", needs: [["pir"], ["rgbled", "led"]], name: "PIR motion sensor for ProbeHarbor", level: "Starter", mins: 25, tags: ["probeharbor", "sensors", "wifi"],
+    probeharbor: "sends",
+    sum: "An HC-SR501 PIR sensor reports motion in the garage, shed or workshop to ProbeHarbor, with an RGB LED that glows green when quiet, red on motion and blue if Wi-Fi or ProbeHarbor is unreachable.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { PIR: "27", LR: "25", LG: "26", LB: "33" },
+      esp32s3: { PIR: "4", LR: "5", LG: "6", LB: "7" },
+      esp32c3: { PIR: "4", LR: "5", LG: "6", LB: "7" },
+    },
+    pins: ["5V", "GND", "%PIR%", "%LR%", "%LG%", "%LB%"],
+    libs: ["WiFi (built in)", "HTTPClient (built in)"],
+    baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "HC-SR501 PIR motion sensor"],
+      [1, "RGB LED, common cathode or common anode (or three single LEDs)"],
+      [3, "220 Ω resistors, one per LED colour"],
+      [8, "Jumper wires"],
+    ],
+    wiring: [
+      ["PIR VCC", "5V", "The HC-SR501 needs 4.5 V or more; it has its own 3.3 V regulator"],
+      ["PIR OUT", "GPIO %PIR%", "Its output is 3.3 V when high, safe for the ESP32 as it is"],
+      ["PIR GND", "GND", ""],
+      ["RGB red", "GPIO %LR%", "Through 220 Ω"],
+      ["RGB green", "GPIO %LG%", "Through 220 Ω"],
+      ["RGB blue", "GPIO %LB%", "Through 220 Ω"],
+      ["RGB common leg (the longest)", "GND", "A common-anode LED needs 3V3 here instead, and COMMON_ANODE set to true"],
+    ],
+    code: R`// PIR motion to ProbeHarbor: an HC-SR501 reports motion to a ProbeHarbor push
+// device, and an RGB LED shows what is happening.
+// Green: quiet. Red: motion. Blue: Wi-Fi or ProbeHarbor trouble. Green blinking: PIR warming up.
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+
+// ---- Your settings ----
+const char* WIFI_SSID = "your-wifi";
+const char* WIFI_PASS = "your-password";
+// ProbeHarbor: Dashboard, Devices, add a push device, copy its ingest address.
+const char* INGEST_URL = "https://probeharbor.dev/api/ingest/YOUR_DEVICE_KEY";
+// ProbeHarbor reads a true/false value whose name contains "motion" as a motion sensor.
+const char* SENSOR_KEY = "motion1";
+const unsigned long HEARTBEAT_MS = 5UL * 60UL * 1000UL;  // re-send the state every 5 minutes
+const unsigned long MIN_GAP_MS = 10UL * 1000UL;          // never post more often than this
+const unsigned long WARMUP_MS = 60UL * 1000UL;           // the HC-SR501 settles for about a minute
+${benchSettings(["wifi_ssid", "wifi_pass", "ingest_url", "sensor_key"])}
+String wifiSsid, wifiPass, ingestUrl, sensorKey;
+
+// ---- Pins ----
+const int PIR_PIN = %PIR%;
+const int LED_R = %LR%, LED_G = %LG%, LED_B = %LB%;
+const bool COMMON_ANODE = false;  // true if the LED's long leg goes to 3V3 instead of GND
+
+// Root certificates for probeharbor.dev: Google Trust Services R1 and R4, and
+// Let's Encrypt ISRG X1 and X2. Cloudflare issues the site's certificate from one of these.
+const char* ROOT_CAS = R"PEM(
+-----BEGIN CERTIFICATE-----
+MIIFVzCCAz+gAwIBAgINAgPlk28xsBNJiGuiFzANBgkqhkiG9w0BAQwFADBHMQsw
+CQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEU
+MBIGA1UEAxMLR1RTIFJvb3QgUjEwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAw
+MDAwWjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZp
+Y2VzIExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjEwggIiMA0GCSqGSIb3DQEBAQUA
+A4ICDwAwggIKAoICAQC2EQKLHuOhd5s73L+UPreVp0A8of2C+X0yBoJx9vaMf/vo
+27xqLpeXo4xL+Sv2sfnOhB2x+cWX3u+58qPpvBKJXqeqUqv4IyfLpLGcY9vXmX7w
+Cl7raKb0xlpHDU0QM+NOsROjyBhsS+z8CZDfnWQpJSMHobTSPS5g4M/SCYe7zUjw
+TcLCeoiKu7rPWRnWr4+wB7CeMfGCwcDfLqZtbBkOtdh+JhpFAz2weaSUKK0Pfybl
+qAj+lug8aJRT7oM6iCsVlgmy4HqMLnXWnOunVmSPlk9orj2XwoSPwLxAwAtcvfaH
+szVsrBhQf4TgTM2S0yDpM7xSma8ytSmzJSq0SPly4cpk9+aCEI3oncKKiPo4Zor8
+Y/kB+Xj9e1x3+naH+uzfsQ55lVe0vSbv1gHR6xYKu44LtcXFilWr06zqkUspzBmk
+MiVOKvFlRNACzqrOSbTqn3yDsEB750Orp2yjj32JgfpMpf/VjsPOS+C12LOORc92
+wO1AK/1TD7Cn1TsNsYqiA94xrcx36m97PtbfkSIS5r762DL8EGMUUXLeXdYWk70p
+aDPvOmbsB4om3xPXV2V4J95eSRQAogB/mqghtqmxlbCluQ0WEdrHbEg8QOB+DVrN
+VjzRlwW5y0vtOUucxD/SVRNuJLDWcfr0wbrM7Rv1/oFB2ACYPTrIrnqYNxgFlQID
+AQABo0IwQDAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E
+FgQU5K8rJnEaK0gnhS9SZizv8IkTcT4wDQYJKoZIhvcNAQEMBQADggIBAJ+qQibb
+C5u+/x6Wki4+omVKapi6Ist9wTrYggoGxval3sBOh2Z5ofmmWJyq+bXmYOfg6LEe
+QkEzCzc9zolwFcq1JKjPa7XSQCGYzyI0zzvFIoTgxQ6KfF2I5DUkzps+GlQebtuy
+h6f88/qBVRRiClmpIgUxPoLW7ttXNLwzldMXG+gnoot7TiYaelpkttGsN/H9oPM4
+7HLwEXWdyzRSjeZ2axfG34arJ45JK3VmgRAhpuo+9K4l/3wV3s6MJT/KYnAK9y8J
+ZgfIPxz88NtFMN9iiMG1D53Dn0reWVlHxYciNuaCp+0KueIHoI17eko8cdLiA6Ef
+MgfdG+RCzgwARWGAtQsgWSl4vflVy2PFPEz0tv/bal8xa5meLMFrUKTX5hgUvYU/
+Z6tGn6D/Qqc6f1zLXbBwHSs09dR2CQzreExZBfMzQsNhFRAbd03OIozUhfJFfbdT
+6u9AWpQKXCBfTkBdYiJ23//OYb2MI3jSNwLgjt7RETeJ9r/tSQdirpLsQBqvFAnZ
+0E6yove+7u7Y/9waLd64NnHi/Hm3lCXRSHNboTXns5lndcEZOitHTtNCjv0xyBZm
+2tIMPNuzjsmhDYAPexZ3FL//2wmUspO8IFgV6dtxQ/PeEMMA3KgqlbbC1j+Qa3bb
+bP6MvPJwNQzcmRk13NfIRmPVNnGuV/u3gm3c
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICCTCCAY6gAwIBAgINAgPlwGjvYxqccpBQUjAKBggqhkjOPQQDAzBHMQswCQYD
+VQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2VzIExMQzEUMBIG
+A1UEAxMLR1RTIFJvb3QgUjQwHhcNMTYwNjIyMDAwMDAwWhcNMzYwNjIyMDAwMDAw
+WjBHMQswCQYDVQQGEwJVUzEiMCAGA1UEChMZR29vZ2xlIFRydXN0IFNlcnZpY2Vz
+IExMQzEUMBIGA1UEAxMLR1RTIFJvb3QgUjQwdjAQBgcqhkjOPQIBBgUrgQQAIgNi
+AATzdHOnaItgrkO4NcWBMHtLSZ37wWHO5t5GvWvVYRg1rkDdc/eJkTBa6zzuhXyi
+QHY7qca4R9gq55KRanPpsXI5nymfopjTX15YhmUPoYRlBtHci8nHc8iMai/lxKvR
+HYqjQjBAMA4GA1UdDwEB/wQEAwIBhjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW
+BBSATNbrdP9JNqPV2Py1PsVq8JQdjDAKBggqhkjOPQQDAwNpADBmAjEA6ED/g94D
+9J+uHXqnLrmvT/aDHQ4thQEd0dlq7A/Cr8deVl5c1RxYIigL9zC2L7F8AjEA8GE8
+p/SgguMh1YQdc4acLa/KNJvxn7kjNuK8YAOdgLOaVsjh4rsUecrNIdSUtUlD
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
+TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
+cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
+WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
+h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
+0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
+A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW
+T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH
+B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC
+B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv
+KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn
+OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn
+jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw
+qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI
+rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV
+HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq
+hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL
+ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ
+3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK
+NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5
+ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur
+TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC
+jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc
+oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
+4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
+mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
+emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICGzCCAaGgAwIBAgIQQdKd0XLq7qeAwSxs6S+HUjAKBggqhkjOPQQDAzBPMQsw
+CQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJuZXQgU2VjdXJpdHkgUmVzZWFyY2gg
+R3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBYMjAeFw0yMDA5MDQwMDAwMDBaFw00
+MDA5MTcxNjAwMDBaME8xCzAJBgNVBAYTAlVTMSkwJwYDVQQKEyBJbnRlcm5ldCBT
+ZWN1cml0eSBSZXNlYXJjaCBHcm91cDEVMBMGA1UEAxMMSVNSRyBSb290IFgyMHYw
+EAYHKoZIzj0CAQYFK4EEACIDYgAEzZvVn4CDCuwJSvMWSj5cz3es3mcFDR0HttwW
++1qLFNvicWDEukWVEYmO6gbf9yoWHKS5xcUy4APgHoIYOIvXRdgKam7mAHf7AlF9
+ItgKbppbd9/w+kHsOdx1ymgHDB/qo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0T
+AQH/BAUwAwEB/zAdBgNVHQ4EFgQUfEKWrt5LSDv6kviejM9ti6lyN5UwCgYIKoZI
+zj0EAwMDaAAwZQIwe3lORlCEwkSHRhtFcP9Ymd70/aTSVaYgLXTWNLxBo1BfASdW
+tL4ndQavEi51mI38AjEAi/V3bNTIZargCyzuFJ0nN6T5U6VR5CmD1/iQMVtCnwr1
+/q4AaOeMSQ+2b1tbFfLn
+-----END CERTIFICATE-----
+)PEM";
+
+bool motion = false;          // debounced PIR state
+int sentState = -1;           // last state ProbeHarbor accepted
+unsigned long lastPost = 0, changedAt = 0, retryAfterMs = 0;
+bool trouble = false;
+
+void setColor(uint8_t r, uint8_t g, uint8_t b) {
+  if (COMMON_ANODE) { r = 255 - r; g = 255 - g; b = 255 - b; }
+  analogWrite(LED_R, r);
+  analogWrite(LED_G, g);
+  analogWrite(LED_B, b);
+}
+
+// Returns the HTTP status, or a negative number if the request never got an answer.
+int postMotion(bool on) {
+  WiFiClientSecure tls;
+  tls.setCACert(ROOT_CAS);
+  HTTPClient http;
+  const char* keep[] = {"Retry-After"};
+  http.collectHeaders(keep, 1);
+  if (!http.begin(tls, ingestUrl)) return -1;
+  http.addHeader("Content-Type", "application/json");
+  char body[64];
+  snprintf(body, sizeof(body), "{\"%s\":%s}", sensorKey.c_str(), on ? "true" : "false");
+  const int code = http.POST(body);
+  if (code == 429) retryAfterMs = 1000UL * (unsigned long)max(10L, http.header("Retry-After").toInt());
+  http.end();
+  return code;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(PIR_PIN, INPUT);  // the HC-SR501 drives its output high and low itself
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_G, OUTPUT);
+  pinMode(LED_B, OUTPUT);
+  setColor(0, 0, 80);
+  benchSettingsBoot();
+  wifiSsid = benchSetting("wifi_ssid", WIFI_SSID);
+  wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  ingestUrl = benchSetting("ingest_url", INGEST_URL);
+  sensorKey = benchSetting("sensor_key", SENSOR_KEY);
+  if (sensorKey.length() == 0 || sensorKey.length() > 24) sensorKey = SENSOR_KEY;  // keep the JSON body small
+  benchNeeds("Wi-Fi name", wifiSsid, "your-wifi", "WIFI_SSID");
+  benchNeeds("ProbeHarbor ingest address", ingestUrl, "https://probeharbor.dev/api/ingest/YOUR_DEVICE_KEY", "INGEST_URL");
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
+  while (WiFi.status() != WL_CONNECTED) delay(250);
+  Serial.printf("wifi ok %s\n", WiFi.localIP().toString().c_str());
+}
+
+void loop() {
+  benchSettingsPoll();
+  const unsigned long now = millis();
+
+  // Debounce: the PIR output has to hold a new level for 200 ms.
+  const bool raw = digitalRead(PIR_PIN) == HIGH;
+  static bool lastRaw = false;
+  static unsigned long rawSince = 0;
+  if (raw != lastRaw) { lastRaw = raw; rawSince = now; }
+  if (raw != motion && now - rawSince >= 200) {
+    motion = raw;
+    changedAt = now;
+    Serial.printf("motion = %d\n", motion ? 1 : 0);
+  }
+
+  const bool warming = now < WARMUP_MS;
+  if (warming) setColor(0, (now / 300) % 2 ? 60 : 0, 0);
+  else if (trouble) setColor(0, 0, 160);
+  else if (motion) setColor(200, 0, 0);
+  else setColor(0, 60, 0);
+  if (warming) return;
+
+  if (WiFi.status() != WL_CONNECTED) {
+    trouble = true;
+    static unsigned long lastTry = 0;
+    if (now - lastTry > 10000) { lastTry = now; WiFi.reconnect(); }
+    return;
+  }
+
+  const bool changed = (int)motion != sentState;
+  const bool heartbeat = now - lastPost >= HEARTBEAT_MS;
+  const unsigned long gap = retryAfterMs ? retryAfterMs : MIN_GAP_MS;
+  if ((changed || heartbeat) && (lastPost == 0 || now - lastPost >= gap)) {
+    lastPost = now;
+    retryAfterMs = 0;
+    const int code = postMotion(motion);
+    trouble = code < 200 || code >= 300;
+    if (!trouble) sentState = motion;
+    Serial.printf("posted %s %s\n", motion ? "motion" : "quiet", trouble ? "FAILED" : "ok");
+    if (trouble) Serial.printf("ProbeHarbor answered HTTP %d\n", code);
+  }
+}
+`,
+    notes: [
+      "In ProbeHarbor, add a push device and paste its ingest address into INGEST_URL. The sketch sends {\"motion1\": true} or false: ProbeHarbor files a true/false value whose name contains motion as a motion sensor, shown as MOTION or CLEAR.",
+      "It posts when motion starts and stops, and again every 5 minutes so ProbeHarbor knows the sensor is alive. Posts are at least 10 seconds apart, well inside ProbeHarbor's 60 a minute, and if ProbeHarbor answers 429 it waits as long as asked.",
+      "The HC-SR501 has two orange trimmers. Sx sets sensitivity, roughly 3 to 7 metres. Tx sets how long the output stays high after motion, from about 3 seconds to about 5 minutes: turn it fully anticlockwise for the shortest time, so ProbeHarbor sees each visit separately.",
+      "Set the jumper to H (repeat trigger): the output then stays high as long as something keeps moving, instead of dropping out mid-visit. L gives one fixed pulse per trigger.",
+      "After power-up the sensor needs about a minute to settle and may trigger on its own. The LED blinks green during that minute and nothing is sent.",
+      "Which leg is common? On most 5 mm RGB LEDs it is the longest. If green shows as everything-but-green, you have a common-anode LED: set COMMON_ANODE to true and move the common leg to 3V3.",
+      "PIR sensors see warm moving bodies, so heaters, sunlight on a wall or a draught from a vent can trigger them. Point it away from windows and heat sources.",
+    ],
+    open: ["Not tested on hardware or with ProbeHarbor yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    settings: [
+      ...WIFI,
+      {
+        key: "ingest_url",
+        label: "ProbeHarbor ingest address",
+        kind: "url",
+        hint: "Dashboard, Devices, add a push device, then copy its ingest address.",
+        required: true,
+      },
+      { key: "sensor_key", label: "Sensor name", kind: "text", hint: "A name containing \"motion\" shows up as a motion sensor." },
+    ],
+    sample: [
+      "wifi ok 192.168.1.75",
+      "posted quiet ok",
+      "motion = 1",
+      "posted motion ok",
+      "motion = 0",
+      "posted quiet ok",
+      "motion = 1",
+      "posted motion ok",
+      "motion = 0",
+      "posted quiet ok",
+      "motion = 1",
+      "posted motion ok",
+      "motion = 0",
+      "posted quiet ok",
+    ],
+  },
+  {
+    id: "nrf24-link", needs: [["nrf24"]], name: "Arduino Uno to ESP32 radio link", level: "Intermediate", mins: 45, tags: ["wifi", "sensors"],
+    sum: "Give an old Arduino Uno a radio: two nRF24L01+ modules carry a light sensor and a button from the Uno to an ESP32, which plots them on the bench and serves them on a web page.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SCK: "18", MISO: "19", MOSI: "23", CSN: "21", CE: "22" },
+      esp32s3: { SCK: "12", MISO: "13", MOSI: "11", CSN: "10", CE: "9" },
+      esp32c3: { SCK: "4", MISO: "5", MOSI: "6", CSN: "7", CE: "10" },
+    },
+    pins: ["3V3", "GND", "%SCK%", "%MISO%", "%MOSI%", "%CSN%", "%CE%"],
+    libs: ["RF24", "WiFi (built in)", "WebServer (built in)"],
+    baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Arduino Uno"],
+      [2, "nRF24L01+ modules"],
+      [2, "10 µF capacitors, one across each module's VCC and GND"],
+      [1, "Photoresistor (light sensor) and a 10 kΩ resistor"],
+      [1, "Push button"],
+      [16, "Jumper wires"],
+    ],
+    wiring: [
+      ["ESP32 nRF24 VCC", "3V3", "3.3 V only: 5 V destroys it"],
+      ["10 µF capacitor", "3V3 to GND", "Right at the module, longer leg (+) to 3V3. The radio misbehaves without it"],
+      ["ESP32 nRF24 GND", "GND", ""],
+      ["ESP32 nRF24 SCK", "GPIO %SCK%", ""],
+      ["ESP32 nRF24 MISO", "GPIO %MISO%", ""],
+      ["ESP32 nRF24 MOSI", "GPIO %MOSI%", ""],
+      ["ESP32 nRF24 CSN", "GPIO %CSN%", ""],
+      ["ESP32 nRF24 CE", "GPIO %CE%", "IRQ stays unconnected"],
+      ["Uno nRF24 VCC", "Uno 3.3V", "Again 3.3 V only"],
+      ["Uno 10 µF capacitor", "Uno 3.3V to GND", "Right at the Uno's module, longer leg (+) to 3.3V"],
+      ["Uno nRF24 GND", "Uno GND", ""],
+      ["Uno nRF24 SCK / MISO / MOSI", "Uno 13 / 12 / 11", "The Uno's fixed SPI pins"],
+      ["Uno nRF24 CSN / CE", "Uno 10 / 9", ""],
+      ["Photoresistor", "Uno 5V to A0", "Brighter light, higher number"],
+      ["10 kΩ resistor", "Uno A0 to GND", "The divider's bottom resistor"],
+      ["Push button", "Uno 2 to GND", "Uses the Uno's internal pull-up"],
+    ],
+    code: R`// nRF24L01+ receiver on the ESP32: hears an Arduino Uno across the room or garage,
+// prints what it sends for the bench plotter, and shows it on a small web page.
+// Libraries: RF24 (by TMRh20). The Uno's sketch is further down this page.
+#include <SPI.h>
+#include <RF24.h>
+#include <WiFi.h>
+#include <WebServer.h>
+
+const char* WIFI_SSID = "your-wifi";
+const char* WIFI_PASS = "your-password";
+${benchSettings(["wifi_ssid", "wifi_pass"])}
+
+// ---- Pins ----
+const int PIN_SCK = %SCK%, PIN_MISO = %MISO%, PIN_MOSI = %MOSI%;
+const int PIN_CSN = %CSN%, PIN_CE = %CE%;
+
+// Must match the Uno's sketch exactly.
+const uint8_t ADDRESS[6] = "BNCH1";
+const uint8_t CHANNEL = 108;  // 2.508 GHz, above the Wi-Fi channels
+
+// The packet. Packed and fixed-size so the Uno (8-bit) and the ESP32 (32-bit) agree on its layout.
+struct __attribute__((packed)) Packet {
+  uint32_t seq;     // counts up with every packet
+  uint16_t light;   // photoresistor, 0 (dark) to 1023 (bright)
+  uint8_t button;   // 1 while the button is held
+};
+
+RF24 radio(PIN_CE, PIN_CSN);
+WebServer server(80);
+Packet last = {};
+uint32_t received = 0, lost = 0;
+unsigned long lastHeard = 0;
+
+void handleRoot() {
+  const unsigned long age = lastHeard ? (millis() - lastHeard) / 1000 : 0;
+  char page[900];
+  snprintf(page, sizeof(page),
+           "<!doctype html><meta name=viewport content='width=device-width'>"
+           "<meta http-equiv=refresh content=2><title>Radio link</title>"
+           "<body style='font:18px system-ui;margin:2em'><h1>Uno over nRF24</h1>"
+           "<p>Light: <b>%u</b> of 1023<p>Button: <b>%s</b>"
+           "<p>Packets: %lu received, %lu missed<p>%s</body>",
+           last.light, last.button ? "pressed" : "up", (unsigned long)received, (unsigned long)lost,
+           lastHeard ? (age < 5 ? "The Uno is talking." : "No packets for a while: is the Uno on?") : "Waiting for the first packet.");
+  server.send(200, "text/html", page);
+}
+
+void handleJson() {
+  char json[160];
+  snprintf(json, sizeof(json), "{\"light\":%u,\"button\":%u,\"seq\":%lu,\"received\":%lu,\"lost\":%lu}",
+           last.light, last.button, (unsigned long)last.seq, (unsigned long)received, (unsigned long)lost);
+  server.send(200, "application/json", json);
+}
+
+void setup() {
+  Serial.begin(115200);
+  SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_CSN);
+  if (!radio.begin(&SPI)) {
+    Serial.println("nRF24 not found: check 3.3 V, the 10 uF capacitor and the SPI wires");
+    while (true) delay(1000);
+  }
+  radio.setChannel(CHANNEL);
+  radio.setDataRate(RF24_250KBPS);  // slower, but reaches further and tolerates noise
+  radio.setPALevel(RF24_PA_LOW);    // raise to RF24_PA_HIGH for longer range
+  radio.setPayloadSize(sizeof(Packet));
+  radio.openReadingPipe(1, ADDRESS);
+  radio.startListening();
+  Serial.println("radio listening");
+
+  benchSettingsBoot();
+  const String wifiSsid = benchSetting("wifi_ssid", WIFI_SSID), wifiPass = benchSetting("wifi_pass", WIFI_PASS);
+  benchNeeds("Wi-Fi name", wifiSsid, "your-wifi", "WIFI_SSID");
+  WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
+  for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(250);
+  if (WiFi.status() == WL_CONNECTED) {
+    server.on("/", handleRoot);
+    server.on("/data.json", handleJson);
+    server.begin();
+    Serial.printf("web page at http://%s/\n", WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("Wi-Fi not joined; the radio still works on the serial port");
+  }
+}
+
+void loop() {
+  benchSettingsPoll();
+  if (WiFi.status() == WL_CONNECTED) server.handleClient();
+  while (radio.available()) {
+    Packet p;
+    radio.read(&p, sizeof(p));
+    if (received > 0 && p.seq > last.seq + 1) lost += p.seq - last.seq - 1;
+    last = p;
+    received++;
+    lastHeard = millis();
+    Serial.printf("light = %u  button = %u\n", p.light, p.button);
+  }
+  static unsigned long lastReport = 0;
+  if (millis() - lastReport >= 10000) {
+    lastReport = millis();
+    Serial.printf("missed = %lu\n", (unsigned long)lost);
+  }
+}
+`,
+    extraCode: {
+      title: "Transmitter, Arduino sketch for the Uno",
+      board: "Arduino Uno",
+      code: R`// nRF24L01+ transmitter on an Arduino Uno: sends the photoresistor and a button
+// to the ESP32 twice a second, and straight away when the button changes.
+// Libraries: RF24 (by TMRh20). Board: Arduino Uno.
+#include <SPI.h>
+#include <RF24.h>
+
+const int PIN_CE = 9, PIN_CSN = 10;  // SPI itself is fixed on the Uno: 11 MOSI, 12 MISO, 13 SCK
+const int LIGHT_PIN = A0;            // photoresistor divider
+const int BUTTON_PIN = 2;            // button to GND
+
+const uint8_t ADDRESS[6] = "BNCH1";
+const uint8_t CHANNEL = 108;
+
+struct __attribute__((packed)) Packet {
+  uint32_t seq;
+  uint16_t light;
+  uint8_t button;
+};
+
+RF24 radio(PIN_CE, PIN_CSN);
+Packet p = {};
+unsigned long lastSend = 0;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  if (!radio.begin()) {
+    Serial.println(F("nRF24 not found: check 3.3 V, the 10 uF capacitor and the SPI wires"));
+    while (true) {}
+  }
+  radio.setChannel(CHANNEL);
+  radio.setDataRate(RF24_250KBPS);
+  radio.setPALevel(RF24_PA_LOW);
+  radio.setPayloadSize(sizeof(Packet));
+  radio.openWritingPipe(ADDRESS);
+  radio.stopListening();
+  Serial.println(F("radio sending"));
+}
+
+void loop() {
+  const uint8_t button = digitalRead(BUTTON_PIN) == LOW;
+  if (button != p.button || millis() - lastSend >= 500) {
+    lastSend = millis();
+    p.seq++;
+    p.light = analogRead(LIGHT_PIN);
+    p.button = button;
+    const bool ok = radio.write(&p, sizeof(p));  // true when the ESP32 acknowledged it
+    Serial.print(F("sent "));
+    Serial.print(p.seq);
+    Serial.println(ok ? F(" ok") : F(" no ack"));
+  }
+}
+`,
+    },
+    notes: [
+      "Upload the ESP32 sketch to the ESP32 and the Uno sketch (further down) to the Uno. Both use the RF24 library by TMRh20 from the Library Manager. The ESP32 prints its web address on the bench; open it on a phone to watch the light level.",
+      "nRF24L01+ modules run on 3.3 V only. The Uno's 3.3V pin can supply a plain module like these (around 12 mA while sending), but not the long-range versions with an antenna and amplifier, which need their own 3.3 V regulator.",
+      "The Uno's signals are 5 V. Nordic's datasheet lists the nRF24L01+ inputs as 5 V tolerant, and wiring them straight to an Uno is how most guides do it, but it is the module's supply, not its inputs, that must stay at 3.3 V. If a module behaves oddly, a level shifter on SCK, MOSI, CSN and CE is the careful fix.",
+      "Most nRF24 trouble is power: the module draws short bursts that a long jumper cannot supply. The 10 µF capacitor right across VCC and GND fixes most 'not found' and dropped-packet problems.",
+      "Both sketches use channel 108 (2.508 GHz), above the Wi-Fi channels, and 250 kbit/s, which reaches further than the default. Change CHANNEL on both if you run two links side by side.",
+      "The packet is a packed struct with fixed-size fields, so the 8-bit Uno and the 32-bit ESP32 agree on its layout. Keep the two structs identical if you add fields.",
+      "On the bench, light and button are charted as they arrive, and missed counts packets that never made it.",
+    ],
+    open: ["Not tested on hardware yet. The ESP32 sketch compiles for every board listed with Arduino-ESP32 core 3.3.12, and the Uno sketch compiles for the Arduino Uno (PlatformIO Atmel AVR 5.3.0)."],
+    settings: [
+      ...WIFI,
+    ],
+    sample: [
+      "radio listening",
+      "web page at http://192.168.1.76/",
+      "light = 612  button = 0",
+      "light = 615  button = 0",
+      "light = 598  button = 0",
+      "light = 402  button = 0",
+      "light = 233  button = 1",
+      "light = 230  button = 1",
+      "light = 236  button = 0",
+      "light = 410  button = 0",
+      "missed = 0",
+      "light = 588  button = 0",
+      "light = 603  button = 0",
+      "light = 611  button = 0",
+      "missed = 1",
+      "light = 608  button = 0",
+      "light = 606  button = 0",
+      "missed = 1",
     ],
   },
   ...PROBEHARBOR_SKETCHES,

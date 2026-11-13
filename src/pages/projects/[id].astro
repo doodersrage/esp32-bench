@@ -1,13 +1,22 @@
 ---
 import Base from "../../layouts/Base.astro";
+import Comments from "../../components/Comments.astro";
+import Preview from "../../components/Preview.astro";
 import Pinout from "../../components/Pinout.astro";
+import WiringDiagram from "../../components/WiringDiagram.astro";
 import Flasher from "../../components/Flasher.astro";
+import FirmwareLibrary from "../../components/FirmwareLibrary.astro";
 import ProbeSetup from "../../components/ProbeSetup.astro";
+import SettingsForm from "../../components/SettingsForm.astro";
+import SketchBuilder from "../../components/SketchBuilder.astro";
+import COMPILE from "../../data/compile-libs.json";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
 import { boardById } from "../../data/boards";
 import { link } from "../../lib/paths";
-import { PROBEHARBOR, reportUrl } from "../../lib/site";
+import { PROBEHARBOR, SITE, reportUrl } from "../../lib/site";
 import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
+import { kitFor } from "../../lib/kit";
+import { PAGE_PALETTE, kitIconSvg } from "../../lib/kit-icons";
 
 export function getStaticPaths() {
   return PROJECTS.map((p) => ({ params: { id: p.id }, props: { p } }));
@@ -26,6 +35,12 @@ const panels = boards.map((board) => ({
 }));
 const needsLibraries = p.libs.some((l) => !/built in/.test(l));
 const hasBuyLinks = p.parts.some((x) => x[2]);
+// "What you'll need": the kit card image and an icon per parts row.
+const kit = kitFor(p.parts);
+const kitAlt = `Parts for ${p.name}: ${kit
+  .map((k) => `${k.alternative ? "or " : `${k.qty} `}${k.label}${k.optional ? " (optional)" : ""}`)
+  .join(", ")}.`;
+const kitSrc = link(`/og/kits/${p.id}.png`);
 const buildReportUrl = reportUrl("build", { project: p.id });
 const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
 const boardNames = boards.map((b) => b.name).join(", ");
@@ -45,17 +60,37 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
         <span class="tag">{p.mins} min</span>
         <span class="tag">{p.baud} baud</span>
         {p.flash && <span class="tag flash">Browser flash</span>}
+        <span class="tag ok" data-lab-tag hidden title="The latest hardware lab run passed on at least one board">Lab tested</span>
       </div>
       {
         p.tags.includes("probeharbor") && (
           <p class="phcredit">
-            From <a href={PROBEHARBOR.url}>ProbeHarbor</a>, {PROBEHARBOR.blurb}. This board sends its readings to a
-            ProbeHarbor device; create one at <a href={PROBEHARBOR.url}>probeharbor.dev</a>. The source is in the{" "}
-            <a href={PROBEHARBOR.repo}>ProbeHarbor repository</a>.
+            {p.probeharbor ? "For" : "From"} <a href={PROBEHARBOR.url}>ProbeHarbor</a>, {PROBEHARBOR.blurb}.{" "}
+            {
+              p.probeharbor === "reads" ? (
+                <>
+                  This board shows readings from your ProbeHarbor sensors through a read-only share link, made under
+                  Dashboard, Share at <a href={PROBEHARBOR.url}>probeharbor.dev</a>.
+                </>
+              ) : p.probeharbor === "sends" ? (
+                <>
+                  This board sends its readings to a ProbeHarbor device; create one at{" "}
+                  <a href={PROBEHARBOR.url}>probeharbor.dev</a>.
+                </>
+              ) : (
+                <>
+                  This board sends its readings to a ProbeHarbor device; create one at{" "}
+                  <a href={PROBEHARBOR.url}>probeharbor.dev</a>. The source is in the{" "}
+                  <a href={PROBEHARBOR.repo}>ProbeHarbor repository</a>.
+                </>
+              )
+            }
           </p>
         )
       }
     </div>
+
+    <Preview id={p.id} />
 
     {
       boards.length > 1 && (
@@ -80,7 +115,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
                 <h2 class="h3 mb">Wiring</h2>
                 {panel.wiring.length > 0 ? (
                   <div class="tablebox">
-                    <table>
+                    <table id={`wiring-${panel.board.id}`}>
                       <thead>
                         <tr>
                           <th>From</th>
@@ -103,6 +138,15 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
                   <p class="lede">Nothing to wire. This one runs on the bare board.</p>
                 )}
               </div>
+              <WiringDiagram
+                rows={panel.wiring}
+                board={panel.board}
+                projectId={p.id}
+                projectName={p.name}
+                tableId={`wiring-${panel.board.id}`}
+                benchHref={benchHref}
+                baud={p.baud}
+              />
               <div>
                 <h2 class="h3 mb">Tested on this board</h2>
                 {panel.verified.length > 0 ? (
@@ -128,15 +172,39 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
                 <button class="btn sm" type="button" data-copy>Copy firmware</button>
               </div>
               <pre class="code"><code>{panel.code}</code></pre>
+              <SketchBuilder
+                mode="project"
+                project={p.id}
+                board={panel.board.id}
+                libs={p.libs}
+                hugeApp={COMPILE.hugeApp.includes(p.id)}
+                baud={p.baud}
+                hasSettings={!!p.settings}
+              />
             </div>
           )}
         </div>
       ))
     }
 
+    {
+      p.extraCode && (
+        <div class="stack tight" data-code>
+          <div class="codehead">
+            <h2 class="h3">{p.extraCode.title}</h2>
+            <button class="btn sm" type="button" data-copy>Copy sketch</button>
+          </div>
+          <pre class="code"><code>{p.extraCode.code}</code></pre>
+        </div>
+      )
+    }
+
     <div class="cols even">
       <div>
         <h2 class="h3 mb">Parts</h2>
+        <a class="kitcard" href={kitSrc} title="Open the parts card at full size">
+          <img src={kitSrc} width="1200" height="630" loading="lazy" decoding="async" alt={kitAlt} />
+        </a>
         <div class="tablebox">
           <table>
             <thead class="sr">
@@ -147,10 +215,15 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
               </tr>
             </thead>
             <tbody>
-              {p.parts.map(([qty, what, href]) => (
+              {p.parts.map(([qty, what, href], i) => (
                 <tr>
                   <td class="q">{qty}×</td>
-                  <td>{what}</td>
+                  <td>
+                    <div class="partname">
+                      <span class="kicon" set:html={kitIconSvg(kit[i], PAGE_PALETTE, 28)} />
+                      <span>{what}</span>
+                    </div>
+                  </td>
                   <td class="m">{href && <a href={href} rel={shopRel(href)} target="_blank">Buy at {shopVendor(href)}</a>}</td>
                 </tr>
               ))}
@@ -178,18 +251,23 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
             {p.flash.after.map((step) => <li>{step}</li>)}
           </ol>
           {p.setup === "probeharbor" && <ProbeSetup />}
+          {p.settings && <SettingsForm settings={p.settings} project={p.id} baud={p.baud} />}
           {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Firmware source on GitHub</a></p>}
         </div>
       ) : (
-        <div>
-          <h2 class="h3 mb">Load it</h2>
-          <ol class="steps">
-            <li>In the Arduino IDE, install the esp32 board package and pick the board named above the sketch.</li>
-            {needsLibraries && <li>Install the libraries listed above from the Library Manager.</li>}
-            <li>Paste the sketch, choose the board's port and upload. Hold BOOT if the upload stalls at Connecting.</li>
-            <li>Close the IDE's serial monitor, then open the bench here to watch the output.</li>
-          </ol>
-          {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Sketch source on GitHub</a></p>}
+        <div class="stack">
+          {p.code !== undefined && <FirmwareLibrary projectId={p.id} boards={boards.map((b) => ({ id: b.id, name: b.name }))} />}
+          {p.settings && <SettingsForm settings={p.settings} project={p.id} baud={p.baud} />}
+          <div>
+            <h2 class="h3 mb">Load it</h2>
+            <ol class="steps">
+              <li>In the Arduino IDE, install the esp32 board package and pick the board named above the sketch.</li>
+              {needsLibraries && <li>Install the libraries listed above from the Library Manager.</li>}
+              <li>Paste the sketch, choose the board's port and upload. Hold BOOT if the upload stalls at Connecting.</li>
+              <li>Close the IDE's serial monitor, then open the bench here to watch the output.</li>
+            </ol>
+            {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Sketch source on GitHub</a></p>}
+          </div>
         </div>
       )
     }
@@ -221,6 +299,15 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
       <button class="btn" type="button" id="built" data-project={p.id} data-board={boards[0].id} aria-pressed="false">Mark as built</button>
       <span class="pickresult" id="built-note" role="status"></span>
     </div>
+    <div class="stack tight band" id="community" data-builds={SITE.buildsApi} data-project={p.id}>
+      <h2>Community builds</h2>
+      <p class="lede" data-community-status>Loading build reports from people who made this.</p>
+      <div class="labrun" data-lab hidden></div>
+      <ul class="builds" data-community-list hidden></ul>
+    </div>
+
+    <Comments />
+
     {
       buildReportUrl && (
         <p class="cap left">
@@ -233,9 +320,25 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
 </Base>
 
 <style>
+  .kitcard { display: block; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #f2f5f1; }
+  .kitcard img { display: block; width: 100%; height: auto; }
+  .partname { display: flex; gap: 10px; align-items: center; }
+  .kicon { flex: none; display: inline-flex; width: 28px; height: 28px; color: var(--ink); }
+  .kicon :global(svg) { width: 28px; height: 28px; }
   .phcredit { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--ok); font-size: 0.92rem; max-width: 75ch; }
   .phcredit a { color: var(--accent); }
+  .labrun { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--ok); min-width: 0; }
+  .labrun :global(.labhead) { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .labrun :global(.labwhen) { font: 400 0.8rem/1.2 var(--mono); color: var(--muted); margin-left: auto; }
+  .labrun :global(details) { font-size: 0.88rem; }
+  .labrun :global(summary) { cursor: pointer; color: var(--muted); }
+  .labrun :global(pre.code) { margin-top: 6px; max-height: 18em; }
+  .labrun :global(.tag.pending) { border-style: dashed; }
 </style>
+
+<script>
+  import "../../scripts/community.ts";
+</script>
 
 <script>
   import { loadBuilt, saveBuilt } from "../../scripts/progress";
@@ -292,7 +395,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
   for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
     btn.addEventListener("click", async () => {
       const label = btn.textContent;
-      const code = btn.closest("[data-panel]")?.querySelector("pre.code code")?.textContent ?? "";
+      const code = btn.closest("[data-code], [data-panel]")?.querySelector("pre.code code")?.textContent ?? "";
       try {
         await navigator.clipboard.writeText(code);
         btn.textContent = "Copied";

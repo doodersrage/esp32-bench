@@ -24,7 +24,7 @@ export interface PartPin {
 }
 
 export interface Part {
-  id: DrawerPart | "led";
+  id: DrawerPart;
   name: string;
   pins: PartPin[];
 }
@@ -159,10 +159,118 @@ export const PARTS: Part[] = [
     ],
   },
   {
+    id: "buzzer", name: "Passive buzzer",
+    pins: [
+      { name: "+", kind: "in", note: "A passive buzzer or piezo plays tones with tone(). An active buzzer only beeps at one pitch." },
+      { name: "-", kind: "gnd" },
+    ],
+  },
+  {
+    id: "pot", name: "Potentiometer",
+    pins: [
+      { name: "END A", kind: "power3", note: "3V3, never 5 V: the wiper would put 5 V on the GPIO." },
+      { name: "WIPER", kind: "out", note: "Needs an ADC1 pin. On the classic ESP32 that is GPIO 32 to 39." },
+      { name: "END B", kind: "gnd" },
+    ],
+  },
+  {
+    id: "soil", name: "Soil moisture sensor",
+    pins: [
+      { name: "VCC", kind: "power3", note: "Capacitive v1.2 boards run on 3.3 V, which also keeps AOUT below 3.3 V." },
+      { name: "GND", kind: "gnd" },
+      { name: "AOUT", kind: "out", note: "Needs an ADC1 pin. On the classic ESP32 that is GPIO 32 to 39." },
+    ],
+  },
+  {
     id: "led", name: "LED",
     pins: [
       { name: "ANODE", kind: "in", note: "220 Ω resistor in series." },
       { name: "CATHODE", kind: "gnd" },
+    ],
+  },
+  {
+    id: "sharpir", name: "Sharp IR distance sensor",
+    pins: [
+      { name: "VCC", kind: "power5", note: "Needs 5 V. Put a 100 µF capacitor across VCC and GND at the sensor." },
+      { name: "GND", kind: "gnd" },
+      { name: "VO", kind: "out", note: "Analog, below about 3.1 V. Needs an ADC1 pin; on the classic ESP32 that is GPIO 32 to 39." },
+    ],
+  },
+  {
+    id: "mpu6050", name: "MPU-6050",
+    pins: [
+      { name: "VCC", kind: "power3" },
+      { name: "GND", kind: "gnd" },
+      { name: "SDA", kind: "bidir", bus: "sda" },
+      { name: "SCL", kind: "in", bus: "scl" },
+    ],
+  },
+  {
+    id: "joystick", name: "Analog joystick",
+    pins: [
+      { name: "VCC", kind: "power3", note: "3V3 even if it says +5V: at 5 V the outputs could reach 5 V." },
+      { name: "GND", kind: "gnd" },
+      { name: "VRX", kind: "out", note: "Needs an ADC1 pin. On the classic ESP32 that is GPIO 32 to 39." },
+      { name: "VRY", kind: "out", note: "Needs an ADC1 pin. On the classic ESP32 that is GPIO 32 to 39." },
+      { name: "SW", kind: "out", note: "Pulls low when pressed: use INPUT_PULLUP." },
+    ],
+  },
+  {
+    id: "pir", name: "PIR motion sensor",
+    pins: [
+      { name: "VCC", kind: "power5", note: "The HC-SR501 needs 5 V or more to run." },
+      { name: "OUT", kind: "out", note: "Goes to about 3.3 V on motion, so it is safe for the ESP32." },
+      { name: "GND", kind: "gnd" },
+    ],
+  },
+  {
+    id: "ldr", name: "Photoresistor",
+    pins: [
+      { name: "LEG A", kind: "power3", note: "3V3, with a 10 kΩ resistor from the other leg's pin to GND." },
+      { name: "LEG B", kind: "out", note: "Needs an ADC1 pin. On the classic ESP32 that is GPIO 32 to 39." },
+    ],
+  },
+  {
+    id: "lcd1602", name: "16x2 LCD (HD44780)",
+    pins: [
+      { name: "VDD", kind: "power5", note: "The LCD runs on 5 V. Tie RW to GND so it never drives 5 V back; contrast (V0) goes to a trimmer wiper." },
+      { name: "VSS", kind: "gnd" },
+      { name: "RS", kind: "in", note: "3.3 V signals are enough: the HD44780 reads 2.2 V and up as high at 5 V." },
+      { name: "E", kind: "in" },
+      { name: "D4", kind: "in" },
+      { name: "D5", kind: "in" },
+      { name: "D6", kind: "in" },
+      { name: "D7", kind: "in" },
+    ],
+  },
+  {
+    id: "encoder", name: "Rotary encoder",
+    pins: [
+      { name: "A / CLK", kind: "out", note: "Internal pull-up. The encoder's common pin goes to GND." },
+      { name: "B / DT", kind: "out" },
+      { name: "SW", kind: "out", note: "Push switch to GND, internal pull-up." },
+      { name: "GND", kind: "gnd" },
+    ],
+  },
+  {
+    id: "nrf24", name: "nRF24L01+ radio",
+    pins: [
+      { name: "VCC", kind: "power3", note: "3.3 V only: 5 V destroys it. Put 10 µF across VCC and GND at the module." },
+      { name: "GND", kind: "gnd" },
+      { name: "CE", kind: "in" },
+      { name: "CSN", kind: "in" },
+      { name: "SCK", kind: "in" },
+      { name: "MOSI", kind: "in" },
+      { name: "MISO", kind: "out" },
+    ],
+  },
+  {
+    id: "rgbled", name: "RGB LED",
+    pins: [
+      { name: "RED", kind: "in", note: "220 Ω in series on each colour." },
+      { name: "GREEN", kind: "in" },
+      { name: "BLUE", kind: "in" },
+      { name: "COMMON", kind: "gnd", note: "Common cathode to GND. A common-anode LED goes to 3V3 instead, with the colours inverted in code." },
     ],
   },
 ];

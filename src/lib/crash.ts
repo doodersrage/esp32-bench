@@ -33,6 +33,8 @@ const LINES: [RegExp, string, string][] = [
   [/TT sensor problem/, "tt-sensor", "ProbeHarbor: a sensor that is found but will not read usually has a loose power or ground wire."],
   [/TT no probe/, "tt-noprobe", "ProbeHarbor: no sensor answered. Check the data wire is on the pad marked 4 and the pull-up is fitted."],
   [/TT setup:/, "tt-setup", "ProbeHarbor: the probe has no settings. A fresh flash erases them, so send Wi-Fi and the key again."],
+  [/not set: use the settings form on the project page/, "bench-setting", "The sketch is running with a placeholder setting. With the board on USB, use the settings form on its project page to send the real value; it is kept in flash across restarts. Or edit the constant named in the line and upload again."],
+  [/^SETUP\twaiting$/, "bench-setup-window", "The board is waiting a moment for settings from the project page before it starts. Nothing to do if it already has them."],
 ];
 
 const RESETS: Record<string, string> = {

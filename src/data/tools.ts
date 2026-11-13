@@ -15,6 +15,12 @@ export const TOOLS: Tool[] = [
     tags: ["Crash", "No install"],
   },
   {
+    href: "/tools/build/",
+    name: "Build a sketch",
+    sum: "Paste an Arduino sketch, pick a board and libraries, compile it online, see errors by line and flash the result from the browser.",
+    tags: ["Compile", "No install"],
+  },
+  {
     href: "/tools/flash/",
     name: "Flash your own firmware",
     sum: "Write your .bin files to a board from Chrome or Edge, at the right offsets for each chip. Read the chip, MAC and flash size, or erase it.",

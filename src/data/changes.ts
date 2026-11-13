@@ -14,6 +14,64 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-12",
+    date: "2026-11-13",
+    title: "Version 0.12: no Arduino IDE needed",
+    summary:
+      "Every project can now be flashed straight from its page, settings go over USB, and you can edit a sketch, build it and flash it without installing anything.",
+    items: [
+      "Flash it from the browser: every project's sketch is compiled for every board it supports, ready to flash with one button.",
+      "Settings over USB: projects that need Wi-Fi or account details take them from a form on the project page after flashing.",
+      "Edit and build: change a sketch in the browser, press Build, and get compiler errors on the right lines or a firmware image to flash. Also on the new Build a sketch tool.",
+      "The ESP32 Bench lab: a Raspberry Pi runner that flashes and tests projects on real boards, with results shown as Lab tested.",
+    ],
+    link: "/tools/build/",
+  },
+  {
+    id: "v0-11",
+    date: "2026-11-12",
+    title: "Version 0.11: see it, build it, try it",
+    summary:
+      "Every project now has a wiring diagram with a step-by-step build mode and a picture of what you'll need, and fifteen projects can be tried in the browser before you build them.",
+    items: [
+      "Wiring diagrams for every project and board, drawn from the wiring table, with power and ground rails and inline resistors.",
+      "Build it step by step: one wire at a time, with the pad lit on the pinout and your progress saved.",
+      "Try it in your browser: play OLED Pong, Simon, the reaction timer and Morse, watch the NeoPixel fire, roll the dice and more.",
+      "What you'll need: a card with every part drawn, resistor colour bands included.",
+      "Wiring tables now list every ground and power connection as its own row.",
+    ],
+    link: "/projects/simon/",
+  },
+  {
+    id: "v0-10",
+    date: "2026-11-12",
+    title: "Version 0.10: garage projects and community builds",
+    summary:
+      "Eight projects built around a real parts drawer, from an IR sonar sweep to a self-levelling platform, and build reports from people who made a project now show on its page.",
+    items: [
+      "Community builds: tick Publish it when you send a build report, and once it is checked it appears on the project page with your board, notes and serial output.",
+      "ProbeHarbor on a 16x2 LCD with a rotary encoder, and a PIR motion sensor that reports to ProbeHarbor.",
+      "IR sonar sweep, self-levelling platform, joystick pan-tilt turret, visitor counter and an automatic fan.",
+      "An Arduino Uno to ESP32 radio link with nRF24L01+ modules, with both sketches on one page.",
+    ],
+    link: "/",
+  },
+  {
+    id: "v0-9",
+    date: "2026-11-12",
+    title: "Version 0.9: games and toys",
+    summary:
+      "Nine new projects for fun: games, toys and things to show off, with a new Games and toys filter in the library.",
+    items: [
+      "ProbeHarbor readout display: your ProbeHarbor sensors on a small OLED, with a flashing warning for freezing, water or lost power. It reads a share link, so it works on the free plan.",
+      "No parts needed: a reaction timer on the onboard LED and BOOT button, and a Morse code decoder that learns your speed.",
+      "Games: Simon with four lights and buttons, Pong on an OLED with two knobs, and electronic dice that keep score.",
+      "Toys: an ultrasonic theremin, a talking plant, a NeoPixel fire and lava lamp, and an internet clock that handles daylight saving.",
+      "The theremin, the talking plant and the dice print numbers the bench plotter charts live; play their sample output to see it.",
+    ],
+    link: "/",
+  },
+  {
     id: "v0-8",
     date: "2026-11-12",
     title: "Version 0.8: search everything, share a log, detect pins on the S2 and C6",

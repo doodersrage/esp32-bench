@@ -2,7 +2,7 @@
 
 A project library and a serial workbench for ESP32 boards, built as a static site with [Astro 7](https://astro.build/).
 
-- **Library:** twenty-eight projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
+- **Library:** forty-six projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
 - **Boards:** a page per board with its pinout, every pin's functions and a safe-to-use verdict: ESP32-DevKitC V4, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1 (with hardware-tested pins), ESP32-S2-DevKitC-1, ESP32-C6-DevKitC-1, Seeed XIAO ESP32C3 and ESP32S3, and the AI-Thinker ESP32-CAM, plus a chip comparison. Chip data is in `src/data/chips.ts`. Projects that support more than one board have a board switch.
 - **Wire:** a wiring pad. Pick a board and parts, tap a part pin and a board pad, and each wire is checked for boot pins, input-only pins, 5 V signals and pads used twice. It can wire everything for you, and remix two projects onto one board.
 - **Detective:** flash a small helper firmware (ESP32, S2, S3, C3 and C6; the S2 and C6 images are not hardware tested yet), touch a jumper from GND to any pad and watch that pad light up, with a silkscreen quiz. XIAO boards show their D0 to D10 labels. It also reads the chip, flash size and MAC address into a board passport you can save. `scripts/build-firmware.mjs` builds the ESP32, S3 and C3 on Arduino core 2.0.17 and the S2 and C6 on core 3.x, in separate PlatformIO homes.
@@ -15,6 +15,7 @@ A project library and a serial workbench for ESP32 boards, built as a static sit
 - **Search:** a header box and `/search/` over projects, boards, single pins, errors, tools, guide sections and flames, from a build-time index (`/search-index.json`, `src/lib/search.ts`). Test: `node --experimental-strip-types scripts/test-search.mjs` after a build.
 - **Shared logs:** the bench and the crash translator make links that carry the log, compressed, in the `#fragment` (`src/lib/share.ts`). Test: `node --experimental-strip-types tests/share.test.ts`.
 - **Preview images:** a 1200x630 card per project, board, error and tool page, rendered at build time with satori and resvg (`src/lib/og.ts`, `src/pages/og/`).
+- **Visual guides:** every project page has a generated wiring diagram per board (`src/lib/wiring-diagram.ts`, `src/components/WiringDiagram.astro`) with a step-by-step build mode (`src/scripts/build-mode.ts`), a "What you'll need" kit card (`src/lib/kit.ts`, `src/lib/kit-icons.ts`, `/og/kits/<id>.png`), and for fifteen projects a "Try it" simulation (`src/components/Preview.astro`, `src/scripts/previews/`). Tests: `DUMP_WIRING=1 DUMP_KIT=1 npx astro build`, then `tests/wiring-diagram.test.ts`, `tests/kit.test.ts` and `tests/previews.test.ts` with `node --experimental-strip-types`.
 - **Errors:** a reference page for each common crash, reset, boot and upload error, with causes, fixes and a box to paste a log into. A build check keeps it in step with the crash translator.
 - **Start:** a getting started guide covering cables, drivers, Linux permissions, Web Serial and the Arduino IDE.
 - **App:** installs from Chrome or Edge, works offline for pages already opened, and has light and dark themes. Also an about page, a what's new page and an RSS feed.
@@ -129,6 +130,19 @@ Not built yet:
 - A build pipeline that compiles the starter sketches into flashable images.
 - Saving your own projects.
 - Merging sketches in a remix. It merges wiring and pin numbers only.
+
+## No-IDE toolchain
+
+- **Firmware library:** `.github/workflows/firmware-library.yml` (Tuesdays and on sketch changes) compiles every sketch for every board (`scripts/build-firmware-library.mjs`, shared code in `scripts/lib/sketch-build.mjs`) and uploads merged images and ESP Web Tools manifests to the R2 bucket `esp32-bench-firmware`, served at `fw.esp32bench.dev`, through `PUT api.esp32bench.dev/fw/<key>`. The API accepts only a GitHub Actions OIDC token for this repository's main branch (`api/src/github-oidc.ts`), so no upload secret exists. Nothing is uploaded unless every build passed, and `index.json` goes last. Project pages show a Flash button when their project is in the index.
+- **Settings over USB:** configurable sketches include `src/sketches/bench-settings.inc` and read Wi-Fi and account settings from flash, with the sketch's constants as defaults. The settings form on the project page sends them over Web Serial (`src/lib/settings-protocol.ts`; protocol `SETTINGS?`, `SET`, `UNSET`, `SAVE`).
+- **Compile service:** `compile/` is the `esp32-bench-compile` Worker at `compile.esp32bench.dev`, running PlatformIO in Cloudflare Containers (`standard-2`, at most two instances, stopped 2 minutes after the last build). Quotas: 4 builds a minute and 40 a day per visitor, 600 a day in total. Its library list comes from `src/data/compile-libs.json` (`compile/scripts/sync-libs.mjs`). It is deployed by hand, not by CI, because the image is 8.6 GB: see `compile/README.md`.
+- **Editor:** "Edit and build" on project pages and `/tools/build/` (`src/components/SketchBuilder.astro`, `src/scripts/editor/`, CodeMirror loaded only when used).
+- **Hardware lab:** `lab/` is a Raspberry Pi runner that flashes each project from the firmware library, checks its serial output against `src/data/lab-expect.ts`, and posts results to `api.esp32bench.dev/lab/runs`; see `lab/README.md`.
+
+## Community
+
+- **Published build reports:** a build report whose sender ticks "Publish it" is stored as pending in the D1 database `esp32-bench-reports` (`api/migrations/`). The report email links to `api.esp32bench.dev/moderate/<id>?t=<token>`, a confirmation page whose Approve and Reject buttons post the decision, so email link scanners cannot approve anything. Only a SHA-256 of the token is stored. Approved reports come from `GET /builds?project=<id>` and appear under Community builds on the project page. Test: `cd api && node --experimental-strip-types test/builds.test.ts`.
+- **Comments:** `src/components/Comments.astro` embeds giscus on project and error pages, backed by GitHub Discussions in the public, code-free repository `doodersrage/esp32-bench-community`. It stays hidden until `SITE.giscus.enabled` is set to true in `src/lib/site.ts`, which needs the giscus GitHub App installed on that repository.
 
 ## Report form
 
