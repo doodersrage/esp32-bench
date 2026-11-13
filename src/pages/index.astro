@@ -16,6 +16,7 @@ const parts = Object.entries(DRAWER);
     name: SITE.name,
     description: SITE.description,
     url: Astro.site?.href,
+    author: { "@type": "Person", name: SITE.author.name, url: SITE.author.url },
   }}
 >
   <section class="view">

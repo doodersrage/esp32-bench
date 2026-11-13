@@ -21,6 +21,13 @@ const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
       When something breaks, the crash translator and the error reference explain what the board is saying.
     </p>
 
+    <h2>Who's behind it</h2>
+    <p>
+      ESP32 Bench is made by <a href={SITE.author.url} rel="author">{SITE.author.name}</a>, who also makes
+      <a href={PROBEHARBOR.url}>ProbeHarbor</a>. Other projects and contact details are on
+      <a href={SITE.author.url}>robmcd.name</a>.
+    </p>
+
     <h2>How projects are tested</h2>
     <p>
       Each project page says how far it has been checked. {tested} of the {PROJECTS.length} projects {tested === 1 ? "has" : "have"} checks
