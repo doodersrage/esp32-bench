@@ -1,4 +1,4 @@
-import type { BoardId } from "./boards";
+import { BOARDS, buildTarget, padsOf, type BoardId } from "./boards";
 import { BOM } from "../lib/shop";
 import { PROBEHARBOR_SKETCHES } from "./probeharbor";
 import { WIFI, benchSettings, type Setting } from "./bench-settings";
@@ -173,11 +173,40 @@ export const bareBoard = (p: Project): boolean => pickerNeeds(p).length === 0;
 const fill = (text: string, vars: Record<string, string>) =>
   text.replace(/%([A-Z]+)%/g, (whole, name: string) => vars[name] ?? whole);
 
-export const boardsOf = (p: Project): BoardId[] => p.boards ?? ["esp32"];
+/** The boards a project lists itself, without the variant boards boardsOf adds. */
+const ownBoards = (p: Project): BoardId[] => p.boards ?? ["esp32"];
+
+/** Pin values for a board: its own, or its parent's for a variant board such as the DOIT 30-pin. */
+const varsFor = (p: Project, board: BoardId): Record<string, string> => {
+  const own = p.vars?.[board];
+  if (own) return own;
+  const parent = BOARDS.find((b) => b.id === board)?.variantOf;
+  return (parent && p.vars?.[parent]) ?? {};
+};
+
+/**
+ * Every board a project runs on: the ones it lists, each followed by any variant
+ * board (same chip and GPIO numbers) whose header has every pad the project uses.
+ */
+export const boardsOf = (p: Project): BoardId[] =>
+  ownBoards(p).flatMap((id) => [
+    id,
+    // A variant with its own build target (the C3 SuperMini) needs a sketch to build;
+    // prebuilt firmware from elsewhere was built for the parent board only.
+    ...BOARDS.filter((v) => v.variantOf === id && !ownBoards(p).includes(v.id) && (v.buildAs !== undefined || p.code !== undefined))
+      .filter((v) => {
+        const pads = new Set(padsOf(v));
+        return p.pins.every((pin) => pads.has(fill(pin, varsFor(p, id))));
+      })
+      .map((v) => v.id),
+  ]);
+
+/** The build targets for a project's firmware: one per board, variants mapped to the board they are built as. */
+export const buildBoardsOf = (p: Project): BoardId[] => [...new Set(boardsOf(p).map((id) => buildTarget(BOARDS.find((b) => b.id === id)!)))];
 
 /** A project's pins, wiring and code with one board's values filled in. */
 export function forBoard(p: Project, board: BoardId) {
-  const vars = p.vars?.[board] ?? {};
+  const vars = varsFor(p, board);
   return {
     pins: p.pins.map((x) => fill(x, vars)),
     wiring: p.wiring.map(([from, to, note]) => [fill(from, vars), fill(to, vars), fill(note, vars)] as const),

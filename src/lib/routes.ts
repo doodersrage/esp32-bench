@@ -22,6 +22,7 @@ export const STATIC_PAGES = [
   "/report/",
   "/search/",
   "/changes/",
+  "/shop/",
 ];
 
 export function allPages(): string[] {

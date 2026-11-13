@@ -121,4 +121,6 @@ export const CHIP_FOR_BOARD: Record<string, string> = {
   "xiao-esp32c3": "esp32c3",
   "xiao-esp32s3": "esp32s3",
   "esp32-cam": "esp32",
+  "esp32-doit": "esp32",
+  "esp32c3-supermini": "esp32c3",
 };

@@ -201,6 +201,7 @@ details.translator textarea { width: 100%; padding: 8px 10px; border: 1px solid 
 a.tag.link { color: var(--accent); text-decoration: none; }
 a.tag.link:hover { border-color: var(--accent); }
 .pick select { padding: 5px 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 2px; font-size: 0.8rem; max-width: 100%; }
+.loglink2 { font-size: 0.85rem; color: var(--accent); }
 .loglink { margin-left: auto; font-size: 0.85rem; color: var(--accent); }
 details.drawer { background: var(--panel); border: 1px solid var(--line); padding: 10px 14px; }
 details.drawer summary { cursor: pointer; font: 600 1.1rem/1.2 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -208,6 +209,21 @@ details.drawer[open] summary { margin-bottom: 8px; }
 details.drawer > .lede { margin: 0; }
 details.drawer > .row { margin-top: 16px; }
 .partgroup { display: grid; gap: 6px; margin-top: 14px; }
+.paths { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.path { display: flex; flex-direction: column; gap: 8px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--ink); }
+.pathname { margin: 0; font: 700 1.2rem/1.1 var(--display); text-transform: uppercase; }
+.pathblurb { margin: 0; font-size: 0.9rem; color: var(--muted); }
+.pathbar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.pathbar span { display: block; height: 100%; width: 0; background: var(--ok); }
+.pathcount { margin: 0; font: 500 0.75rem/1 var(--mono); color: var(--muted); }
+.pathsteps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
+.pathsteps a { color: var(--ink); font-weight: 500; }
+.pathsteps span { display: block; color: var(--muted); font-size: 0.82rem; }
+.pathsteps li.done a { color: var(--ok); }
+.pathsteps li.done a::after { content: " ✓"; }
+.pathsteps li.next a { color: var(--accent); }
+.unlock { margin: 14px 0 0; font-size: 0.9rem; }
+.unlock:empty { display: none; }
 .partsum { font: 400 0.85rem/1.3 var(--body, inherit); text-transform: none; letter-spacing: 0; color: var(--muted); }
 .partlabel { margin: 0; font: 500 0.72rem/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .btn[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
@@ -370,3 +386,21 @@ ul.builds { list-style: none; margin: 0; padding: 0; display: flex; flex-directi
 .buildby { font: 400 0.8rem/1.2 var(--mono); color: var(--muted); margin-left: auto; }
 .buildnotes, .buildresult { font-size: 0.92rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 #community .lede a { color: var(--accent); }
+
+/* Print: a project page becomes a build sheet (parts, pinout, wiring, sketch). */
+@media print {
+  :root { --paper: #fff; --panel: #fff; --term-bg: #fff; --term-ink: #000; }
+  body { font-size: 11pt; }
+  header.top nav.tabs, header.top .tools, header.top .rev, footer, .skip, .offline-note, .back,
+  #try-it, #boardswitch, #community, #discuss, .fwlib, .flashbox, .sb, .nextsteps, .wd-tools, .wd-build,
+  [data-copy], [data-unclip], [data-print], #shop-toggle, #shop-link, .pathnote, .kitcard, .cap.left { display: none !important; }
+  header.top { border-bottom-width: 1px; }
+  pre.code { white-space: pre-wrap; border: 1px solid #999; font-size: 8pt; }
+  pre.code.clip { max-height: none; mask-image: none; }
+  details.ide { border: 0; padding: 0; }
+  details.ide summary { list-style: none; }
+  .cols, .cols.even { grid-template-columns: minmax(0, 1fr); }
+  table, figure, svg, .tablebox { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+  a { color: inherit; text-decoration: none; }
+}

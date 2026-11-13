@@ -10,13 +10,15 @@ interface Props {
   projectId: string;
   /** Board ids the project supports, in page order, for the per-board picker */
   boards: { id: string; name: string }[];
+  /** Page board id to build target (a variant board flashes its parent's image) */
+  boardMap?: Record<string, string>;
 }
 
-const { projectId, boards } = Astro.props;
+const { projectId, boards, boardMap = {} } = Astro.props;
 const manifest = `${SITE.fwBase}/${projectId}/manifest.json`;
 ---
 
-<div class="stack tight fwlib" id="fwlib" data-fw-base={SITE.fwBase} data-project={projectId} hidden>
+<div class="stack tight fwlib" id="fwlib" data-fw-base={SITE.fwBase} data-project={projectId} data-board-map={JSON.stringify(boardMap)} hidden>
   <h2 class="h3">Flash it from the browser</h2>
   <p>
     No Arduino IDE needed: this is the sketch below, already compiled. Plug the board in and press the button.{" "}

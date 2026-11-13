@@ -46,7 +46,7 @@ image out of the answer.
 }
 ```
 
-- `board`: `esp32`, `esp32s3`, `esp32c3`, `esp32s2`, `esp32c6`, `xiao-esp32c3`, `xiao-esp32s3` or `esp32-cam`.
+- `board`: `esp32`, `esp32s3`, `esp32c3`, `esp32s2`, `esp32c6`, `xiao-esp32c3`, `xiao-esp32s3`, `esp32-cam` or `esp32c3-supermini` (USB CDC on boot).
 - `code`: the sketch, at most 150 KB.
 - `libs`: optional, the site's library names (as `Project.libs`); names containing "built in" are ignored; any other unknown name is refused with 400.
 - `partitions`: optional, only `"huge_app"`.

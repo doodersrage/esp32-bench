@@ -1,6 +1,6 @@
 // Library page: search and filters, built marks, the bench log with badges,
 // and the "what can I build tonight" picker.
-import { BADGES, currentStreak, loadBuilt, loadFlashed, loadSeen, type ProjectMeta } from "./progress";
+import { BADGES, currentStreak, loadBuilt, loadFlashed, loadSeen, loadShop, type ProjectMeta } from "./progress";
 
 const q = document.getElementById("q") as HTMLInputElement;
 const empty = document.getElementById("empty") as HTMLElement;
@@ -40,6 +40,7 @@ let activeBoard = fromLink && boardIds.has(fromLink) ? fromLink : (recall("board
 if (!boardIds.has(activeBoard)) activeBoard = "all";
 if (fromLink && activeBoard === fromLink) remember("board", activeBoard);
 if (boardSelect) boardSelect.value = activeBoard;
+let labOnly = false;
 const onBoard = (card: HTMLElement) => activeBoard === "all" || (card.dataset.boards ?? "").split(" ").includes(activeBoard);
 
 let activeSort = recall("sort") ?? "suggested";
@@ -67,6 +68,7 @@ function applyFilters() {
       (activeTag === "all" || tags.includes(activeTag)) &&
       (activeLevel === "all" || card.dataset.level === activeLevel) &&
       onBoard(card) &&
+      (!labOnly || card.dataset.lab === "1") &&
       words.every((w) => hay.includes(w));
     card.hidden = !ok;
     if (ok) shown++;
@@ -111,6 +113,68 @@ q.addEventListener("input", applyFilters);
 applySort();
 applyFilters();
 
+/* ---------- Hardware lab: tag and filter projects that passed the latest run ---------- */
+const labChip = document.getElementById("lab-only") as HTMLButtonElement | null;
+async function loadLab() {
+  const url = grid.dataset.lab;
+  if (!url || !labChip) return;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const data = (await res.json()) as { run: { finished_at: string } | null; projects: Record<string, { status: string }[]> };
+    if (!data.run) return;
+    let passed = 0;
+    for (const card of cards) {
+      const ok = (data.projects[card.dataset.id ?? ""] ?? []).some((r) => r.status === "passed");
+      if (!ok) continue;
+      passed++;
+      card.dataset.lab = "1";
+      card.querySelector<HTMLElement>("[data-lab-tag]")?.removeAttribute("hidden");
+      // "Lab tested" says more than "Not hardware tested", so it replaces that tag.
+      const plain = card.querySelector<HTMLElement>(".tag.todo");
+      if (plain) plain.hidden = true;
+    }
+    if (passed === 0) return;
+    labChip.hidden = false;
+    labChip.title = `${passed} projects passed the hardware lab run of ${data.run.finished_at.slice(0, 10)}`;
+    labChip.addEventListener("click", () => {
+      labOnly = !labOnly;
+      labChip.setAttribute("aria-pressed", String(labOnly));
+      applyFilters();
+    });
+  } catch {
+    // The lab tags are extra; the library works without them.
+  }
+}
+void loadLab();
+
+/* ---------- Starter paths: progress from the built marks ---------- */
+function showPaths(built: Record<string, unknown>) {
+  for (const path of document.querySelectorAll<HTMLElement>("[data-path]")) {
+    const steps = [...path.querySelectorAll<HTMLElement>("[data-step]")];
+    const done = steps.filter((s) => built[s.dataset.step ?? ""]).length;
+    let nextMarked = false;
+    for (const step of steps) {
+      const isDone = Boolean(built[step.dataset.step ?? ""]);
+      step.classList.toggle("done", isDone);
+      step.classList.toggle("next", !isDone && !nextMarked && done > 0);
+      if (!isDone) nextMarked = true;
+    }
+    const bar = path.querySelector<HTMLElement>("[data-path-bar]");
+    if (bar) bar.style.width = `${Math.round((done / steps.length) * 100)}%`;
+    const count = path.querySelector("[data-path-count]");
+    if (count) count.textContent = done === 0 ? `${steps.length} steps` : done === steps.length ? `All ${steps.length} steps built` : `${done} of ${steps.length} built`;
+  }
+}
+
+/* ---------- Shopping list link ---------- */
+const shopCount = document.getElementById("shop-count");
+const shopList = loadShop();
+if (shopCount && shopList.length > 0) {
+  shopCount.textContent = `Shopping list (${shopList.length})`;
+  shopCount.hidden = false;
+}
+
 /* ---------- Built marks, streak and badges ---------- */
 const projects: ProjectMeta[] = cards.map((card) => ({
   id: card.dataset.id ?? "",
@@ -118,6 +182,7 @@ const projects: ProjectMeta[] = cards.map((card) => ({
   flash: card.dataset.flash === "1",
 }));
 const built = loadBuilt();
+showPaths(built);
 const builtCount = projects.filter((p) => built[p.id]).length;
 
 for (const card of cards) {
@@ -164,6 +229,7 @@ for (const chip of partChips) {
     else drawer.add(part);
     remember("drawer", [...drawer].join(","));
     showDrawer();
+    showUnlock();
   });
 }
 showDrawer();
@@ -172,10 +238,34 @@ const drawerBox = document.getElementById("drawer") as HTMLDetailsElement | null
 if (drawerBox && (drawer.size > 0 || location.hash === "#drawer")) drawerBox.open = true;
 
 /** A project is buildable when every group of alternatives has one part in the drawer. */
-function buildable(card: HTMLElement): boolean {
+function buildable(card: HTMLElement, extra = ""): boolean {
   const groups = (card.dataset.needs ?? "").split(" ").filter(Boolean);
-  return groups.every((group) => group.split("|").some((part) => drawer.has(part)));
+  return groups.every((group) => group.split("|").some((part) => drawer.has(part) || part === extra));
 }
+
+/** "Add a DHT22 to open up 3 more projects": the parts that would unlock the most, for the chosen board. */
+const unlock = document.getElementById("unlock");
+function showUnlock() {
+  if (!unlock) return;
+  if (drawer.size === 0) {
+    unlock.textContent = "";
+    return;
+  }
+  const locked = cards.filter((c) => onBoard(c) && !buildable(c));
+  const gains = partChips
+    .filter((chip) => !drawer.has(chip.dataset.part ?? ""))
+    .map((chip) => ({ name: chip.textContent?.trim() ?? "", count: locked.filter((c) => buildable(c, chip.dataset.part)).length }))
+    .filter((g) => g.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+  unlock.textContent =
+    gains.length === 0
+      ? ""
+      : "Next to buy: " + gains.map((g) => `${g.name} opens up ${g.count} more ${g.count === 1 ? "project" : "projects"}`).join("; ") + ".";
+}
+
+showUnlock();
+boardSelect?.addEventListener("change", showUnlock);
 
 pickButton?.addEventListener("click", () => {
   if (!pickResult) return;

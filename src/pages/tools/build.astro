@@ -2,12 +2,12 @@
 import Base from "../../layouts/Base.astro";
 import SketchBuilder from "../../components/SketchBuilder.astro";
 import { link } from "../../lib/paths";
-import { BOARDS } from "../../data/boards";
+import { BOARDS, buildChoices } from "../../data/boards";
 import { PROJECTS, forBoard } from "../../data/projects";
 
 const blink = PROJECTS.find((p) => p.id === "blink");
 const starter = (blink && forBoard(blink, "esp32").code) ?? "void setup() {\n}\n\nvoid loop() {\n}\n";
-const boards = BOARDS.map((b) => ({ id: b.id, name: b.name }));
+const boards = buildChoices(BOARDS);
 ---
 
 <Base

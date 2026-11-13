@@ -26,6 +26,7 @@ export const BOARDS = {
   "xiao-esp32c3": "seeed_xiao_esp32c3",
   "xiao-esp32s3": "seeed_xiao_esp32s3",
   "esp32-cam": "esp32cam",
+  "esp32c3-supermini": "nologo_esp32c3_super_mini",
 };
 
 /**
@@ -44,6 +45,7 @@ export const CHIPS = {
   "xiao-esp32c3": { family: "ESP32-C3", chip: "esp32c3", bootloaderOffset: 0x0, devkit: false },
   "xiao-esp32s3": { family: "ESP32-S3", chip: "esp32s3", bootloaderOffset: 0x0, devkit: false },
   "esp32-cam": { family: "ESP32", chip: "esp32", bootloaderOffset: 0x1000, devkit: false },
+  "esp32c3-supermini": { family: "ESP32-C3", chip: "esp32c3", bootloaderOffset: 0x0, devkit: false },
 };
 
 // esptool image header byte 12-13: the chip the image was built for.

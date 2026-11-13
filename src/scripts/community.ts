@@ -93,6 +93,7 @@ async function load(): Promise<void> {
 const BOARD_NAMES: Record<string, string> = {
   esp32: "ESP32", esp32s3: "ESP32-S3", esp32c3: "ESP32-C3", esp32s2: "ESP32-S2", esp32c6: "ESP32-C6",
   "xiao-esp32c3": "XIAO ESP32C3", "xiao-esp32s3": "XIAO ESP32S3", "esp32-cam": "ESP32-CAM",
+  "esp32-doit": "ESP32 DOIT 30-pin", "esp32c3-supermini": "ESP32-C3 SuperMini",
 };
 const STATUS_WORD: Record<LabResult["status"], string> = { passed: "passed", failed: "failed", flash_failed: "could not be flashed", skipped: "skipped" };
 const STATUS_CLASS: Record<LabResult["status"], string> = { passed: "ok", failed: "bad", flash_failed: "pending", skipped: "pending" };

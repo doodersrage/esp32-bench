@@ -14,6 +14,20 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-17",
+    date: "2026-11-13",
+    title: "Version 0.17: two more boards, a shopping list and starter paths",
+    summary:
+      "The two boards most people actually own, one parts list for several projects, starter paths, printable build sheets, and the bench's readings as a spreadsheet.",
+    items: [
+      "Boards: the ESP32 DevKit V1 (DOIT) 30-pin and the ESP32-C3 SuperMini, with every project whose pins are on their headers. Both are from documentation, not hardware tested yet.",
+      "Shopping list: add projects and get one merged parts list with buy links, for building one at a time or all at once. The parts drawer suggests what to buy next.",
+      "Starter paths: four short runs of projects, ticked off as you mark them built.",
+      "Print build sheet on every project, Download CSV on the bench plotter, and Lab tested tags in the library once the hardware lab has run.",
+    ],
+    link: "/shop/",
+  },
+  {
     id: "v0-16",
     date: "2026-11-13",
     title: "Version 0.16: projects for your board",

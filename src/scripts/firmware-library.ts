@@ -47,6 +47,8 @@ const FAMILY: Record<string, string> = {
   "xiao-esp32c3": "ESP32-C3",
   "xiao-esp32s3": "ESP32-S3",
   "esp32-cam": "ESP32",
+  "esp32-doit": "ESP32",
+  "esp32c3-supermini": "ESP32-C3",
 };
 
 const box = document.querySelector<HTMLElement>("#fwlib");
@@ -83,9 +85,28 @@ if (box) {
       }
       if (select.options.length > 1) {
         pick.hidden = false;
-        select.addEventListener("change", () => {
+        const apply = () => {
           const path = select.value ? alternates[select.value] : entry.manifest;
           button.setAttribute("manifest", `${base}/${path}`);
+        };
+        select.addEventListener("change", apply);
+        // Follow the page's board: a board with its own image (a XIAO, the C3
+        // SuperMini) needs it, since the DevKit image may print nothing over its USB.
+        const boardMap = JSON.parse(box.dataset.boardMap ?? "{}") as Record<string, string>;
+        const follow = (board: string) => {
+          const target = boardMap[board] ?? board;
+          select.value = [...select.options].some((o) => o.value === target) ? target : "";
+          apply();
+        };
+        try {
+          const saved = localStorage.getItem("bench.board");
+          if (saved) follow(saved);
+        } catch {
+          // No storage: keep chip detection.
+        }
+        document.getElementById("boardswitch")?.addEventListener("click", (e) => {
+          const board = (e.target as Element).closest<HTMLElement>("[data-board]")?.dataset.board;
+          if (board) follow(board);
         });
       }
     }

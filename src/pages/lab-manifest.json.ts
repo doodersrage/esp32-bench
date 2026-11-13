@@ -2,7 +2,7 @@
 // boards it supports, what it should print, and which settings to send first.
 // Read by lab/runner.py from https://esp32bench.dev/lab-manifest.json.
 import type { APIRoute } from "astro";
-import { PROJECTS, boardsOf, forBoard } from "../data/projects";
+import { PROJECTS, buildBoardsOf, forBoard } from "../data/projects";
 import { CHIP_FOR_BOARD, LAB_EXPECT } from "../data/lab-expect";
 
 export const GET: APIRoute = () => {
@@ -10,7 +10,8 @@ export const GET: APIRoute = () => {
   for (const p of PROJECTS) {
     if (p.code === undefined) continue;
     const expect = LAB_EXPECT[p.id];
-    const boards = boardsOf(p);
+    // Build targets: a variant board such as the DOIT 30-pin runs its parent's firmware.
+    const boards = buildBoardsOf(p);
     projects[p.id] = {
       name: p.name,
       baud: p.baud,

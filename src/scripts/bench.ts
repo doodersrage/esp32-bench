@@ -401,7 +401,7 @@ function init() {
     resetRadar();
   });
 
-  initPlotter($("plots"), $("plots-empty"));
+  initPlotter($("plots"), $("plots-empty"), document.getElementById("plots-csv") as HTMLButtonElement | null);
   initSecondBoard();
   initRadar($("radar"));
 

@@ -2,7 +2,7 @@
 // parsing and the daily quota arithmetic. Node-testable, no Workers APIs.
 import libList from "../container/compile-libs.json" with { type: "json" };
 
-export const BOARDS = ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32c3", "xiao-esp32s3", "esp32-cam"] as const;
+export const BOARDS = ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32c3", "xiao-esp32s3", "esp32-cam", "esp32c3-supermini"] as const;
 export type BoardId = (typeof BOARDS)[number];
 
 export const CHIP: Record<BoardId, string> = {
@@ -14,6 +14,7 @@ export const CHIP: Record<BoardId, string> = {
 	"xiao-esp32c3": "esp32c3",
 	"xiao-esp32s3": "esp32s3",
 	"esp32-cam": "esp32",
+	"esp32c3-supermini": "esp32c3",
 };
 
 /** Site library names the container has installed: the site's src/data/compile-libs.json, copied by scripts/sync-libs.mjs. */

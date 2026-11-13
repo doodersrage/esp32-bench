@@ -3,8 +3,10 @@ import type { ChipId } from "./chips";
 
 export type BoardId =
   | "esp32"
+  | "esp32-doit"
   | "esp32s3"
   | "esp32c3"
+  | "esp32c3-supermini"
   | "esp32s2"
   | "esp32c6"
   | "xiao-esp32c3"
@@ -55,6 +57,34 @@ export interface Board {
   sources?: { label: string; href: string }[];
   /** Fixed jobs some GPIOs have on this board, e.g. camera or SD card lines */
   wired?: { gpio: number; job: string }[];
+  /**
+   * Same chip and GPIO numbers as another board. A project for that board also
+   * runs on this one, with the same pin numbers, when every pad it uses is on
+   * this board's header (see boardsOf in projects.ts).
+   */
+  variantOf?: BoardId;
+  /** The build target the compile service, firmware library and lab use for this board, when it is another board's */
+  buildAs?: BoardId;
+  /** Header pad labels, for a board whose pad order is not documented (no `left`/`right`) */
+  pads?: string[];
+}
+
+/** Every pad label on a board's header. */
+export const padsOf = (b: Board): string[] => (b.left.length > 0 ? [...b.left, ...b.right] : (b.pads ?? []));
+
+/** The board a project's firmware is built for when it runs on board `id`. */
+export const buildTarget = (b: Board): BoardId => b.buildAs ?? b.id;
+
+/** Build targets for a board picker, each named after every board built as it ("ESP32-DevKitC V4, 38 pin or ESP32 DevKit V1 (DOIT), 30 pin"). */
+export function buildChoices(boards: Board[]): { id: BoardId; name: string }[] {
+  const out: { id: BoardId; name: string }[] = [];
+  for (const b of boards) {
+    const id = buildTarget(b);
+    const seen = out.find((o) => o.id === id);
+    if (seen) seen.name += ` or ${b.name}`;
+    else out.push({ id, name: b.name });
+  }
+  return out;
 }
 
 export const BOARDS: Board[] = [
@@ -100,6 +130,47 @@ export const BOARDS: Board[] = [
     ],
     buy: [{ label: "ESP32 DevKit", href: BOM.esp32DevKit }],
     source: "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32/esp32-devkitc/user_guide.html",
+  },
+  // Header order from the widely published DOIT ESP32 DEVKIT V1 pinouts. It is the
+  // DevKitC V4 header without the flash pins and GPIO 0, in the same order.
+  {
+    id: "esp32-doit",
+    chip: "esp32",
+    short: "DOIT 30",
+    name: "ESP32 DevKit V1 (DOIT), 30 pin",
+    arduinoBoard: "DOIT ESP32 DEVKIT V1 (or ESP32 Dev Module)",
+    left: ["EN", "VP", "VN", "34", "35", "32", "33", "25", "26", "27", "14", "12", "13", "GND", "5V"],
+    right: ["23", "22", "TX", "RX", "21", "19", "18", "5", "17", "16", "4", "2", "15", "GND", "3V3"],
+    silk: { "5V": "VIN", TX: "TX0", RX: "RX0", "17": "TX2", "16": "RX2" },
+    gpioOf: { VP: 36, VN: 39, TX: 1, RX: 3 },
+    i2cPins: ["21", "22"],
+    safe: ["4", "16", "17", "18", "19", "23", "25", "26", "27", "32", "33", "13", "14", "5"],
+    special: {
+      "3V3": { kind: "3v3", why: "the 3.3 V supply." },
+      "5V": { kind: "5v", why: "printed VIN: the 5 V from USB, or a 5 V input when USB is unplugged." },
+      "GND": { kind: "gnd", why: "ground." },
+      "EN": { kind: "reset", why: "the reset pin." },
+      "VP": { kind: "input-only", why: "GPIO 36 can only read. It has no output driver and no pull-ups." },
+      "VN": { kind: "input-only", why: "GPIO 39 can only read. It has no output driver and no pull-ups." },
+      "34": { kind: "input-only", why: "GPIO 34 can only read. It has no output driver and no pull-ups." },
+      "35": { kind: "input-only", why: "GPIO 35 can only read. It has no output driver and no pull-ups." },
+      "2": { kind: "strap", why: "a strapping pin and the blue LED. It must be low or floating at reset for flashing to work." },
+      "12": { kind: "strap", why: "a strapping pin that sets the flash voltage. Pulled high at reset, the board may not boot." },
+      "15": { kind: "strap", why: "a strapping pin. It changes boot messages when low at reset." },
+      "TX": { kind: "uart", why: "carries the serial console. Anything wired here fights with flashing and the bench." },
+      "RX": { kind: "uart", why: "carries the serial console. Anything wired here fights with flashing and the bench." },
+    },
+    notes: [
+      "The most common cheap ESP32 board. The same chip and GPIO numbers as the DevKitC, so its projects run here unchanged when their pins are on this header.",
+      "GPIO 0 is not on the header (it is the BOOT button), nor are the flash pins.",
+      "The pad printed VIN is the 5 V pin. Projects call it 5V.",
+      "The blue LED is on GPIO 2.",
+      "Clones differ. Check the labels printed on your board, or find each pad with the Pin detective.",
+    ],
+    buy: [{ label: "ESP32 DevKit", href: BOM.esp32DevKit }],
+    source: "https://mischianti.org/doit-esp32-dev-kit-v1-high-resolution-pinout-and-specs/",
+    variantOf: "esp32",
+    buildAs: "esp32",
   },
   {
     id: "esp32s3",
@@ -175,6 +246,44 @@ export const BOARDS: Board[] = [
     ],
     buy: [{ label: "ESP32-C3-DevKitM-1", href: BOM.esp32C3DevKitM }],
     source: "https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c3/esp32-c3-devkitm-1/user_guide.html",
+  },
+
+  // Pads are printed with their GPIO numbers. The pad order is not shown: the
+  // sources found give only pin lists, and say to read the board's silkscreen.
+  // LED, I2C and SPI defaults: the Arduino core's variants/nologo_esp32c3_super_mini.
+  {
+    id: "esp32c3-supermini",
+    chip: "esp32c3",
+    short: "C3 Mini",
+    name: "ESP32-C3 SuperMini",
+    arduinoBoard: "Nologo ESP32C3 SuperMini (or ESP32C3 Dev Module with USB CDC On Boot enabled)",
+    left: [],
+    right: [],
+    pads: ["5V", "GND", "3V3", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "20", "21"],
+    noHeader:
+      "The pad order is not shown because the published pinouts disagree on it. Each pad is printed with its GPIO number, so wire by the labels on your board.",
+    i2cPins: ["8", "9"],
+    safe: ["4", "5", "6", "7", "10", "0", "1", "3"],
+    special: {
+      "3V3": { kind: "3v3", why: "the 3.3 V supply." },
+      "5V": { kind: "5v", why: "the 5 V supply from USB." },
+      "GND": { kind: "gnd", why: "ground." },
+      "2": { kind: "strap", why: "a strapping pin. It must be high at reset." },
+      "8": { kind: "strap", why: "a strapping pin and the blue LED, which lights when the pin is low." },
+      "9": { kind: "strap", why: "a strapping pin and the BOOT button." },
+      "21": { kind: "uart", why: "UART0 TX. The ROM boot messages come out here." },
+      "20": { kind: "uart", why: "UART0 RX." },
+    },
+    notes: [
+      "A tiny, cheap C3 board. The same chip and GPIO numbers as the C3 DevKitM-1, so its projects run here when their pins are on this board.",
+      "Serial output goes over the USB-C port, which needs USB CDC On Boot. The firmware and the online build here set it; in the Arduino IDE pick Nologo ESP32C3 SuperMini, or enable USB CDC On Boot.",
+      "GPIO 8 drives the blue LED (on when low) and GPIO 9 is the BOOT button. Both are strapping pins.",
+      "GPIO 18 and 19 are the USB data lines and are not on the header.",
+      "To flash a board that will not connect, hold BOOT, press and release RESET, then let go of BOOT.",
+    ],
+    buy: [],
+    source: "https://github.com/espressif/arduino-esp32/blob/master/variants/nologo_esp32c3_super_mini/pins_arduino.h",
+    variantOf: "esp32c3",
   },
 
   // Boards below come from vendor documentation only. Nobody has run ESP32 Bench

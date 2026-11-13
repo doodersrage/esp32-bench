@@ -11,11 +11,12 @@ import SettingsForm from "../../components/SettingsForm.astro";
 import SketchBuilder from "../../components/SketchBuilder.astro";
 import COMPILE from "../../data/compile-libs.json";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
-import { boardById } from "../../data/boards";
+import { boardById, buildChoices, buildTarget } from "../../data/boards";
 import { link } from "../../lib/paths";
 import { PROBEHARBOR, SITE, reportUrl } from "../../lib/site";
 import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
 import { kitFor } from "../../lib/kit";
+import { PATHS } from "../../data/paths";
 import { PAGE_PALETTE, kitIconSvg } from "../../lib/kit-icons";
 
 export function getStaticPaths() {
@@ -42,6 +43,13 @@ const kitAlt = `Parts for ${p.name}: ${kit
   .join(", ")}.`;
 const kitSrc = link(`/og/kits/${p.id}.png`);
 const buildReportUrl = reportUrl("build", { project: p.id });
+// Starter paths this project is a step of, with the step after it.
+const onPaths = PATHS.flatMap((path) => {
+  const at = path.steps.findIndex((s) => s.project === p.id);
+  if (at < 0) return [];
+  const next = path.steps[at + 1];
+  return [{ name: path.name, step: at + 1, of: path.steps.length, next: next && PROJECTS.find((x) => x.id === next.project) }];
+});
 const anyVerified = (p.verified ?? []).length > 0;
 // Long sketches show this many lines until "Show the whole sketch".
 const CLIP_LINES = 26;
@@ -63,6 +71,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
         <span class="tag">{p.mins} min</span>
         <span class="tag">{p.baud} baud</span>
         <span class="tag ok" data-lab-tag hidden title="The latest hardware lab run passed on at least one board">Lab tested</span>
+        <button class="btn sm printbtn" type="button" data-print>Print build sheet</button>
       </div>
       {
         p.tags.includes("probeharbor") && (
@@ -95,7 +104,13 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     <Preview id={p.id} />
 
     <div class="stack tight">
-      <h2 class="h3">Parts</h2>
+      <div class="codehead">
+        <h2 class="h3">Parts</h2>
+        <div class="row">
+          <button class="btn sm" type="button" id="shop-toggle" data-project={p.id} aria-pressed="false">Add to shopping list</button>
+          <a class="shoplink" href={link("/shop/")} id="shop-link" hidden>Shopping list</a>
+        </div>
+      </div>
       <div class="cols even">
         <a class="kitcard" href={kitSrc} title="Open the parts card at full size">
           <img src={kitSrc} width="1200" height="630" loading="lazy" decoding="async" alt={kitAlt} />
@@ -237,7 +252,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
       ) : (
         p.code !== undefined && (
           <div class="stack">
-            <FirmwareLibrary projectId={p.id} boards={boards.map((b) => ({ id: b.id, name: b.name }))} />
+            <FirmwareLibrary projectId={p.id} boards={buildChoices(boards)} boardMap={Object.fromEntries(boards.map((b) => [b.id, buildTarget(b)]))} />
             {p.settings && <SettingsForm settings={p.settings} project={p.id} baud={p.baud} />}
             {panels.map((panel, i) => {
               if (panel.code === undefined) return null;
@@ -258,7 +273,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
                   <SketchBuilder
                     mode="project"
                     project={p.id}
-                    board={panel.board.id}
+                    board={buildTarget(panel.board)}
                     libs={p.libs}
                     hugeApp={COMPILE.hugeApp.includes(p.id)}
                     baud={p.baud}
@@ -311,6 +326,20 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
         <button class="btn" type="button" id="built" data-project={p.id} data-board={boards[0].id} aria-pressed="false">Mark as built</button>
         <span class="pickresult" id="built-note" role="status"></span>
       </div>
+      {
+        onPaths.map((path) => (
+          <p class="pathnote">
+            Step {path.step} of {path.of} in the <a href={`${link("/")}#paths`}>{path.name}</a> starter path.
+            {path.next ? (
+              <>
+                {" "}Next: <a href={link(`/projects/${path.next.id}/`)}>{path.next.name}</a>.
+              </>
+            ) : (
+              " The last step."
+            )}
+          </p>
+        ))
+      }
     </div>
 
     {
@@ -365,6 +394,10 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
   .labrun :global(pre.code) { margin-top: 6px; max-height: 18em; }
   .labrun :global(.tag.pending) { border-style: dashed; }
   .libs { margin: 0; font-size: 0.92rem; }
+  .printbtn { margin-left: auto; }
+  .shoplink { font-size: 0.85rem; color: var(--accent); }
+  .pathnote { margin: 0; font-size: 0.9rem; }
+  .pathnote a { color: var(--accent); }
   pre.code.clip { max-height: calc(var(--clip-lines) * 1.55em + 14px); overflow: hidden; mask-image: linear-gradient(to bottom, #000 75%, transparent); }
   .unclip { align-self: flex-start; }
   details.ide { background: var(--panel); border: 1px solid var(--line); padding: 10px 14px; }
@@ -379,7 +412,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
 </script>
 
 <script>
-  import { loadBuilt, saveBuilt } from "../../scripts/progress";
+  import { loadBuilt, loadShop, saveBuilt, saveShop } from "../../scripts/progress";
 
   // Board switcher: one pre-rendered panel per board, one visible at a time.
   const buttons = [...document.querySelectorAll<HTMLButtonElement>("#boardswitch [data-board]")];
@@ -429,6 +462,40 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     showBuilt();
   });
   showBuilt();
+
+  // Shopping list: add or remove this project.
+  const shopBtn = document.getElementById("shop-toggle") as HTMLButtonElement | null;
+  const shopLink = document.getElementById("shop-link");
+  function showShop() {
+    if (!shopBtn) return;
+    const list = loadShop();
+    const on = list.includes(shopBtn.dataset.project ?? "");
+    shopBtn.setAttribute("aria-pressed", String(on));
+    shopBtn.textContent = on ? "On your shopping list. Remove" : "Add to shopping list";
+    if (shopLink) {
+      shopLink.hidden = list.length === 0;
+      shopLink.textContent = `Shopping list (${list.length})`;
+    }
+  }
+  shopBtn?.addEventListener("click", () => {
+    const id = shopBtn.dataset.project ?? "";
+    const list = loadShop();
+    saveShop(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+    showShop();
+  });
+  showShop();
+
+  // Print build sheet: the Arduino IDE steps are folded on screen but belong on paper.
+  const ide = document.querySelector<HTMLDetailsElement>("details.ide");
+  let ideWasOpen = false;
+  window.addEventListener("beforeprint", () => {
+    ideWasOpen = ide?.open ?? false;
+    if (ide) ide.open = true;
+  });
+  window.addEventListener("afterprint", () => {
+    if (ide) ide.open = ideWasOpen;
+  });
+  document.querySelector("[data-print]")?.addEventListener("click", () => window.print());
 
   // Long sketches start clipped; the button shows the rest.
   for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-unclip]")) {

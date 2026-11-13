@@ -26,6 +26,7 @@ const PAGES: [string, string, string, string][] = [
   ["/tools/", "Tools", "Backtrace decoder, flasher, partition builder and more.", "tools"],
   ["/flames/", "Hall of flames", "Real ESP32 failures and what was actually wrong.", "failures debugging stories"],
   ["/about/", "About ESP32 Bench", "How projects are tested, privacy, buy links and credits.", "about privacy affiliate license probeharbor"],
+  ["/shop/", "Shopping list", "One merged parts list, with buy links, for the projects you pick.", "shopping list parts buy bom order kit"],
   ["/changes/", "What's new", "Release notes, newest first. Also an RSS feed.", "changelog release notes rss news"],
   ["/report/", "Send a report", "Build reports, corrections and messages, sent by email.", "contact feedback build report correction email"],
 ];

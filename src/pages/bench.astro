@@ -87,7 +87,10 @@ const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
 
 
     <div class="stack tight">
-      <h2 class="h3">Plotter</h2>
+      <div class="codehead">
+        <h2 class="h3">Plotter</h2>
+        <button class="btn sm" type="button" id="plots-csv" hidden>Download CSV</button>
+      </div>
       <p class="lede" id="plots-empty">Numbers that keep appearing in the output are charted here, one chart per value. Play the DHT22 or HC-SR04 sample to see it.</p>
       <div class="plots" id="plots"></div>
     </div>

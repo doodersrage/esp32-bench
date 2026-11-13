@@ -18,6 +18,7 @@ export interface ProjectMeta {
 const BUILT_KEY = "bench.built";
 const SEEN_KEY = "bench.seen";
 const FLASHED_KEY = "bench.flashed";
+const SHOP_KEY = "bench.shop";
 
 export function loadBuilt(): Built {
   try {
@@ -72,6 +73,24 @@ export function markFlashed(projectId: string) {
     localStorage.setItem(FLASHED_KEY, JSON.stringify([...flashed, projectId]));
   } catch {
     // Ignore.
+  }
+}
+
+/** Project ids on the shopping list, in the order they were added. */
+export function loadShop(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(SHOP_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveShop(ids: string[]) {
+  try {
+    localStorage.setItem(SHOP_KEY, JSON.stringify([...new Set(ids)]));
+  } catch {
+    // Without storage the list lasts for this page view only.
   }
 }
 

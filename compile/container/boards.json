@@ -40,6 +40,11 @@
       "pio": "esp32cam",
       "chip": "esp32",
       "bootloader": "0x1000"
+    },
+    "esp32c3-supermini": {
+      "pio": "nologo_esp32c3_super_mini",
+      "chip": "esp32c3",
+      "bootloader": "0x0"
     }
   },
   "warm_includes": [

@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../../data/projects";
-import { boardById } from "../../../data/boards";
+import { BOARDS, boardById } from "../../../data/boards";
 import { projectCard, type Tag } from "../../../lib/og";
 
 export function getStaticPaths() {
@@ -9,7 +9,7 @@ export function getStaticPaths() {
 
 export const GET: APIRoute = ({ props }) => {
   const p = (props as { p: Project }).p;
-  const boards = boardsOf(p);
+  const boards = boardsOf(p).filter((id) => !BOARDS.find((b) => b.id === id)?.variantOf);
   // The signal pins; power and ground pads add nothing to a preview.
   const pins = forBoard(p, boards[0]).pins.filter((x) => !/^(3V3|5V|GND|VIN|EN)$/i.test(x) && !x.includes("%"));
   const meta: Tag[] = [

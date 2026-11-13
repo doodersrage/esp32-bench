@@ -1,0 +1,107 @@
+---
+// Shopping list: the parts for the projects you picked, merged into one list.
+// Everything is rendered as data here; the list itself lives in this browser.
+import Base from "../layouts/Base.astro";
+import { PROJECTS } from "../data/projects";
+import { kitFor } from "../lib/kit";
+import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../lib/shop";
+import { link } from "../lib/paths";
+
+const data = PROJECTS.map((p) => {
+  const kit = kitFor(p.parts);
+  return {
+    id: p.id,
+    name: p.name,
+    url: link(`/projects/${p.id}/`),
+    items: p.parts.map(([qty, text, href], i) => ({
+      key: kit[i].label.toLowerCase(),
+      label: kit[i].label,
+      qty,
+      text,
+      optional: kit[i].optional,
+      alternative: kit[i].alternative,
+      href: href ?? "",
+      rel: href ? shopRel(href) : "",
+      vendor: href ? shopVendor(href) : "",
+    })),
+  };
+});
+---
+
+<Base
+  title="Shopping list"
+  current="library"
+  description="Pick ESP32 projects and get one parts list for all of them, with duplicates merged and buy links."
+>
+  <section class="view">
+    <a class="back" href={link("/")}>← All projects</a>
+    <div class="stack tight">
+      <h1 class="h2">Shopping list</h1>
+      <p class="lede">
+        The parts for every project on your list, merged into one. Add projects from their pages, or here. The list is kept in
+        this browser only.
+      </p>
+    </div>
+
+    <div class="row">
+      <label class="pick">
+        <span class="sr">Add a project</span>
+        <select id="shop-add">
+          <option value="">Add a project…</option>
+          {PROJECTS.map((p) => <option value={p.id}>{p.name}</option>)}
+        </select>
+      </label>
+      <button class="btn sm" type="button" id="shop-clear">Clear the list</button>
+    </div>
+
+    <ul id="shop-projects"></ul>
+    <p class="lede" id="shop-empty">Nothing on the list yet. Open a project and press Add to shopping list, or add one above.</p>
+
+    <div class="stack tight" id="shop-parts" hidden>
+      <div class="codehead">
+        <h2 class="h3">Parts</h2>
+        <div class="row">
+          <button class="btn sm" type="button" id="shop-copy">Copy the list</button>
+          <button class="btn sm" type="button" id="shop-print">Print</button>
+        </div>
+      </div>
+      <fieldset class="shopmode">
+        <legend class="sr">Quantities</legend>
+        <label><input type="radio" name="shop-mode" value="reuse" checked /> One at a time: reuse parts between builds</label>
+        <label><input type="radio" name="shop-mode" value="all" /> All at once: enough for every build together</label>
+      </fieldset>
+      <div class="tablebox">
+        <table>
+          <thead>
+            <tr><th>Qty</th><th>Part</th><th>For</th><th><span class="sr">Where to buy</span></th></tr>
+          </thead>
+          <tbody id="shop-rows"></tbody>
+        </table>
+      </div>
+      <p class="cap left">Optional parts are marked. Where a project offers a choice of parts, only its first choice is listed.</p>
+      <p class="cap left">{AFFILIATE_DISCLOSURE}</p>
+    </div>
+  </section>
+</Base>
+
+<script id="shop-data" type="application/json" set:html={JSON.stringify(data)} />
+
+<style is:global>
+  /* Global: the list items and table rows are created by scripts/shop.ts. */
+  #shop-projects { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  #shop-projects li { display: inline-flex; align-items: center; gap: 6px; padding: 4px 4px 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 0.88rem; }
+  #shop-projects a { color: var(--ink); }
+  #shop-projects button { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 1rem; line-height: 1; padding: 2px 6px; }
+  .shopmode { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.9rem; }
+  .shopmode label { display: inline-flex; gap: 6px; align-items: center; }
+  #shop-rows .opt { font: 500 0.7rem/1 var(--mono); color: var(--muted); text-transform: uppercase; margin-left: 8px; }
+  #shop-rows .for { font-size: 0.82rem; color: var(--muted); }
+  #shop-rows a { color: var(--accent); white-space: nowrap; }
+  @media print {
+    #shop-add, #shop-clear, #shop-copy, #shop-print, .shopmode, #shop-projects button { display: none !important; }
+  }
+</style>
+
+<script>
+  import "../scripts/shop.ts";
+</script>

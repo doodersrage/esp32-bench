@@ -20,6 +20,11 @@ const NUMBER = /(?<![A-Za-z0-9_.])-?\d+(?:\.\d+)?(?![A-Za-z0-9_]|\.\d)/g;
 const CLOCK = /\b\d{1,2}:\d{2}(?::\d{2})?\b/g;
 
 const series = new Map<string, Series>();
+// Every reading with its time, for "Download CSV". The charts keep only the
+// last MAX_POINTS; this keeps a much longer run.
+const MAX_ROWS = 50_000;
+const rows: { t: number; values: Map<string, number> }[] = [];
+let csvButton: HTMLButtonElement | null = null;
 let host: HTMLElement | null = null;
 let empty: HTMLElement | null = null;
 let created = 0;
@@ -42,6 +47,7 @@ export function feedPlotter(raw: string) {
   if (matches.length === 0 || matches.length > 8) return;
   const shape = line.replace(NUMBER, "#").trim().slice(0, 60);
 
+  const row = { t: Date.now(), values: new Map<string, number>() };
   matches.forEach((m, i) => {
     const value = Number(m[0]);
     if (!Number.isFinite(value)) return;
@@ -59,24 +65,48 @@ export function feedPlotter(raw: string) {
     }
     s.values.push(value);
     if (s.values.length > MAX_POINTS) s.values.shift();
+    row.values.set(key, value);
   });
+  if (row.values.size > 0) {
+    rows.push(row);
+    if (rows.length > MAX_ROWS) rows.shift();
+  }
 
   if (!frame) frame = requestAnimationFrame(render);
 }
 
 export function resetPlotter() {
   series.clear();
+  rows.length = 0;
   created = 0;
   render();
 }
 
-function visible(): Series[] {
+/** Series worth charting: enough points, and a value that changes. */
+function signals(): Series[] {
   return [...series.values()]
     .filter((s) => !s.hidden && s.values.length >= MIN_POINTS)
     // A value that never changes is a status code or a count, not a signal.
     .filter((s) => s.values.some((v) => v !== s.values[0]))
-    .sort((a, b) => a.order - b.order)
-    .slice(0, MAX_SHOWN);
+    .sort((a, b) => a.order - b.order);
+}
+
+function visible(): Series[] {
+  return signals().slice(0, MAX_SHOWN);
+}
+
+const csvCell = (text: string) => (/[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
+
+/** The readings of every charted series as CSV, one row per line that carried one, or "" when there are none. */
+export function plotterCsv(): string {
+  const cols = signals();
+  if (cols.length === 0) return "";
+  const lines = [["time", ...cols.map((s) => s.label)].map(csvCell).join(",")];
+  for (const row of rows) {
+    if (!cols.some((s) => row.values.has(s.key))) continue;
+    lines.push([new Date(row.t).toISOString(), ...cols.map((s) => (row.values.has(s.key) ? String(row.values.get(s.key)) : ""))].join(","));
+  }
+  return lines.join("\n") + "\n";
 }
 
 const format = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(Math.abs(v) < 10 ? 2 : 1));
@@ -138,6 +168,7 @@ function render() {
   if (!host) return;
   const shown = visible();
   if (empty) empty.hidden = shown.length > 0;
+  if (csvButton) csvButton.hidden = shown.length === 0;
 
   // Reuse cards so the hide buttons stay clickable while data streams in.
   const cards = new Map([...host.querySelectorAll<HTMLElement>("[data-series]")].map((el) => [el.dataset.series ?? "", el]));
@@ -164,9 +195,19 @@ function render() {
   }
 }
 
-export function initPlotter(container: HTMLElement, emptyNote: HTMLElement | null) {
+export function initPlotter(container: HTMLElement, emptyNote: HTMLElement | null, download?: HTMLButtonElement | null) {
   host = container;
   empty = emptyNote;
+  csvButton = download ?? null;
+  csvButton?.addEventListener("click", () => {
+    const csv = plotterCsv();
+    if (!csv) return;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = `esp32-bench-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
   host.addEventListener("click", (e) => {
     const button = (e.target as HTMLElement).closest("[data-hide]");
     const key = button?.closest<HTMLElement>("[data-series]")?.dataset.series;

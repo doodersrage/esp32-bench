@@ -14,7 +14,8 @@ interface Props {
 }
 
 const { project: p, number, order, suggest } = Astro.props;
-const boards = boardsOf(p).map(boardById);
+// Variant boards (the DOIT 30-pin, the C3 SuperMini) count for the board filter but would crowd the tags.
+const boards = boardsOf(p).map(boardById).filter((b) => !b.variantOf);
 const verified = (p.verified ?? []).length > 0;
 const fresh = isNew(p);
 
@@ -41,6 +42,7 @@ const haystack = [
     <span class="tag lvl">{p.level}</span>
     <span class="tag">{p.mins} min</span>
     {boards.map((b) => <span class="tag pin">{b.short}</span>)}
-    <span class:list={["tag", verified ? "ok" : "todo"]}>{verified ? "Hardware tested" : "Not hardware tested"}</span>
+    <span class="tag ok" data-lab-tag hidden title="Passed the latest hardware lab run on at least one board">Lab tested</span>
+    <span class:list={["tag", verified ? "ok" : "todo"]} data-verified={verified ? "1" : undefined}>{verified ? "Hardware tested" : "Not hardware tested"}</span>
   </span>
 </a>
