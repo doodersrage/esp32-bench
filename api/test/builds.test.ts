@@ -1,7 +1,7 @@
 // Run: node --experimental-strip-types test/builds.test.ts
 import assert from "node:assert/strict";
 import { checkReport } from "../src/report.ts";
-import { moderationPage, newToken, publicBuild, sameHash, sha256, type BuildRow } from "../src/builds.ts";
+import { moderationPage, newToken, publicBuild, sameHash, sha256, summarise, type BuildRow } from "../src/builds.ts";
 
 const now = 1_800_000_000_000;
 const base = { kind: "build", project: "DHT22 climate logger", projectId: "dht22", board: "ESP32-DevKitC V4", result: "Yes, as described", t: now - 10_000 };
@@ -40,6 +40,17 @@ assert.equal(pub.name, "Anonymous");
 assert.equal(pub.date, "2026-11-12");
 assert.equal(pub.worked, false);
 assert.equal(publicBuild({ ...row, result: "Yes, after a change" }).worked, true);
+
+// The compatibility table's counts.
+const cells = summarise([
+  { project: "dht22", board: "ESP32-DevKitC V4, 38 pin", result: "Yes, as described" },
+  { project: "dht22", board: "ESP32-DevKitC V4, 38 pin", result: "No, it did not work" },
+  { project: "dht22", board: "ESP32-DevKitC V4, 38 pin", result: "Yes, after a change" },
+  { project: "oled", board: "ESP32-C3 SuperMini", result: "No" },
+]);
+assert.deepEqual(cells.find((c) => c.project === "dht22"), { project: "dht22", board: "ESP32-DevKitC V4, 38 pin", worked: 2, failed: 1 });
+assert.deepEqual(cells.find((c) => c.project === "oled"), { project: "oled", board: "ESP32-C3 SuperMini", worked: 0, failed: 1 });
+assert.equal(cells.length, 2);
 
 // Moderation page: escaped, buttons post, nothing approves on GET.
 const html = moderationPage({ ...row, status: "pending", public_name: "<script>x</script>" }, "tok", "dht22");

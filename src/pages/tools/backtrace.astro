@@ -1,6 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 import { link } from "../../lib/paths";
+import { SITE } from "../../lib/site";
 ---
 
 <Base
@@ -39,7 +40,7 @@ import { link } from "../../lib/paths";
       </div>
       <div class="stack tight">
         <h2 class="h3">2. The crash output</h2>
-        <textarea id="bt-log" rows="8" spellcheck="false" placeholder="Paste from Guru Meditation Error down to the Backtrace line, or the RISC-V register dump with MEPC, RA and Stack memory."></textarea>
+        <textarea id="bt-log" data-fw={SITE.fwBase} rows="8" spellcheck="false" placeholder="Paste from Guru Meditation Error down to the Backtrace line, or the RISC-V register dump with MEPC, RA and Stack memory."></textarea>
         <div class="row">
           <button class="btn go" type="button" id="bt-go">Decode</button>
           <button class="btn" type="button" id="bt-clear">Clear</button>

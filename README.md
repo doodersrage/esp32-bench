@@ -117,19 +117,25 @@ The site is static. For Cloudflare, build with `npm run build` and serve `dist/`
 
 ## Status
 
-v0.3. Every push is built by the `Build` workflow in GitHub Actions. Not verified yet:
+Version 0.17 (release notes at `/changes/`, from `src/data/changes.ts`).
 
-- The site builds in CI. The bench's plotter, radar and crash translator were checked once in a headless browser with sample data; the other pages have not been viewed in a browser yet.
-- The eight starter sketches and the bench's serial monitor have not been run against a physical board. Only the ProbeHarbor probe carries hardware test results, and those were recorded in ProbeHarbor, not here.
-- The flash button and the settings form on the probe page have not been tried from this site.
-- The seven ProbeHarbor sketches have no recorded hardware test.
-- The pin detective firmware compiles for all three chips but has never run on a board. The Detective page and the second bench monitor were tested against a simulated serial port only.
+Running and checked automatically:
+
+- Every push is built, type checked and tested in GitHub Actions (`Build`), and the site, report API and uptime monitor deploy on push to main (`Deploy`). `scripts/smoke-pages.mjs` loads one page of each kind in headless Chrome and fails on any script error.
+- Every library sketch is compiled for every board it supports, on Tuesdays and when sketches change, and published as flashable firmware (`Firmware library`). A weekly job (`Weekly check`) compiles the sketches against the newest Arduino core and checks outside links.
+- The compile service, firmware library, lab API and community build reports are live.
+
+Tested on hardware so far, and what is not:
+
+- The ProbeHarbor probe firmware, and the header pins of the ESP32-DevKitC, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1, were tested on real boards (in ProbeHarbor's test log). Board pages mark these "Pins tested on hardware".
+- The other library projects compile for every board they list but have not been run on hardware here. Each shows "Not hardware tested" until the hardware lab (`lab/`) or a published build report says otherwise. The lab is set up to run weekly; its results show as "Lab tested" on project pages and in the library.
+- The ESP32-S2, ESP32-C6, XIAO, ESP32-CAM, DOIT 30-pin and C3 SuperMini boards come from documentation, not hardware tests. The C3 SuperMini has no header figure because its pad order could not be confirmed.
+- The Pin detective firmware and the second bench monitor have been tested against a simulated serial port, not a board.
 
 Not built yet:
 
-- A build pipeline that compiles the starter sketches into flashable images.
-- Saving your own projects.
-- Merging sketches in a remix. It merges wiring and pin numbers only.
+- Saving projects of your own. Edits to a library sketch are kept in the browser.
+- Merging two sketches in a remix. The wiring pad merges wiring and pin numbers only.
 
 ## No-IDE toolchain
 
@@ -137,6 +143,7 @@ Not built yet:
 - **Settings over USB:** configurable sketches include `src/sketches/bench-settings.inc` and read Wi-Fi and account settings from flash, with the sketch's constants as defaults. The settings form on the project page sends them over Web Serial (`src/lib/settings-protocol.ts`; protocol `SETTINGS?`, `SET`, `UNSET`, `SAVE`).
 - **Compile service:** `compile/` is the `esp32-bench-compile` Worker at `compile.esp32bench.dev`, running PlatformIO in Cloudflare Containers (`standard-2`, at most two instances, stopped 2 minutes after the last build). Quotas: 4 builds a minute and 40 a day per visitor, 600 a day in total. Its library list comes from `src/data/compile-libs.json` (`compile/scripts/sync-libs.mjs`). It is deployed by hand, not by CI, because the image is 8.6 GB: see `compile/README.md`.
 - **Editor:** "Edit and build" on project pages and `/tools/build/` (`src/components/SketchBuilder.astro`, `src/scripts/editor/`, CodeMirror loaded only when used).
+- **Crash decoding for library firmware:** library images are built with their ELF's SHA-256 embedded (`--elf-sha256-offset 0xb0`, added by `elf_sha.py` in each PlatformIO project, as the Arduino IDE does), so a crash prints "ELF file SHA256". The firmware library uploads each ELF gzipped as `elf/<first 32 hex digits>.gz` with `elf/index.json` (90 days of builds). The backtrace decoder (`src/lib/library-elf.ts`) looks up a pasted crash's hash and decodes it with that ELF, no file needed. Old ELFs are removed by an R2 lifecycle rule on the `elf/` prefix of `esp32-bench-firmware` (expire after 100 days), set once in the Cloudflare dashboard.
 - **Hardware lab:** `lab/` is a Raspberry Pi runner that flashes each project from the firmware library, checks its serial output against `src/data/lab-expect.ts`, and posts results to `api.esp32bench.dev/lab/runs`; see `lab/README.md`.
 
 ## Community

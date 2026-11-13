@@ -34,12 +34,28 @@ export function sameHash(a: string, b: string): boolean {
 }
 
 /** What the public sees: no ids, tokens, emails or exact times. */
+/** A report worked unless its result starts with "No". */
+const worked = (result: string) => !/^no\b/i.test(result);
+
+/** Approved reports counted per project and board, for the compatibility table. */
+export function summarise(rows: Pick<BuildRow, "project" | "board" | "result">[]) {
+	const cells = new Map<string, { project: string; board: string; worked: number; failed: number }>();
+	for (const r of rows) {
+		const key = `${r.project}\u0000${r.board}`;
+		const cell = cells.get(key) ?? { project: r.project, board: r.board, worked: 0, failed: 0 };
+		if (worked(r.result)) cell.worked++;
+		else cell.failed++;
+		cells.set(key, cell);
+	}
+	return [...cells.values()];
+}
+
 export function publicBuild(r: BuildRow) {
 	return {
 		board: r.board,
 		core: r.core,
 		result: r.result,
-		worked: !/^no\b/i.test(r.result),
+		worked: worked(r.result),
 		output: r.output,
 		notes: r.notes,
 		name: r.public_name || "Anonymous",

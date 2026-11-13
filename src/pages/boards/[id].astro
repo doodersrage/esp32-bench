@@ -205,6 +205,7 @@ const tone = { safe: "ok", care: "warnt", avoid: "bad", power: "" } as const;
       projects.length > 0 && (
         <div class="stack tight">
           <h2>Projects for this board</h2>
+          <p class="lede">Results for every board are in <a href={link("/boards/matrix/")}>which project runs on which board</a>.</p>
           <ul class="jump">
             {projects.map((p) => (
               <li>

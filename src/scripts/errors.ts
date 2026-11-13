@@ -1,6 +1,7 @@
 // Error reference: search filter on the index, and the paste-a-log box on
 // each error page. Both run only when their elements are on the page.
 import { explainLog } from "../lib/crash";
+import { decodeItem } from "./decode-link";
 import { errorBySlug, errorSlugForKey } from "../data/errors";
 import { link } from "../lib/paths";
 
@@ -58,5 +59,7 @@ if (go && box && out) {
         return li;
       }),
     );
+    const decode = decodeItem(box.value);
+    if (decode) out.append(decode);
   });
 }

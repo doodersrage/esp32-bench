@@ -4,6 +4,7 @@ import { decodeLog, loadFirmware, type Firmware, type Frame } from "../lib/backt
 import { explainLog } from "../lib/crash";
 import { errorSlugForKey } from "../data/errors";
 import { link } from "../lib/paths";
+import { elfShaIn, fetchLibraryElf, findLibraryElf } from "../lib/library-elf";
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 const fileInput = $<HTMLInputElement>("#bt-elf");
@@ -19,6 +20,33 @@ const hints = $<HTMLUListElement>("#bt-hints");
 
 let firmware: Firmware | null = null;
 let firmwareName = "";
+/** Hash of the library ELF in `firmware`, when it came from the firmware library rather than a dropped file */
+let librarySha = "";
+const fwBase = logBox.dataset.fw ?? "";
+
+/**
+ * Library firmware prints its ELF's hash when it crashes. If this log has one
+ * the firmware library knows, load that ELF, so no .elf file is needed.
+ */
+async function loadLibraryElf(log: string): Promise<"loaded" | "unknown" | "none"> {
+  const printed = elfShaIn(log);
+  if (!printed || !fwBase) return "none";
+  if (firmware && librarySha.startsWith(printed.slice(0, 32))) return "loaded";
+  const found = await findLibraryElf(fwBase, printed);
+  if (!found) return "unknown";
+  elfStatus.textContent = `This crash is from ESP32 Bench firmware: ${found.project} on ${found.board}. Downloading its .elf...`;
+  try {
+    firmware = loadFirmware(await fetchLibraryElf(fwBase, found.sha));
+    librarySha = found.sha;
+    firmwareName = `the library's ${found.project} firmware for the ${found.board}`;
+    elfStatus.textContent = `Using the firmware library's .elf for ${found.project} on ${found.board}, built ${found.builtAt.slice(0, 10)} with core ${found.core}. Choose a file to use your own instead.`;
+    drop.classList.add("loaded");
+    return "loaded";
+  } catch (err) {
+    elfStatus.textContent = (err as Error).message;
+    return "unknown";
+  }
+}
 
 const SOURCE_LABEL: Record<Frame["source"], string> = {
   pc: "PC",
@@ -51,12 +79,13 @@ async function loadFile(file: File) {
     const started = performance.now();
     firmware = loadFirmware(bytes);
     firmwareName = file.name;
+    librarySha = "";
     const ms = Math.round(performance.now() - started);
     const arch = firmware.elf.arch === "xtensa" ? "Xtensa (ESP32, S2 or S3)" : firmware.elf.arch === "riscv" ? "RISC-V (C3, C6 or H2)" : "an unknown CPU";
     const lineNote = firmware.lines.sequences.length === 0 ? "no line information, so function names only" : `line information for ${firmware.lines.units} source files`;
     elfStatus.textContent = `${file.name}: ${arch}, ${firmware.elf.functions.length.toLocaleString("en")} functions, ${lineNote}. Read in ${ms} ms.`;
     drop.classList.add("loaded");
-    if (logBox.value.trim()) decode();
+    if (logBox.value.trim()) void decode();
   } catch (err) {
     firmware = null;
     elfStatus.textContent = (err as Error).message || "Could not read that file.";
@@ -105,8 +134,17 @@ function showHints(log: string) {
   hints.hidden = hints.children.length === 0;
 }
 
-function decode() {
+async function decode() {
   const log = logBox.value;
+  // A dropped .elf wins; otherwise a library crash brings its own.
+  if (!firmware || librarySha) {
+    const library = await loadLibraryElf(log);
+    if (library === "unknown" && !firmware) {
+      status.textContent =
+        "This crash names its firmware's .elf, but it is not an ESP32 Bench library build from the last 90 days. Choose the .elf from the build that crashed.";
+      return;
+    }
+  }
   if (!firmware) {
     status.textContent = "Choose the .elf file first.";
     return;
@@ -162,8 +200,20 @@ function decode() {
     archMismatch;
 }
 
-go.addEventListener("click", decode);
-logBox.addEventListener("paste", () => setTimeout(() => firmware && decode(), 0));
+go.addEventListener("click", () => void decode());
+logBox.addEventListener("paste", () => setTimeout(() => (firmware || elfShaIn(logBox.value)) && void decode(), 0));
+
+// A crash handed over from the bench or an error page ("Decode it").
+try {
+  const handed = sessionStorage.getItem("bench.btlog");
+  if (handed) {
+    sessionStorage.removeItem("bench.btlog");
+    logBox.value = handed;
+    void decode();
+  }
+} catch {
+  // No session storage: paste by hand.
+}
 clear.addEventListener("click", () => {
   logBox.value = "";
   rows.replaceChildren();

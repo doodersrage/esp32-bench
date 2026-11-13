@@ -1,5 +1,6 @@
 // Serial monitor for the bench page. Runs in the browser only.
 import { PROJECTS, boardsOf, forBoard } from "../data/projects";
+import { decodeItem } from "./decode-link";
 import { explainLine, explainLog } from "../lib/crash";
 import { errorSlugForKey } from "../data/errors";
 import { link } from "../lib/paths";
@@ -405,6 +406,22 @@ function init() {
   initSecondBoard();
   initRadar($("radar"));
 
+  // Plot a saved log: feed pasted or opened text through the plotter, line by line.
+  const plotLog = (text: string) => {
+    resetPlotter();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    for (const line of lines) feedPlotter(line);
+    $("plotlog-note").textContent = lines.length ? `${lines.length} lines read.` : "Nothing to plot.";
+  };
+  $("plotlog-go").addEventListener("click", () => plotLog($<HTMLTextAreaElement>("plotlog-text").value));
+  $<HTMLInputElement>("plotlog-file").addEventListener("change", async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    $<HTMLTextAreaElement>("plotlog-text").value = text.slice(0, 200_000);
+    plotLog(text);
+  });
+
   // Crash translator: explain a pasted log without a board attached.
   $("crashgo").addEventListener("click", () => {
     const found = explainLog($<HTMLTextAreaElement>("crashlog").value);
@@ -425,6 +442,8 @@ function init() {
         return li;
       }),
     );
+    const decode = decodeItem($<HTMLTextAreaElement>("crashlog").value);
+    if (decode) out.append(decode);
   });
   $("sharelog").addEventListener("click", () => void shareLog(terminalText(), $("share-term")));
   $("crashshare").addEventListener("click", () => void shareLog($<HTMLTextAreaElement>("crashlog").value, $("share-paste")));

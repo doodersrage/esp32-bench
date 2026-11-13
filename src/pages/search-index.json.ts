@@ -19,6 +19,7 @@ const PAGES: [string, string, string, string][] = [
   ["/start/", "Getting started", "Cables, drivers, Linux permissions, the Arduino IDE and a first upload.", "guide beginner setup install"],
   ["/boards/", "Boards", "Pinouts for every supported ESP32 board.", "pinout pins header"],
   ["/boards/compare/", "Compare the ESP32 chips", "ESP32, S2, S3, C3 and C6 side by side.", "comparison wifi 6 bluetooth thread zigbee gpio adc touch dac usb cpu riscv xtensa"],
+  ["/boards/matrix/", "Which project runs on which board", "Every project against every board, with hardware lab results and build reports.", "compatibility matrix table works on supported tested"],
   ["/wire/", "Wiring pad", "Wire parts to a board on screen and have every wire checked.", "wiring checker breadboard remix boot pins 5v"],
   ["/detective/", "Pin detective", "Touch a jumper from GND to a pad and see its GPIO number.", "find pin gpio number passport mac address flash size chip"],
   ["/bench/", "Serial bench", "A serial monitor in the browser with plots, a Wi-Fi radar and a crash translator.", "serial monitor web serial baud plotter radar crash translator console"],

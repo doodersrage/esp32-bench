@@ -17,7 +17,7 @@ const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
     </div>
 
     <div class="notice" id="support" hidden>
-      <strong>This browser has no Web Serial.</strong> Open this page in Chrome or Edge on a desktop to connect a board. The library and sample output work everywhere.
+      <strong>This browser has no Web Serial.</strong> Open this page in Chrome or Edge on a desktop to connect a board. Sample output, Plot a saved log and the crash translator work in any browser.
     </div>
 
     <div class="controls">
@@ -93,6 +93,20 @@ const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
       </div>
       <p class="lede" id="plots-empty">Numbers that keep appearing in the output are charted here, one chart per value. Play the DHT22 or HC-SR04 sample to see it.</p>
       <div class="plots" id="plots"></div>
+      <details class="translator" id="plotlog">
+        <summary>Plot a saved log</summary>
+        <div class="stack tight">
+          <label for="plotlog-text">Paste serial output captured elsewhere, or open a log file. Works in any browser, no board needed.</label>
+          <textarea id="plotlog-text" rows="5" spellcheck="false" placeholder="temp_c = 21.4, humidity = 48%"></textarea>
+          <div class="row">
+            <button class="btn" id="plotlog-go" type="button">Plot it</button>
+            <label class="btn sm">
+              Open a log file <input type="file" id="plotlog-file" accept=".txt,.log,.csv,text/plain" hidden />
+            </label>
+            <span class="pickresult" id="plotlog-note" role="status"></span>
+          </div>
+        </div>
+      </details>
     </div>
 
     <div class="stack tight" id="radar" hidden>

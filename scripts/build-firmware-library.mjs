@@ -15,7 +15,9 @@
 // compile, and index.json is written only then, so a broken sketch can never
 // publish a half-finished library (the uploader needs index.json).
 // Writes firmware-report.md (and the GitHub job summary).
-import { appendFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { CHIPS, PLATFORM, buildDir, compile, firstErrors, loadSketches, mergedImageFor, prepareProject } from "./lib/sketch-build.mjs";
@@ -28,6 +30,8 @@ const opt = (name, fallback) => {
 const only = opt("--only", "");
 const work = resolve(opt("--work", ".firmware-build"));
 const out = resolve(opt("--out", ".firmware-library"));
+/** ELFs built this run, by the first 32 hex digits of their SHA-256 */
+const elves = {};
 const skipBuild = args.includes("--skip-build");
 const coreDir = process.env.PLATFORMIO_CORE_DIR ?? join(homedir(), ".platformio");
 
@@ -70,6 +74,13 @@ for (const s of sketches) {
       mkdirSync(join(out, s.id), { recursive: true });
       writeFileSync(join(out, s.id, `${s.board}.bin`), image);
       size = image.length;
+      // The ELF, gzipped and named by its SHA-256 (the hash a crash prints), so
+      // the backtrace decoder can find it from a pasted log.
+      const elf = readFileSync(join(buildDir(dir), "firmware.elf"));
+      const sha = createHash("sha256").update(elf).digest("hex").slice(0, 32);
+      mkdirSync(join(out, "elf"), { recursive: true });
+      writeFileSync(join(out, "elf", `${sha}.gz`), gzipSync(elf, { level: 9 }));
+      elves[sha] = { project: s.id, board: s.board };
     } catch (e) {
       ok = false;
       errors = e instanceof Error ? e.message : String(e);
@@ -125,6 +136,27 @@ if (failed.length === 0) {
     };
   }
   writeFileSync(join(out, "index.json"), `${JSON.stringify({ builtAt, core, version, platform: PLATFORM, projects }, null, 2)}\n`);
+  await writeElfIndex();
+}
+
+/**
+ * elf/index.json: every ELF built in the last ELF_DAYS, so a board flashed from
+ * an older build still decodes. Merged with the published index; older entries
+ * drop out (and the bucket's lifecycle rule deletes their files).
+ */
+async function writeElfIndex() {
+  const ELF_DAYS = 90;
+  let entries = {};
+  try {
+    const res = await fetch(`${process.env.FW_BASE ?? "https://fw.esp32bench.dev"}/elf/index.json`, { signal: AbortSignal.timeout(20_000) });
+    if (res.ok) entries = (await res.json()).entries ?? {};
+  } catch {
+    // First run, or offline: start a new index.
+  }
+  const cutoff = Date.now() - ELF_DAYS * 86_400_000;
+  entries = Object.fromEntries(Object.entries(entries).filter(([, e]) => Date.parse(e.builtAt) >= cutoff));
+  for (const [sha, e] of Object.entries(elves)) entries[sha] = { ...e, builtAt, core };
+  writeFileSync(join(out, "elf", "index.json"), `${JSON.stringify({ entries })}\n`);
 }
 
 const report = [

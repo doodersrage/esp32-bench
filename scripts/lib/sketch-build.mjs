@@ -76,6 +76,10 @@ export function prepareProject(s, dir) {
       return LIBS[l];
     });
   if (!BOARDS[s.board]) throw new Error(`Unknown board "${s.board}": add it to BOARDS in scripts/lib/sketch-build.mjs`);
+  // PlatformIO's elf2image call leaves out --elf-sha256-offset, which the Arduino
+  // IDE passes. Without it a crash prints a meaningless "ELF file SHA256", and the
+  // backtrace decoder cannot find the library ELF that matches the board.
+  writeFileSync(join(dir, "elf_sha.py"), 'Import("env")\nenv.Append(ELF2BINFLAGS=["--elf-sha256-offset", "0xb0"])\n');
   writeFileSync(
     join(dir, "platformio.ini"),
     [
@@ -83,6 +87,7 @@ export function prepareProject(s, dir) {
       `platform = ${PLATFORM}`,
       "framework = arduino",
       `board = ${BOARDS[s.board]}`,
+      "extra_scripts = post:elf_sha.py",
       ...(HUGE_APP.has(s.id) ? ["board_build.partitions = huge_app.csv"] : []),
       ...(libs.length ? ["lib_deps =", ...libs.map((l) => `  ${l}`)] : []),
       "",

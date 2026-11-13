@@ -1,0 +1,100 @@
+---
+// Which project runs on which board: the boards each project supports, filled
+// in with hardware lab results and community build reports as they arrive.
+import Base from "../../layouts/Base.astro";
+import { BOARDS } from "../../data/boards";
+import { PROJECTS, boardsOf } from "../../data/projects";
+import { link } from "../../lib/paths";
+import { SITE, reportUrl } from "../../lib/site";
+
+const rows = PROJECTS.map((p) => ({ id: p.id, name: p.name, boards: new Set(boardsOf(p)) }));
+const combos = rows.reduce((n, r) => n + r.boards.size, 0);
+// Build reports name the board as the report form shows it; map those names back to ids.
+const boardNames = Object.fromEntries(BOARDS.map((b) => [b.name, b.id]));
+---
+
+<Base
+  title="ESP32 board and project compatibility"
+  current="boards"
+  description="Which ESP32 Bench project runs on which ESP32 board, with hardware lab results and community build reports for each combination."
+>
+  <section class="view">
+    <a class="back" href={link("/boards/")}>← All boards</a>
+    <div class="stack tight">
+      <h1 class="h2">Which project runs on which board</h1>
+      <p class="lede">
+        {PROJECTS.length} projects on {BOARDS.length} boards: {combos} supported combinations. A dot means the project lists the
+        board and compiles for it. Results fill in as the hardware lab runs and people send build reports.
+      </p>
+      <p class="lede" id="mx-summary" role="status"></p>
+      <ul class="mxlegend">
+        <li><span class="mxc sup">·</span> Supported, untested</li>
+        <li><span class="mxc ok">Lab</span> Passed the hardware lab</li>
+        <li><span class="mxc ok">2</span> Build reports that worked</li>
+        <li><span class="mxc bad">1</span> Build reports that did not</li>
+        <li><span class="mxc no"></span> Not supported</li>
+      </ul>
+    </div>
+
+    <div class="tablebox mxbox">
+      <table class="mx" id="mx" data-builds={`${SITE.buildsApi}/summary`} data-lab={SITE.labLatestApi} data-names={JSON.stringify(boardNames)}>
+        <thead>
+          <tr>
+            <th scope="col">Project</th>
+            {
+              BOARDS.map((b) => (
+                <th scope="col" title={b.name}>
+                  <a href={link(`/boards/${b.id}/`)}>{b.short}</a>
+                </th>
+              ))
+            }
+          </tr>
+        </thead>
+        <tbody>
+          {
+            rows.map((r) => (
+              <tr>
+                <th scope="row">
+                  <a href={link(`/projects/${r.id}/`)}>{r.name}</a>
+                </th>
+                {BOARDS.map((b) =>
+                  r.boards.has(b.id) ? (
+                    <td class="mxc sup" data-cell={`${r.id}|${b.id}`} title={`${r.name} on the ${b.name}: supported, no results yet`}>
+                      ·
+                    </td>
+                  ) : (
+                    <td class="mxc no" title={`${r.name} does not list the ${b.name}`} />
+                  ),
+                )}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="cap left">
+      Built one? <a href={reportUrl("build")}>Send a build report</a> and it fills in a square here once it is approved.
+    </p>
+  </section>
+</Base>
+
+<style>
+  .mxlegend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.85rem; color: var(--muted); }
+  .mxlegend li { display: inline-flex; align-items: center; gap: 6px; }
+  .mxbox { overflow-x: auto; }
+  .mx { border-collapse: collapse; font-size: 0.85rem; }
+  .mx th, .mx td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  .mx thead th { font: 500 0.72rem/1.1 var(--mono); white-space: nowrap; text-align: center; }
+  .mx thead th a, .mx tbody th a { color: var(--ink); text-decoration: none; }
+  .mx tbody th { text-align: left; font-weight: 500; white-space: nowrap; position: sticky; left: 0; background: var(--paper); }
+  .mxc { min-width: 34px; height: 26px; text-align: center; font: 600 0.72rem/1 var(--mono); }
+  .mxlegend .mxc { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 2px; padding: 0 4px; }
+  .mxc.sup { color: var(--muted); }
+  .mxc.no { background: repeating-linear-gradient(45deg, transparent 0 4px, var(--line) 4px 5px); }
+  :global(.mxc.ok) { background: var(--pad-soft); color: var(--ok); }
+  :global(.mxc.bad) { color: var(--accent); }
+</style>
+
+<script>
+  import "../../scripts/matrix.ts";
+</script>

@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 import { checkReport, htmlFor, subjectFor, textFor } from "./report.ts";
 import { verifyTurnstile } from "./turnstile.ts";
 import { uploadFirmware } from "./firmware.ts";
-import { moderationPage, newToken, publicBuild, resultPage, sameHash, sha256, type BuildRow } from "./builds.ts";
+import { moderationPage, newToken, publicBuild, resultPage, sameHash, sha256, summarise, type BuildRow } from "./builds.ts";
 import { checkLabRun, publicLab, tokenMatches, type LabResultRow, type LabRunRow } from "./lab.ts";
 
 interface Env {
@@ -56,6 +56,13 @@ function html(body: string, status = 200): Response {
 			"Referrer-Policy": "no-referrer",
 		},
 	});
+}
+
+/** GET /builds/summary: approved build reports counted per project and board, for the compatibility table. */
+async function buildsSummary(): Promise<Response> {
+	const headers = { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300" };
+	const { results } = await config.DB.prepare("SELECT project, board, result FROM builds WHERE status = 'approved'").all<Pick<BuildRow, "project" | "board" | "result">>();
+	return json({ cells: summarise(results) }, 200, headers);
 }
 
 /** GET /builds?project=dht22: approved build reports, public and cacheable. */
@@ -169,6 +176,7 @@ export default {
 			if (request.method !== "PUT") return json({ ok: false, error: "Use PUT." }, 405, { Allow: "PUT" });
 			return uploadFirmware(request, url.pathname.slice(4), config.FIRMWARE, API_ORIGIN, "doodersrage/esp32-bench");
 		}
+		if (url.pathname === "/builds/summary" && request.method === "GET") return buildsSummary();
 		if (url.pathname === "/builds" && request.method === "GET") return listBuilds(url);
 		if (url.pathname === "/lab/latest" && request.method === "GET") return labLatest();
 		if (url.pathname === "/lab/runs") {

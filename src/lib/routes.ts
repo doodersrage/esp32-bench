@@ -8,6 +8,7 @@ export const STATIC_PAGES = [
   "/start/",
   "/boards/",
   "/boards/compare/",
+  "/boards/matrix/",
   "/wire/",
   "/detective/",
   "/bench/",

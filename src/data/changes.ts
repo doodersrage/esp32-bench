@@ -14,6 +14,20 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-18",
+    date: "2026-11-13",
+    title: "Version 0.18: decode library crashes, and which project runs where",
+    summary:
+      "A crash from library firmware now decodes to functions and lines without any .elf file, and one table shows which project runs on which board.",
+    items: [
+      "Library firmware records which build it is, and its .elf is published, so pasting a Guru Meditation into the backtrace decoder, the bench or an error page decodes it. Takes effect for firmware built from this release on.",
+      "Which project runs on which board: every project against every board, filled in by the hardware lab and build reports.",
+      "Plot a saved log on the bench, in any browser, without a board.",
+      "Every kind of page is now loaded in a browser on each change, so a broken page fails the build.",
+    ],
+    link: "/boards/matrix/",
+  },
+  {
     id: "v0-17",
     date: "2026-11-13",
     title: "Version 0.17: two more boards, a shopping list and starter paths",
