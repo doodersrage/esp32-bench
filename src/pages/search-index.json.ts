@@ -99,7 +99,7 @@ export const GET: APIRoute = () => {
     });
   }
 
-  for (const t of TOOLS) entries.push({ title: t.name, url: link(t.href), kind: "Tool", snippet: t.sum, text: t.tags.join(" ") });
+  for (const t of TOOLS.filter((t) => !PAGES.some(([href]) => href === t.href))) entries.push({ title: t.name, url: link(t.href), kind: "Tool", snippet: t.sum, text: t.tags.join(" ") });
 
   for (const f of FLAMES) {
     entries.push({

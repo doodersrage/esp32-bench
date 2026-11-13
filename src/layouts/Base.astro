@@ -50,16 +50,17 @@ const canonical = absolute(sitePath, Astro.site);
 const imageUrl = absolute(image, Astro.site);
 const correctionUrl = noindex || current === "report" ? "" : reportUrl("correction", { page: canonical });
 
+// Pages that live under another tab: that tab is marked as the current section.
+const PARENT: Partial<Record<Section, Section>> = { detective: "tools", flames: "errors" };
+const navSection = PARENT[current] ?? current;
 const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
   ["library", "/", "Library"],
   ["start", "/start/", "Guide"],
   ["boards", "/boards/", "Boards"],
   ["wire", "/wire/", "Wire"],
-  ["detective", "/detective/", "Detective"],
   ["bench", "/bench/", "Bench"],
   ["errors", "/errors/", "Errors"],
   ["tools", "/tools/", "Tools"],
-  ["flames", "/flames/", "Flames"],
 ];
 ---
 
@@ -145,7 +146,7 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
         <nav class="tabs" aria-label="Sections">
           {
             NAV.map(([id, href, label]) => (
-              <a href={link(href)} aria-current={current === id ? "page" : undefined}>
+              <a href={link(href)} aria-current={current === id ? "page" : navSection === id ? "true" : undefined}>
                 {label}
               </a>
             ))
@@ -179,4 +180,5 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
 <script>
   import "../scripts/shell.ts";
   import "../scripts/search-ui.ts";
+  import "../scripts/scroll-rows.ts";
 </script>

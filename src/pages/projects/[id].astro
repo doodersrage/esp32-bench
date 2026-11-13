@@ -143,8 +143,9 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
         <div class="row" id="boardswitch" role="group" aria-label="Board">
           <span class="swlabel">Board</span>
           {boards.map((b, i) => (
-            <button class="chip" type="button" data-board={b.id} aria-pressed={i === 0 ? "true" : "false"}>
-              {b.name}
+            <button class="chip" type="button" data-board={b.id} aria-pressed={i === 0 ? "true" : "false"} title={b.name}>
+              <span class="bname full">{b.name}</span>
+              <span class="bname short">{b.short}</span>
             </button>
           ))}
         </div>

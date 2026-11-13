@@ -41,6 +41,12 @@ export const TOOLS: Tool[] = [
   {
     href: "/detective/",
     name: "Pin detective",
+    sum: "Flash a helper firmware, touch a jumper from GND to any pad and see its GPIO number. Also reads the chip, flash size and MAC address.",
+    tags: ["Web Serial", "Unlabelled boards"],
+  },
+  {
+    href: "/detective/",
+    name: "Pin detective",
     sum: "Flash a helper, touch a jumper from GND to any pad, and see its GPIO number.",
     tags: ["Web Serial", "Pins"],
   },

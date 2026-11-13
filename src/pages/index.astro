@@ -39,7 +39,7 @@ const bareCount = PROJECTS.filter(bareBoard).length;
     </p>
     <div class="filters">
       <input type="search" id="q" placeholder="Search projects, parts or boards" aria-label="Search projects" />
-      <div class="row" id="chips">
+      <div class="row scrollrow" id="chips">
         {
           TAGS.map(([id, label]) => (
             <button class="chip" type="button" data-tag={id} aria-pressed={id === "all" ? "true" : "false"}>

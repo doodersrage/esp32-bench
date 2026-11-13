@@ -47,6 +47,15 @@ const searchText = (e: (typeof ERRORS)[number]) => [e.title, e.match, e.means, .
       ))
     }
     <div class="empty" id="error-empty" hidden>No error matches. Try a shorter word, or paste the whole log into the bench's crash translator.</div>
+
+    <div class="stack tight band">
+      <h2>Hall of flames</h2>
+      <p class="lede">
+        Real failures worth remembering: what the serial port said, what it was easy to mistake that for, and what was
+        actually wrong.
+      </p>
+      <div class="row"><a class="btn" href={link("/flames/")}>Read the hall of flames</a></div>
+    </div>
   </section>
 </Base>
 

@@ -2,9 +2,13 @@
 import Base from "../layouts/Base.astro";
 import { HEADER_BOARDS } from "../data/boards";
 import { PARTS } from "../data/parts";
-import { PROJECTS } from "../data/projects";
+import { DRAWER_GROUPS, PROJECTS } from "../data/projects";
 
 const remixable = PROJECTS.filter((p) => p.needs.length > 0);
+// The pad's parts in the same groups as the library's parts drawer (the ids are shared).
+const partGroups = DRAWER_GROUPS.map(([label, ids]) => [label, PARTS.filter((p) => ids.includes(p.id))] as const).filter(([, parts]) => parts.length > 0);
+const ungroupedParts = PARTS.filter((p) => !DRAWER_GROUPS.some(([, ids]) => ids.includes(p.id)));
+if (ungroupedParts.length) throw new Error(`Wire parts missing from DRAWER_GROUPS: ${ungroupedParts.map((p) => p.id).join(", ")}`);
 const needsAttr = (needs: string[][]) => needs.map((group) => group.join("|")).join(" ");
 ---
 
@@ -24,23 +28,33 @@ const needsAttr = (needs: string[][]) => needs.map((group) => group.join("|")).j
       <span class="swlabel">Board</span>
       {
         HEADER_BOARDS.map((b) => (
-          <button class="chip" type="button" data-board={b.id} aria-pressed={b.id === "esp32" ? "true" : "false"}>
-            {b.name}
+          <button class="chip" type="button" data-board={b.id} aria-pressed={b.id === "esp32" ? "true" : "false"} title={b.name}>
+            <span class="bname full">{b.name}</span>
+            <span class="bname short">{b.short}</span>
           </button>
         ))
       }
     </div>
 
-    <div class="row" id="w-parts" role="group" aria-label="Parts">
-      <span class="swlabel">Parts</span>
-      {
-        PARTS.map((p) => (
-          <button class="chip" type="button" data-part={p.id} aria-pressed="false">
-            {p.name}
-          </button>
-        ))
-      }
-    </div>
+    <details class="drawer" id="w-partsbox" open>
+      <summary>Parts<span class="partsum" id="w-partsum"></span></summary>
+      <div id="w-parts" role="group" aria-label="Parts">
+        {
+          partGroups.map(([label, parts]) => (
+            <div class="partgroup">
+              <h2 class="partlabel">{label}</h2>
+              <div class="row">
+                {parts.map((p) => (
+                  <button class="chip" type="button" data-part={p.id} aria-pressed="false">
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </details>
 
     <div class="cols">
       <figure class="fig">
@@ -108,4 +122,17 @@ const needsAttr = (needs: string[][]) => needs.map((group) => group.join("|")).j
 
 <script>
   import "../scripts/wire.ts";
+
+  // The parts list is long: on phones it starts folded, and its summary names what is on the pad.
+  const box = document.getElementById("w-partsbox") as HTMLDetailsElement | null;
+  const sum = document.getElementById("w-partsum");
+  const chips = [...document.querySelectorAll<HTMLButtonElement>("#w-parts [data-part]")];
+  const describe = () => {
+    const picked = chips.filter((c) => c.getAttribute("aria-pressed") === "true").map((c) => c.textContent?.trim() ?? "");
+    if (sum) sum.textContent = picked.length ? `: ${picked.join(", ")}` : ": none yet";
+  };
+  if (box && window.matchMedia("(max-width: 720px)").matches) box.open = false;
+  describe();
+  const watch = new MutationObserver(describe);
+  for (const chip of chips) watch.observe(chip, { attributes: true, attributeFilter: ["aria-pressed"] });
 </script>

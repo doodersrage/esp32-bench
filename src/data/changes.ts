@@ -14,6 +14,18 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-15",
+    date: "2026-11-13",
+    title: "Version 0.15: easier on a phone",
+    summary: "Fewer sections in the menu, and the wiring pad, board choices and library filters take far less room on a small screen.",
+    items: [
+      "Seven sections instead of nine: the Pin detective is now under Tools and the Hall of flames under Errors, at the same addresses.",
+      "The wiring pad groups its parts like the parts drawer, and on a phone the list starts folded with the chosen parts named.",
+      "Board choices use short names (ESP32, S3, C3) on a phone, and the library filters scroll sideways in one row.",
+    ],
+    link: "/wire/",
+  },
+  {
     id: "v0-14",
     date: "2026-11-13",
     title: "Version 0.14: a tidier library and project pages",
