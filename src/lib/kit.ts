@@ -52,6 +52,10 @@ export type IconId =
   | "stepper"
   | "stepperdrv"
   | "keypad"
+  | "ledmatrix"
+  | "rtc"
+  | "tft"
+  | "sdcard"
   | "ic"
   | "module";
 
@@ -84,7 +88,7 @@ const RULES: [RegExp, IconId][] = [
   [/usb-to-serial|usb to serial|ftdi/i, "usbserial"],
   [/\besp32\b|devkit/i, "esp32"],
   [/usb cables?|usb cable/i, "usb"],
-  [/battery|li-ion|lipo/i, "battery"],
+  [/battery|li-ion|lipo|coin cell|cr2032/i, "battery"],
   [/supply|power bank|adapter/i, "power"],
   [/mqtt broker|broker|server|service/i, "service"],
   [/bracket|plate|plywood|3d print/i, "hardware"],
@@ -100,6 +104,10 @@ const RULES: [RegExp, IconId][] = [
   [/uln2003|stepper driver/i, "stepperdrv"],
   [/28byj|stepper/i, "stepper"],
   [/keypad/i, "keypad"],
+  [/max7219|led matrix|dot matrix/i, "ledmatrix"],
+  [/ds3231|real-time clock|\brtc\b/i, "rtc"],
+  [/\btft\b|st7789|st7735|ili9341/i, "tft"],
+  [/micro ?sd|\bsd card/i, "sdcard"],
   [/neopixel|ws2812/i, "neopixel"],
   [/rgb led/i, "rgbled"],
   [/7-segment|seven-segment/i, "sevenseg"],

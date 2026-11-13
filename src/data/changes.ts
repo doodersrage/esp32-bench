@@ -14,6 +14,19 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-13",
+    date: "2026-11-13",
+    title: "Version 0.13: starter-kit projects",
+    summary:
+      "Eight projects for the parts that come in almost every ESP32 and Arduino starter kit, each with its wiring diagram, parts card and firmware ready to flash.",
+    items: [
+      "RFID card reader with an allowed-cards list, and an IR remote decoder that learns three buttons.",
+      "28BYJ-48 stepper with acceleration, and a 4x4 keypad PIN lock with a servo latch.",
+      "MAX7219 scrolling LED matrix, DS3231 real-time clock with an alarm, ST7789 colour TFT dashboard, and a microSD data logger.",
+    ],
+    link: "/",
+  },
+  {
     id: "v0-12",
     date: "2026-11-13",
     title: "Version 0.12: no Arduino IDE needed",

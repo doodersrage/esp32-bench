@@ -60,4 +60,7 @@ export const BOM = {
   diode1n4001: "https://www.adafruit.com/product/755",
   photocell: "https://www.adafruit.com/product/161",
   thumbJoystick: "https://www.adafruit.com/product/512",
+  rtcDs3231: "https://www.adafruit.com/product/3013",
+  tftSt7789: "https://www.adafruit.com/product/4311",
+  microSdBreakout: "https://www.adafruit.com/product/254",
 } as const;

@@ -99,7 +99,7 @@ const PIN_WORDS = new Set(
     "dc", "rst", "busy", "data", "trig", "echo", "out", "aout", "vo", "v0", "vrx", "vry", "sw", "tx", "rx", "in",
     "sig", "do", "so", "anode", "cathode", "signal", "red", "brown", "black", "orange", "yellow", "white", "+", "-",
     "a", "b", "e", "k", "rs", "rw", "collector", "emitter", "base", "wiper", "middle", "+5v", "5v", "common", "side",
-    "wire", "push", "output", "ground", "ser", "srclk", "rclk", "oe", "mr", "segments", "decimal", "outer", "other",
+    "wire", "push", "output", "ground", "ser", "srclk", "rclk", "oe", "mr", "segments", "decimal", "outer", "other", "blk", "bl",
     "plug", "socket",
   ].map((w) => w.toLowerCase()),
 );

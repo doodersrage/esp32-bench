@@ -244,6 +244,45 @@ function body(icon: IconId, p: Palette, item?: KitItem): string {
       return rect(6, 10, 52, 44, p.pcb, p.ink, 3) + rect(12, 18, 20, 12, p.ink, p.ink, 1, 1) + [38, 44, 50, 56].map((x) => circle(x - 2, 20, 2.5, p.accent, "none", 0)).join("") + rect(36, 34, 18, 12, p.paper, p.ink, 1, 2) + pins(12, 44, 4, 6, p);
     case "keypad":
       return rect(12, 4, 40, 44, p.ink, p.ink, 3) + Array.from({ length: 4 }, (_, r) => [0, 1, 2, 3].map((c) => rect(16 + c * 9, 8 + r * 10, 6, 6, c === 3 ? p.accent : p.paper, "none", 1, 0)).join("")).join("") + rect(26, 48, 12, 12, p.muted, p.ink, 1, 1.5);
+    case "ledmatrix":
+      return (
+        rect(4, 16, 56, 32, p.ink, p.ink, 3) +
+        Array.from({ length: 4 * 12 }, (_, i) => {
+          const col = i % 12;
+          const row = Math.floor(i / 12);
+          const lit = [1, 2, 4, 6, 7, 9, 10].includes(col) && (row + col) % 3 !== 0;
+          return circle(9 + col * 4.2, 23 + row * 6, 1.5, lit ? p.accent : p.muted, "none", 0);
+        }).join("") +
+        pins(10, 48, 5, 9.5, p)
+      );
+    case "rtc":
+      return (
+        rect(6, 14, 52, 36, p.blue, p.ink, 3) +
+        circle(42, 32, 11, p.metal, p.ink, 2.5) +
+        circle(42, 32, 5, p.paper, p.muted, 1.5) +
+        rect(12, 22, 16, 12, p.ink, p.ink, 1, 1) +
+        line(20, 28, 20, 25, p.paper, 1.5) +
+        line(20, 28, 23, 28, p.paper, 1.5) +
+        pins(12, 42, 4, 5, p)
+      );
+    case "tft":
+      return (
+        rect(10, 6, 44, 52, p.ink, p.ink, 3) +
+        rect(14, 10, 36, 40, "#1f2a44", p.muted, 1, 1) +
+        path("M18 44 L26 30 L32 38 L38 24 L46 44 Z", p.ok, "none", 0) +
+        circle(40, 18, 4, p.gold, "none", 0) +
+        rect(14, 30, 8, 6, p.accent, "none", 0.5, 0) +
+        pins(20, 52, 5, 5, p)
+      );
+    case "sdcard":
+      return (
+        rect(6, 14, 52, 36, p.pcb, p.ink, 3) +
+        path("M20 20 H38 L44 26 V44 H20 Z", p.ink, p.metal, 2) +
+        Array.from({ length: 4 }, (_, i) => rect(23 + i * 4.5, 22, 2.5, 6, p.gold, "none", 0.5, 0)).join("") +
+        pins(48, 18, 1, 0, p) +
+        pins(48, 26, 1, 0, p) +
+        pins(48, 34, 1, 0, p)
+      );
     case "ic":
       return rect(12, 16, 40, 32, p.ink, p.ink, 2) + pins(16, 10, 7, 5, p) + pins(16, 48, 7, 5, p) + circle(18, 32, 3, p.muted, "none", 0);
     case "module":
@@ -266,4 +305,5 @@ export const ALL_ICONS: IconId[] = [
   "resistor", "led", "rgbled", "button", "pot", "encoder", "buzzer", "speaker", "oled", "lcd", "sevenseg", "neopixel",
   "epaper", "servo", "motor", "relay", "transistor", "diode", "capacitor", "ds18b20", "dht22", "i2c", "hcsr04",
   "sharpir", "pir", "mpu6050", "joystick", "soil", "ldr", "reed", "thermocouple", "nrf24", "rfid", "irrecv", "remote", "stepper", "stepperdrv", "keypad", "ic", "module",
+  "sharpir", "pir", "mpu6050", "joystick", "soil", "ldr", "reed", "thermocouple", "nrf24", "ledmatrix", "rtc", "tft", "sdcard", "ic", "module",
 ];
