@@ -66,6 +66,7 @@ jobs:
           node --experimental-strip-types tests/lab-expect.test.ts
           node --experimental-strip-types tests/settings.test.ts
           node --experimental-strip-types tests/editor.test.ts
+          node --experimental-strip-types tests/flash-hook.test.ts
           bash tests/settings-snippet/run.sh
           node scripts/test-tools.mjs
           node --experimental-strip-types scripts/test-search.mjs

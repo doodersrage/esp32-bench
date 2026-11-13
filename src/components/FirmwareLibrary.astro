@@ -19,10 +19,10 @@ const manifest = `${SITE.fwBase}/${projectId}/manifest.json`;
 <div class="stack tight fwlib" id="fwlib" data-fw-base={SITE.fwBase} data-project={projectId} hidden>
   <h2 class="h3">Flash it from the browser</h2>
   <p>
-    No Arduino IDE needed: this is the sketch above, already compiled. Plug the board in and press the button.{" "}
+    No Arduino IDE needed: this is the sketch below, already compiled. Plug the board in and press the button.{" "}
     <span data-fw-built></span>
   </p>
-  <Flasher manifest={manifest} version="" families="" />
+  <Flasher manifest={manifest} version="" families="" project={projectId} />
   <label class="fwpick" data-fw-pick hidden>
     <span class="swlabel">Board</span>
     <select data-fw-select>
@@ -39,6 +39,8 @@ const manifest = `${SITE.fwBase}/${projectId}/manifest.json`;
 
 <style>
   .fwlib { padding: 14px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--ok); }
+  /* One box, not a box in a box: the installer sits straight in this panel. */
+  .fwlib :global(.flashbox) { padding: 0; border: 0; background: none; }
   .fwpick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.9rem; }
   .fwpick select { padding: 7px 8px; border: 1px solid var(--line); background: var(--panel); border-radius: 2px; min-width: 0; max-width: 100%; }
 </style>

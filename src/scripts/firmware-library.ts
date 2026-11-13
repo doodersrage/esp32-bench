@@ -60,12 +60,16 @@ if (box) {
     const built = box.querySelector<HTMLElement>("[data-fw-built]");
     const families = [...new Set(entry.boards.map((b) => FAMILY[b] ?? b))];
     const date = new Date(index.builtAt);
-    const when = Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-    if (built) built.textContent = `Built ${when}${index.core ? ` with Arduino-ESP32 core ${index.core}` : ""}, for the ${families.join(", ")}.`;
+    // In UTC, so the date matches the one in the version string.
+    const when = Number.isNaN(date.getTime())
+      ? ""
+      : date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+    const version = index.version ? `Firmware ${index.version}, built` : "Built";
+    if (built) built.textContent = `${version} ${when}${index.core ? ` with Arduino-ESP32 core ${index.core}` : ""}, for the ${families.join(", ")}.`;
 
     const button = box.querySelector<HTMLElement>("esp-web-install-button");
     const activate = box.querySelector<HTMLButtonElement>('[slot="activate"]');
-    if (activate) activate.textContent = `Flash ${index.version ? `firmware ${index.version}` : "the firmware"}`;
+    if (activate) activate.textContent = "Flash to your board";
     const caption = box.querySelector<HTMLElement>(".flashbox .cap");
     if (caption) caption.textContent = `One image per chip family: ${families.join(", ")}. The installer detects which one is connected.`;
 

@@ -81,9 +81,12 @@ async function load(): Promise<void> {
     );
     list.hidden = false;
   } catch {
-    status.textContent = navigator.onLine
-      ? "Community build reports could not be loaded right now."
-      : "Community build reports need a connection.";
+    status.replaceChildren(
+      navigator.onLine ? "Community build reports could not be loaded right now. " : "Community build reports need a connection. ",
+      "Built it? ",
+      sendLink("Send a build report"),
+      ".",
+    );
   }
 }
 

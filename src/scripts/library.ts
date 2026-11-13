@@ -1,10 +1,11 @@
 // Library page: search and filters, built marks, the bench log with badges,
 // and the "what can I build tonight" picker.
-import { BADGES, currentStreak, loadBuilt, loadSeen, type ProjectMeta } from "./progress";
+import { BADGES, currentStreak, loadBuilt, loadFlashed, loadSeen, type ProjectMeta } from "./progress";
 
 const q = document.getElementById("q") as HTMLInputElement;
 const empty = document.getElementById("empty") as HTMLElement;
 const chips = [...document.querySelectorAll<HTMLButtonElement>("#chips .chip")];
+const levelChips = [...document.querySelectorAll<HTMLButtonElement>("#levels .chip")];
 const cards = [...document.querySelectorAll<HTMLElement>("#grid .card")];
 
 const recall = (key: string): string | null => {
@@ -25,6 +26,8 @@ const remember = (key: string, value: string) => {
 /* ---------- Search and filters ---------- */
 let activeTag = recall("tag") ?? "all";
 if (!chips.some((c) => c.dataset.tag === activeTag)) activeTag = "all";
+let activeLevel = recall("level") ?? "all";
+if (!levelChips.some((c) => c.dataset.level === activeLevel)) activeLevel = "all";
 
 function applyFilters() {
   const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -32,17 +35,28 @@ function applyFilters() {
   for (const card of cards) {
     const tags = (card.dataset.tags ?? "").split(" ");
     const hay = card.dataset.hay ?? "";
-    const ok = (activeTag === "all" || tags.includes(activeTag)) && words.every((w) => hay.includes(w));
+    const ok =
+      (activeTag === "all" || tags.includes(activeTag)) &&
+      (activeLevel === "all" || card.dataset.level === activeLevel) &&
+      words.every((w) => hay.includes(w));
     card.hidden = !ok;
     if (ok) shown++;
   }
   empty.hidden = shown > 0;
   for (const chip of chips) chip.setAttribute("aria-pressed", String(chip.dataset.tag === activeTag));
+  for (const chip of levelChips) chip.setAttribute("aria-pressed", String(chip.dataset.level === activeLevel));
 }
 for (const chip of chips) {
   chip.addEventListener("click", () => {
     activeTag = chip.dataset.tag ?? "all";
     remember("tag", activeTag);
+    applyFilters();
+  });
+}
+for (const chip of levelChips) {
+  chip.addEventListener("click", () => {
+    activeLevel = chip.dataset.level ?? "all";
+    remember("level", activeLevel);
     applyFilters();
   });
 }
@@ -63,7 +77,7 @@ for (const card of cards) {
   if (mark) mark.hidden = !built[card.dataset.id ?? ""];
 }
 
-const context = { built, seen: loadSeen(), projects };
+const context = { built, seen: loadSeen(), flashed: loadFlashed(), projects };
 let earned = 0;
 for (const badge of BADGES) {
   const el = document.querySelector<HTMLElement>(`[data-badge="${badge.id}"]`);
@@ -105,6 +119,9 @@ for (const chip of partChips) {
   });
 }
 showDrawer();
+// Open the picker for anyone who has used it before, or who followed a link to it.
+const drawerBox = document.getElementById("drawer") as HTMLDetailsElement | null;
+if (drawerBox && (drawer.size > 0 || location.hash === "#drawer")) drawerBox.open = true;
 
 /** A project is buildable when every group of alternatives has one part in the drawer. */
 function buildable(card: HTMLElement): boolean {
@@ -138,6 +155,7 @@ pickButton?.addEventListener("click", () => {
   // Make sure the picked card is visible, then point at it.
   if (pick.hidden) {
     activeTag = "all";
+    activeLevel = "all";
     q.value = "";
     applyFilters();
   }

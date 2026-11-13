@@ -42,6 +42,9 @@ const kitAlt = `Parts for ${p.name}: ${kit
   .join(", ")}.`;
 const kitSrc = link(`/og/kits/${p.id}.png`);
 const buildReportUrl = reportUrl("build", { project: p.id });
+const anyVerified = (p.verified ?? []).length > 0;
+// Long sketches show this many lines until "Show the whole sketch".
+const CLIP_LINES = 26;
 const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
 const boardNames = boards.map((b) => b.name).join(", ");
 const summary = p.sum.length > 150 ? `${p.sum.slice(0, p.sum.lastIndexOf(" ", 147))}...` : p.sum;
@@ -59,7 +62,6 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
         <span class="tag lvl">{p.level}</span>
         <span class="tag">{p.mins} min</span>
         <span class="tag">{p.baud} baud</span>
-        {p.flash && <span class="tag flash">Browser flash</span>}
         <span class="tag ok" data-lab-tag hidden title="The latest hardware lab run passed on at least one board">Lab tested</span>
       </div>
       {
@@ -91,6 +93,50 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     </div>
 
     <Preview id={p.id} />
+
+    <div class="stack tight">
+      <h2 class="h3">Parts</h2>
+      <div class="cols even">
+        <a class="kitcard" href={kitSrc} title="Open the parts card at full size">
+          <img src={kitSrc} width="1200" height="630" loading="lazy" decoding="async" alt={kitAlt} />
+        </a>
+        <div class="stack tight">
+          <div class="tablebox">
+            <table>
+              <thead class="sr">
+                <tr>
+                  <th>Quantity</th>
+                  <th>Part</th>
+                  <th>Where to buy</th>
+                </tr>
+              </thead>
+              <tbody>
+                {p.parts.map(([qty, what, href], i) => (
+                  <tr>
+                    <td class="q">{qty}×</td>
+                    <td>
+                      <div class="partname">
+                        <span class="kicon" set:html={kitIconSvg(kit[i], PAGE_PALETTE, 28)} />
+                        <span>{what}</span>
+                      </div>
+                    </td>
+                    <td class="m">{href && <a href={href} rel={shopRel(href)} target="_blank">Buy at {shopVendor(href)}</a>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {
+            p.code !== undefined && (
+              <p class="libs">
+                <span class="swlabel">Libraries</span> {p.libs.length > 0 ? p.libs.join(", ") : "None beyond the ESP32 Arduino core."}
+              </p>
+            )
+          }
+          {hasBuyLinks && <p class="cap left">{AFFILIATE_DISCLOSURE}</p>}
+        </div>
+      </div>
+    </div>
 
     {
       boards.length > 1 && (
@@ -147,9 +193,9 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
                 benchHref={benchHref}
                 baud={p.baud}
               />
-              <div>
-                <h2 class="h3 mb">Tested on this board</h2>
-                {panel.verified.length > 0 ? (
+              {panel.verified.length > 0 ? (
+                <div>
+                  <h2 class="h3 mb">Tested on this board</h2>
                   <ul class="checks">
                     {panel.verified.map((v) => (
                       <li>
@@ -158,95 +204,28 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
                       </li>
                     ))}
                   </ul>
-                ) : (
-                  <p class="lede">Not run on this board yet. Treat the wiring and code as a first draft.</p>
-                )}
-              </div>
+                </div>
+              ) : (
+                // Untested everywhere is said once, under "Not tested yet"; this covers a board the others were tested on.
+                (anyVerified || !p.open) && (
+                  <div>
+                    <h2 class="h3 mb">Tested on this board</h2>
+                    <p class="lede">Not run on this board yet. Treat the wiring and code as a first draft.</p>
+                  </div>
+                )
+              )}
             </div>
           </div>
 
-          {panel.code !== undefined && (
-            <div class="stack tight">
-              <div class="codehead">
-                <h2 class="h3">Firmware, Arduino sketch for {panel.board.arduinoBoard}</h2>
-                <button class="btn sm" type="button" data-copy>Copy firmware</button>
-              </div>
-              <pre class="code"><code>{panel.code}</code></pre>
-              <SketchBuilder
-                mode="project"
-                project={p.id}
-                board={panel.board.id}
-                libs={p.libs}
-                hugeApp={COMPILE.hugeApp.includes(p.id)}
-                baud={p.baud}
-                hasSettings={!!p.settings}
-              />
-            </div>
-          )}
         </div>
       ))
     }
 
     {
-      p.extraCode && (
-        <div class="stack tight" data-code>
-          <div class="codehead">
-            <h2 class="h3">{p.extraCode.title}</h2>
-            <button class="btn sm" type="button" data-copy>Copy sketch</button>
-          </div>
-          <pre class="code"><code>{p.extraCode.code}</code></pre>
-        </div>
-      )
-    }
-
-    <div class="cols even">
-      <div>
-        <h2 class="h3 mb">Parts</h2>
-        <a class="kitcard" href={kitSrc} title="Open the parts card at full size">
-          <img src={kitSrc} width="1200" height="630" loading="lazy" decoding="async" alt={kitAlt} />
-        </a>
-        <div class="tablebox">
-          <table>
-            <thead class="sr">
-              <tr>
-                <th>Quantity</th>
-                <th>Part</th>
-                <th>Where to buy</th>
-              </tr>
-            </thead>
-            <tbody>
-              {p.parts.map(([qty, what, href], i) => (
-                <tr>
-                  <td class="q">{qty}×</td>
-                  <td>
-                    <div class="partname">
-                      <span class="kicon" set:html={kitIconSvg(kit[i], PAGE_PALETTE, 28)} />
-                      <span>{what}</span>
-                    </div>
-                  </td>
-                  <td class="m">{href && <a href={href} rel={shopRel(href)} target="_blank">Buy at {shopVendor(href)}</a>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {hasBuyLinks && <p class="cap left">{AFFILIATE_DISCLOSURE}</p>}
-      </div>
-      {
-        p.code !== undefined && (
-          <div>
-            <h2 class="h3 mb">Libraries</h2>
-            <p>{p.libs.length > 0 ? p.libs.join(", ") : "None beyond the ESP32 Arduino core."}</p>
-          </div>
-        )
-      }
-    </div>
-
-    {
       p.flash ? (
         <div class="stack tight">
-          <h2 class="h3">Load it</h2>
-          <Flasher manifest={p.flash.manifest} version={p.flash.version} />
+          <h2 class="h3">Flash it</h2>
+          <Flasher manifest={p.flash.manifest} version={p.flash.version} project={p.id} />
           <ol class="steps">
             {p.flash.after.map((step) => <li>{step}</li>)}
           </ol>
@@ -255,22 +234,83 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
           {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Firmware source on GitHub</a></p>}
         </div>
       ) : (
-        <div class="stack">
-          {p.code !== undefined && <FirmwareLibrary projectId={p.id} boards={boards.map((b) => ({ id: b.id, name: b.name }))} />}
-          {p.settings && <SettingsForm settings={p.settings} project={p.id} baud={p.baud} />}
-          <div>
-            <h2 class="h3 mb">Load it</h2>
-            <ol class="steps">
-              <li>In the Arduino IDE, install the esp32 board package and pick the board named above the sketch.</li>
-              {needsLibraries && <li>Install the libraries listed above from the Library Manager.</li>}
-              <li>Paste the sketch, choose the board's port and upload. Hold BOOT if the upload stalls at Connecting.</li>
-              <li>Close the IDE's serial monitor, then open the bench here to watch the output.</li>
-            </ol>
-            {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Sketch source on GitHub</a></p>}
+        p.code !== undefined && (
+          <div class="stack">
+            <FirmwareLibrary projectId={p.id} boards={boards.map((b) => ({ id: b.id, name: b.name }))} />
+            {p.settings && <SettingsForm settings={p.settings} project={p.id} baud={p.baud} />}
+            {panels.map((panel, i) => {
+              if (panel.code === undefined) return null;
+              const lines = panel.code.split("\n").length;
+              const clip = lines > CLIP_LINES + 6;
+              return (
+                <div class="stack tight" data-panel={panel.board.id} hidden={i !== 0}>
+                  <div class="codehead">
+                    <h2 class="h3">The sketch, for {panel.board.arduinoBoard}</h2>
+                    <button class="btn sm" type="button" data-copy>Copy firmware</button>
+                  </div>
+                  <pre class:list={["code", { clip }]} style={clip ? `--clip-lines: ${CLIP_LINES}` : undefined}><code>{panel.code}</code></pre>
+                  {clip && (
+                    <button class="btn sm unclip" type="button" data-unclip>
+                      Show the whole sketch ({lines} lines)
+                    </button>
+                  )}
+                  <SketchBuilder
+                    mode="project"
+                    project={p.id}
+                    board={panel.board.id}
+                    libs={p.libs}
+                    hugeApp={COMPILE.hugeApp.includes(p.id)}
+                    baud={p.baud}
+                    hasSettings={!!p.settings}
+                  />
+                </div>
+              );
+            })}
+            {p.extraCode && (
+              <div class="stack tight" data-code>
+                <div class="codehead">
+                  <h2 class="h3">{p.extraCode.title}</h2>
+                  <button class="btn sm" type="button" data-copy>Copy sketch</button>
+                </div>
+                {(() => {
+                  const lines = p.extraCode.code.split("\n").length;
+                  const clip = lines > CLIP_LINES + 6;
+                  return (
+                    <>
+                      <pre class:list={["code", { clip }]} style={clip ? `--clip-lines: ${CLIP_LINES}` : undefined}><code>{p.extraCode.code}</code></pre>
+                      {clip && (
+                        <button class="btn sm unclip" type="button" data-unclip>
+                          Show the whole sketch ({lines} lines)
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+            <details class="ide">
+              <summary>Or upload it with the Arduino IDE</summary>
+              <ol class="steps">
+                <li>In the Arduino IDE, install the esp32 board package and pick the board named above the sketch.</li>
+                {needsLibraries && <li>Install the libraries listed under Parts from the Library Manager.</li>}
+                <li>Paste the sketch, choose the board's port and upload. Hold BOOT if the upload stalls at Connecting.</li>
+                <li>Close the IDE's serial monitor, then open the bench here to watch the output.</li>
+              </ol>
+              {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Sketch source on GitHub</a></p>}
+            </details>
           </div>
-        </div>
+        )
       )
     }
+
+    <div class="stack tight nextsteps">
+      <h2 class="h3">Then watch it run</h2>
+      <div class="row">
+        <a class="btn go" href={benchHref}>Open the bench at {p.baud} baud</a>
+        <button class="btn" type="button" id="built" data-project={p.id} data-board={boards[0].id} aria-pressed="false">Mark as built</button>
+        <span class="pickresult" id="built-note" role="status"></span>
+      </div>
+    </div>
 
     {
       p.notes && (
@@ -294,28 +334,17 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
       )
     }
 
-    <div class="row">
-      <a class="btn go" href={benchHref}>Open the bench at {p.baud} baud</a>
-      <button class="btn" type="button" id="built" data-project={p.id} data-board={boards[0].id} aria-pressed="false">Mark as built</button>
-      <span class="pickresult" id="built-note" role="status"></span>
-    </div>
     <div class="stack tight band" id="community" data-builds={SITE.buildsApi} data-project={p.id}>
       <h2>Community builds</h2>
-      <p class="lede" data-community-status>Loading build reports from people who made this.</p>
+      <p class="lede" data-community-status>
+        Loading build reports from people who made this.
+        {buildReportUrl && <>Built it? <a href={buildReportUrl}>Send a build report</a>.</>}
+      </p>
       <div class="labrun" data-lab hidden></div>
       <ul class="builds" data-community-list hidden></ul>
     </div>
 
     <Comments />
-
-    {
-      buildReportUrl && (
-        <p class="cap left">
-          Built it? <a href={buildReportUrl}>Send a build report</a> with your board and what the serial port printed.
-          Working reports become the "Tested on this board" entries above.
-        </p>
-      )
-    }
   </section>
 </Base>
 
@@ -334,6 +363,14 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
   .labrun :global(summary) { cursor: pointer; color: var(--muted); }
   .labrun :global(pre.code) { margin-top: 6px; max-height: 18em; }
   .labrun :global(.tag.pending) { border-style: dashed; }
+  .libs { margin: 0; font-size: 0.92rem; }
+  pre.code.clip { max-height: calc(var(--clip-lines) * 1.55em + 14px); overflow: hidden; mask-image: linear-gradient(to bottom, #000 75%, transparent); }
+  .unclip { align-self: flex-start; }
+  details.ide { background: var(--panel); border: 1px solid var(--line); padding: 10px 14px; }
+  details.ide summary { cursor: pointer; font-weight: 600; }
+  details.ide[open] summary { margin-bottom: 10px; }
+  details.ide p { margin: 10px 0 0; }
+  .nextsteps { padding: 14px; border: 1px solid var(--line); border-left: 4px solid var(--accent); background: var(--panel); }
 </style>
 
 <script>
@@ -391,6 +428,14 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     showBuilt();
   });
   showBuilt();
+
+  // Long sketches start clipped; the button shows the rest.
+  for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-unclip]")) {
+    btn.addEventListener("click", () => {
+      btn.closest("[data-panel], [data-code]")?.querySelector("pre.code")?.classList.remove("clip");
+      btn.hidden = true;
+    });
+  }
 
   for (const btn of document.querySelectorAll<HTMLButtonElement>("[data-copy]")) {
     btn.addEventListener("click", async () => {

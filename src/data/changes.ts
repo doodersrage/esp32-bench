@@ -14,6 +14,20 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-14",
+    date: "2026-11-13",
+    title: "Version 0.14: a tidier library and project pages",
+    summary:
+      "The library has grown to 54 projects, so its filters and the parts picker have been reorganised to make the right one quicker to find.",
+    items: [
+      "New filters for buttons and input, and for clocks, logging and power. Wi-Fi, Bluetooth and radio projects share one filter, and a level filter picks Starter or Intermediate.",
+      "What can I build tonight? now sits above the projects, with the parts drawer grouped into basics, sensors, displays, input, motors and radio.",
+      "Projects added in the last few weeks are marked New.",
+      "Project pages put the parts first, then the wiring, then a Flash to your board button, with long sketches shortened until you open them and the Arduino IDE steps folded away.",
+    ],
+    link: "/",
+  },
+  {
     id: "v0-13",
     date: "2026-11-13",
     title: "Version 0.13: starter-kit projects",

@@ -1,5 +1,5 @@
 ---
-import { boardsOf, type Project } from "../data/projects";
+import { boardsOf, isNew, pickerNeeds, type Project } from "../data/projects";
 import { boardById } from "../data/boards";
 import { link } from "../lib/paths";
 
@@ -11,6 +11,7 @@ interface Props {
 const { project: p, number } = Astro.props;
 const boards = boardsOf(p).map(boardById);
 const verified = (p.verified ?? []).length > 0;
+const fresh = isNew(p);
 
 // Lowercased text the library search matches against.
 const haystack = [
@@ -21,20 +22,20 @@ const haystack = [
   p.parts.map((x) => x[1]).join(" "),
   boards.map((b) => `${b.short} ${b.name}`).join(" "),
   p.flash ? "flash prebuilt firmware" : "",
+  fresh ? "new" : "",
 ]
   .join(" ")
   .toLowerCase();
 ---
 
-<a class="card" href={link(`/projects/${p.id}/`)} data-id={p.id} data-tags={p.tags.join(" ")} data-flash={p.flash ? "1" : "0"} data-needs={p.needs.map((group) => group.join("|")).join(" ")} data-hay={haystack}>
-  <span class="no">No. {String(number).padStart(2, "0")}<span class="built" data-built hidden>Built</span></span>
+<a class="card" href={link(`/projects/${p.id}/`)} data-id={p.id} data-tags={p.tags.join(" ")} data-level={p.level} data-flash={p.flash ? "1" : "0"} data-needs={pickerNeeds(p).map((group) => group.join("|")).join(" ")} data-hay={haystack}>
+  <span class="no">No. {String(number).padStart(2, "0")}<span class="built" data-built hidden>Built</span>{fresh && <span class="new">New</span>}</span>
   <span class="name">{p.name}</span>
   <span class="sum">{p.sum}</span>
   <span class="meta">
     <span class="tag lvl">{p.level}</span>
     <span class="tag">{p.mins} min</span>
     {boards.map((b) => <span class="tag pin">{b.short}</span>)}
-    {p.flash && <span class="tag flash">Browser flash</span>}
     <span class:list={["tag", verified ? "ok" : "todo"]}>{verified ? "Hardware tested" : "Not hardware tested"}</span>
   </span>
 </a>

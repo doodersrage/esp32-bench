@@ -1,11 +1,23 @@
 ---
 import Base from "../layouts/Base.astro";
 import ProjectCard from "../components/ProjectCard.astro";
-import { DRAWER, PROJECTS, TAGS } from "../data/projects";
+import { DRAWER, DRAWER_GROUPS, LEVELS, PROJECTS, TAGS, bareBoard } from "../data/projects";
 import { BADGES } from "../scripts/progress";
 import { SITE } from "../lib/site";
 
-const parts = Object.entries(DRAWER);
+// Build-time checks so the picker and the "No extra parts" filter cannot drift
+// from the data as projects are added.
+const grouped = DRAWER_GROUPS.flatMap(([, ids]) => ids);
+const ungrouped = Object.keys(DRAWER).filter((id) => !grouped.includes(id as keyof typeof DRAWER));
+const doubled = grouped.filter((id, i) => grouped.indexOf(id) !== i);
+if (ungrouped.length || doubled.length) {
+  throw new Error(`DRAWER_GROUPS: ungrouped ${ungrouped.join(", ") || "none"}; listed twice ${doubled.join(", ") || "none"}`);
+}
+const tagMismatch = PROJECTS.filter((p) => bareBoard(p) !== p.tags.includes("no-parts")).map((p) => p.id);
+if (tagMismatch.length) {
+  throw new Error(`The "no-parts" tag should be on exactly the projects with no needs: check ${tagMismatch.join(", ")}`);
+}
+const bareCount = PROJECTS.filter(bareBoard).length;
 ---
 
 <Base
@@ -22,8 +34,8 @@ const parts = Object.entries(DRAWER);
   <section class="view">
     <h1 class="sr">Project library</h1>
     <p class="lede">
-      Projects with a pin map, a parts list and firmware you can paste straight into the Arduino IDE. Pick one, wire
-      it, then watch it talk on the bench.
+      {PROJECTS.length} projects, each with a pin map, a parts list and firmware you can flash from the browser or paste
+      into the Arduino IDE. Pick one, wire it, then watch it talk on the bench.
     </p>
     <div class="filters">
       <input type="search" id="q" placeholder="Search projects, parts or boards" aria-label="Search projects" />
@@ -36,31 +48,47 @@ const parts = Object.entries(DRAWER);
           ))
         }
       </div>
+      <div class="row" id="levels" role="group" aria-label="Level">
+        {
+          LEVELS.map(([id, label]) => (
+            <button class="chip sm" type="button" data-level={id} aria-pressed={id === "all" ? "true" : "false"}>
+              {label}
+            </button>
+          ))
+        }
+        <a class="loglink" href="#log">Your bench log</a>
+      </div>
     </div>
+
+    <details class="drawer" id="drawer">
+      <summary>What can I build tonight?</summary>
+      <p class="lede">Tick what is in your parts drawer. A bare board is enough for {bareCount} of the projects.</p>
+      {
+        DRAWER_GROUPS.map(([label, ids]) => (
+          <div class="partgroup">
+            <h3 class="partlabel">{label}</h3>
+            <div class="row">
+              {ids.map((id) => (
+                <button class="chip" type="button" data-part={id} aria-pressed="false">
+                  {DRAWER[id]}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))
+      }
+      <div class="row">
+        <button class="btn go" type="button" id="pick">Pick a project</button>
+        <span class="pickresult" id="pick-result" role="status"></span>
+      </div>
+    </details>
+
     <div class="grid" id="grid">
       {PROJECTS.map((p, i) => <ProjectCard project={p} number={i + 1} />)}
     </div>
     <div class="empty" id="empty" hidden>No project matches. Clear the search or pick another filter.</div>
 
-    <div class="stack tight band" id="drawer">
-      <h2>What can I build tonight?</h2>
-      <p class="lede">Tick what is in your parts drawer. A bare board is enough for three of the projects.</p>
-      <div class="row">
-        {
-          parts.map(([id, label]) => (
-            <button class="chip" type="button" data-part={id} aria-pressed="false">
-              {label}
-            </button>
-          ))
-        }
-      </div>
-      <div class="row">
-        <button class="btn go" type="button" id="pick">Pick a project</button>
-        <span class="pickresult" id="pick-result" role="status"></span>
-      </div>
-    </div>
-
-    <div class="stack tight band">
+    <div class="stack tight band" id="log">
       <h2>Bench log</h2>
       <p class="lede" id="log-summary">Mark projects as built to fill this in. The log is kept in this browser only.</p>
       <ul class="badges">

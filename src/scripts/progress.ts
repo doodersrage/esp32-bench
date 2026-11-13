@@ -17,6 +17,7 @@ export interface ProjectMeta {
 
 const BUILT_KEY = "bench.built";
 const SEEN_KEY = "bench.seen";
+const FLASHED_KEY = "bench.flashed";
 
 export function loadBuilt(): Built {
   try {
@@ -49,6 +50,26 @@ export function markSeen(what: Seen) {
   if (seen.includes(what)) return;
   try {
     localStorage.setItem(SEEN_KEY, JSON.stringify([...seen, what]));
+  } catch {
+    // Ignore.
+  }
+}
+
+/** Projects flashed successfully from their page in this browser. */
+export function loadFlashed(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(FLASHED_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markFlashed(projectId: string) {
+  const flashed = loadFlashed();
+  if (flashed.includes(projectId)) return;
+  try {
+    localStorage.setItem(FLASHED_KEY, JSON.stringify([...flashed, projectId]));
   } catch {
     // Ignore.
   }
@@ -87,6 +108,8 @@ export function currentStreak(built: Built, now = new Date()): number {
 interface Context {
   built: Built;
   seen: Seen[];
+  /** Project ids flashed from the browser (see markFlashed) */
+  flashed: string[];
   projects: ProjectMeta[];
 }
 
@@ -104,8 +127,12 @@ const builtWith = (ctx: Context, test: (p: ProjectMeta) => boolean) =>
 export const BADGES: Badge[] = [
   { id: "first", name: "First light", how: "Mark any project as built.", earned: (c) => Object.keys(c.built).length >= 1 },
   { id: "blink", name: "Hello, blink", how: "Build Blink and heartbeat.", earned: (c) => Boolean(c.built["blink"]) },
-  { id: "flash", name: "No IDE required", how: "Build a project flashed from the browser.", earned: (c) => builtWith(c, (p) => p.flash) >= 1 },
-  { id: "air", name: "On the air", how: "Build a Wi-Fi project.", earned: (c) => builtWith(c, (p) => p.tags.includes("wifi")) >= 1 },
+  {
+    id: "flash", name: "No IDE required", how: "Flash a project from its page, then mark it as built.",
+    // Projects with their own flasher can only be built that way, so they count without a recorded flash.
+    earned: (c) => builtWith(c, (p) => p.flash || c.flashed.includes(p.id)) >= 1,
+  },
+  { id: "air", name: "On the air", how: "Build a Wi-Fi or radio project.", earned: (c) => builtWith(c, (p) => p.tags.includes("wireless")) >= 1 },
   { id: "sensors", name: "Sensor wrangler", how: "Build three sensor projects.", earned: (c) => builtWith(c, (p) => p.tags.includes("sensors")) >= 3 },
   {
     id: "boards", name: "Three boards", how: "Build on an ESP32, an S3 and a C3.",

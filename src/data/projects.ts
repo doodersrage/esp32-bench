@@ -4,7 +4,7 @@ import { PROBEHARBOR_SKETCHES } from "./probeharbor";
 import { WIFI, benchSettings, type Setting } from "./bench-settings";
 export type { Setting } from "./bench-settings";
 
-export type Tag = "games" | "motion" | "no-parts" | "sensors" | "display" | "lights" | "wifi" | "bluetooth" | "power" | "flash" | "probeharbor";
+export type Tag = "games" | "motion" | "no-parts" | "sensors" | "input" | "display" | "lights" | "wireless" | "logging" | "probeharbor";
 
 /** A check done on real hardware. `board` says which board it was done on. */
 export interface Verified {
@@ -22,6 +22,8 @@ export interface Project {
   /** Rough build time in minutes */
   mins: number;
   tags: Tag[];
+  /** Date the project was published (YYYY-MM-DD); the library marks it New for NEW_FOR_DAYS */
+  added?: string;
   /** One-line summary */
   sum: string;
   /**
@@ -117,23 +119,56 @@ export const DRAWER = {
   ds3231: "DS3231 real-time clock",
   tft: "ST7789 colour TFT",
   sdcard: "MicroSD card module",
+  esp32cam: "ESP32-CAM board",
 } as const;
 export type DrawerPart = keyof typeof DRAWER;
 
+/** The drawer picker's parts, grouped. Every DRAWER part appears in exactly one group (checked at build). */
+export const DRAWER_GROUPS: [string, DrawerPart[]][] = [
+  ["Basics", ["led", "rgbled", "button", "pot", "buzzer", "wires", "transistor", "shiftreg"]],
+  ["Sensors", ["dht22", "ds18b20", "i2c", "hcsr04", "sharpir", "mpu6050", "pir", "ldr", "soil", "reed", "powersense", "max31855", "max6675"]],
+  ["Displays and lights", ["oled", "lcd1602", "epaper", "tft", "max7219", "sevenseg", "neopixel"]],
+  ["Input", ["joystick", "encoder", "keypad", "irreceiver", "rc522"]],
+  ["Motors and switching", ["servo", "relay", "dcmotor", "stepper"]],
+  ["Radio, time and storage", ["nrf24", "ds3231", "sdcard"]],
+  ["Other boards", ["esp32cam"]],
+];
+
 export const TAGS: [Tag | "all", string][] = [
   ["all", "All"],
-  ["flash", "Browser flash"],
-  ["probeharbor", "ProbeHarbor"],
   ["no-parts", "No extra parts"],
-  ["games", "Games and toys"],
   ["sensors", "Sensors"],
+  ["input", "Buttons and input"],
   ["display", "Display"],
   ["lights", "Lights"],
-  ["wifi", "Wi-Fi"],
-  ["bluetooth", "Bluetooth"],
   ["motion", "Motors and relays"],
-  ["power", "Power"],
+  ["wireless", "Wi-Fi and radio"],
+  ["logging", "Clocks, logging and power"],
+  ["games", "Games and toys"],
+  ["probeharbor", "ProbeHarbor"],
 ];
+
+export const LEVELS: [Project["level"] | "all", string][] = [
+  ["all", "Any level"],
+  ["Starter", "Starter"],
+  ["Intermediate", "Intermediate"],
+];
+
+/** How long a project keeps its New mark after `added`. */
+export const NEW_FOR_DAYS = 45;
+export const isNew = (p: Project, now = Date.now()): boolean =>
+  p.added !== undefined && now - Date.parse(p.added) < NEW_FOR_DAYS * 86_400_000;
+
+/**
+ * What the "build tonight" picker needs in the drawer: the project's parts, plus
+ * the board itself when it only runs on one that is not a plain dev board. Kept
+ * out of `needs`, which the wiring pad loads as parts to wire.
+ */
+export const pickerNeeds = (p: Project): DrawerPart[][] =>
+  boardsOf(p).every((b) => b === "esp32-cam") ? [...p.needs, ["esp32cam"]] : p.needs;
+
+/** Projects that run on a bare dev board with nothing else. */
+export const bareBoard = (p: Project): boolean => pickerNeeds(p).length === 0;
 
 const fill = (text: string, vars: Record<string, string>) =>
   text.replace(/%([A-Z]+)%/g, (whole, name: string) => vars[name] ?? whole);
@@ -155,7 +190,7 @@ const R = String.raw;
 
 export const PROJECTS: Project[] = [
   {
-    id: "probeharbor-probe", needs: [["ds18b20", "dht22", "i2c"]], name: "ProbeHarbor probe", level: "Starter", mins: 15, tags: ["flash", "probeharbor", "sensors", "wifi"],
+    id: "probeharbor-probe", needs: [["ds18b20", "dht22", "i2c"]], name: "ProbeHarbor probe", level: "Starter", mins: 15, tags: ["probeharbor", "sensors", "wireless"],
     sum: "Prebuilt sensor firmware from the ProbeHarbor project. Flash it from this page, then it finds a temperature sensor by itself and posts a reading every minute.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -260,7 +295,7 @@ void loop() {
     sample: ["ets Jul 29 2019 12:21:46", "rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)", "tick 1000 ms", "tick 2000 ms", "tick 3000 ms", "tick 4000 ms"]
   },
   {
-    id: "wifi-scan", needs: [], name: "Wi-Fi scanner", level: "Starter", mins: 5, tags: ["no-parts", "wifi"],
+    id: "wifi-scan", needs: [], name: "Wi-Fi scanner", level: "Starter", mins: 5, tags: ["no-parts", "wireless"],
     sum: "List nearby networks with signal strength and channel every ten seconds. A quick radio health check.",
     boards: ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32c3", "xiao-esp32s3", "esp32-cam"],
     pins: [], libs: ["WiFi (built in)"], baud: 115200,
@@ -428,7 +463,7 @@ void loop() {
     sample: ["34.2 cm", "34.1 cm", "33.8 cm", "No echo", "12.6 cm"]
   },
   {
-    id: "deep-sleep", needs: [["button"]], name: "Deep sleep, button wake", level: "Intermediate", mins: 20, tags: ["power"],
+    id: "deep-sleep", needs: [["button"]], name: "Deep sleep, button wake", level: "Intermediate", mins: 20, tags: ["logging"],
     sum: "Sleep at microamp current and wake on a button press. A boot counter survives in RTC memory.",
     pins: ["3V3", "GND", "33"], libs: [], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "Push button"], [1, "10 kΩ resistor"], [3, "Jumper wires"]],
@@ -451,7 +486,7 @@ void loop() {}`,
     sample: ["rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)", "Boot 1, wake cause 0", "Sleeping. Press the button to wake.", "rst:0x5 (DEEPSLEEP_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)", "Boot 2, wake cause 2", "Sleeping. Press the button to wake."]
   },
   {
-    id: "web-led", needs: [], name: "Web page LED switch", level: "Intermediate", mins: 20, tags: ["wifi"],
+    id: "web-led", needs: [], name: "Web page LED switch", level: "Intermediate", mins: 20, tags: ["no-parts", "wireless"],
     sum: "Join your Wi-Fi, serve a one-button page and switch GPIO 2 from any phone on the network.",
     pins: ["2"], libs: ["WiFi (built in)", "WebServer (built in)"], baud: 115200,
     parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "LED and 220 Ω resistor, only if your board has no LED on GPIO 2"]],
@@ -508,7 +543,7 @@ void loop() {
     sample: ["SETTINGS\twifi_ssid=set\twifi_pass=set", ".......", "Open http://192.168.1.57"]
   },
   {
-    id: "touch-piano", needs: [], name: "Touch piano", level: "Starter", mins: 10, tags: ["no-parts", "sensors"],
+    id: "touch-piano", needs: [], name: "Touch piano", level: "Starter", mins: 10, tags: ["no-parts", "sensors", "input"],
     sum: "Turn four bare wires into touch keys. Each touch prints a note, and an optional buzzer plays it.",
     boards: ["esp32", "esp32s3"],
     vars: {
@@ -600,7 +635,7 @@ void loop() {
     ],
   },
   {
-    id: "esp-now", needs: [], name: "ESP-NOW pair", level: "Intermediate", mins: 20, tags: ["no-parts", "wifi"],
+    id: "esp-now", needs: [], name: "ESP-NOW pair", level: "Intermediate", mins: 20, tags: ["no-parts", "wireless"],
     sum: "Two boards talk directly over the Wi-Fi radio, with no router. Each sends a counter and prints what the other sends.",
     boards: ["esp32", "esp32s3", "esp32c3", "esp32s2", "esp32c6", "xiao-esp32c3", "xiao-esp32s3"],
     pins: [], libs: ["WiFi (built in)", "esp_now (built in)"], baud: 115200,
@@ -767,7 +802,7 @@ void loop() {
     sample: ["8 LEDs on GPIO %PIX%", "effect: color wipe", "effect: rainbow", "effect: theater chase", "effect: color wipe"],
   },
   {
-    id: "mqtt-ha", needs: [["ds18b20"]], name: "Home Assistant temperature", level: "Intermediate", mins: 30, tags: ["sensors", "wifi"],
+    id: "mqtt-ha", needs: [["ds18b20"]], name: "Home Assistant temperature", level: "Intermediate", mins: 30, tags: ["sensors", "wireless"],
     sum: "Publish a DS18B20 reading over MQTT every 30 seconds. Home Assistant finds the sensor by itself through MQTT discovery.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     pins: ["3V3", "GND", "4"], libs: ["PubSubClient (Nick O'Leary)", "OneWire", "DallasTemperature", "WiFi (built in)"], baud: 115200,
@@ -910,7 +945,7 @@ void loop() {
     ],
   },
   {
-    id: "ble-scan", needs: [], name: "Bluetooth LE scanner", level: "Starter", mins: 5, tags: ["no-parts", "bluetooth"],
+    id: "ble-scan", needs: [], name: "Bluetooth LE scanner", level: "Starter", mins: 5, tags: ["no-parts", "wireless"],
     sum: "List nearby Bluetooth LE devices with their signal strength every ten seconds: phones, watches, beacons and sensors.",
     boards: ["esp32", "esp32s3", "esp32c3", "esp32c6", "xiao-esp32c3", "xiao-esp32s3"],
     pins: [], libs: ["BLE (built in)"], baud: 115200,
@@ -961,7 +996,7 @@ void loop() {
     ],
   },
   {
-    id: "ota", needs: [], name: "Over-the-air updates", level: "Intermediate", mins: 15, tags: ["no-parts", "wifi"],
+    id: "ota", needs: [], name: "Over-the-air updates", level: "Intermediate", mins: 15, tags: ["no-parts", "wireless"],
     sum: "Upload new firmware over Wi-Fi with ArduinoOTA, so a board in a box on the shelf never needs a USB cable again.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     pins: [], libs: ["WiFi (built in)", "ArduinoOTA (built in)", "ESPmDNS (built in)"], baud: 115200,
@@ -1042,7 +1077,7 @@ void loop() {
     ],
   },
   {
-    id: "battery-sensor", needs: [["ds18b20"]], name: "Battery deep-sleep sensor", level: "Intermediate", mins: 30, tags: ["power", "sensors"],
+    id: "battery-sensor", needs: [["ds18b20"]], name: "Battery deep-sleep sensor", level: "Intermediate", mins: 30, tags: ["logging", "sensors"],
     sum: "Wake every five minutes, read a DS18B20 and the battery voltage, then go back to deep sleep. A boot counter survives in RTC memory.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: { esp32: { BAT: "35" }, esp32s3: { BAT: "7" }, esp32c3: { BAT: "3" } },
@@ -1338,7 +1373,7 @@ void loop() {
     ],
   },
   {
-    id: "bme280-web", needs: [["i2c"]], name: "BME280 web dashboard", level: "Intermediate", mins: 25, tags: ["sensors", "wifi"],
+    id: "bme280-web", needs: [["i2c"]], name: "BME280 web dashboard", level: "Intermediate", mins: 25, tags: ["sensors", "wireless"],
     sum: "The board serves its own web page with live temperature, humidity and pressure and a chart that grows every two seconds.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: { esp32: { SDA: "21", SCL: "22" }, esp32s3: { SDA: "8", SCL: "9" }, esp32c3: { SDA: "6", SCL: "7" } },
@@ -1455,7 +1490,7 @@ void loop() {
     ],
   },
   {
-    id: "wifi-portal", needs: [], name: "Wi-Fi setup portal", level: "Intermediate", mins: 20, tags: ["no-parts", "wifi"],
+    id: "wifi-portal", needs: [], name: "Wi-Fi setup portal", level: "Intermediate", mins: 20, tags: ["no-parts", "wireless"],
     sum: "No passwords in the sketch: the board opens its own setup network with a page to pick your Wi-Fi, saves it, and joins it from then on.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: { esp32: { BOOT: "0" }, esp32s3: { BOOT: "0" }, esp32c3: { BOOT: "9" } },
@@ -1611,7 +1646,7 @@ void loop() {
     ],
   },
   {
-    id: "esp32-cam-stream", needs: [], name: "ESP32-CAM video stream", level: "Intermediate", mins: 30, tags: ["wifi"],
+    id: "esp32-cam-stream", needs: [], name: "ESP32-CAM video stream", level: "Intermediate", mins: 30, tags: ["wireless"],
     sum: "Stream live video from an ESP32-CAM to any browser on your network. Joins your Wi-Fi and serves the camera at its own address.",
     boards: ["esp32-cam"],
     pins: ["5V", "GND", "0", "1", "3"],
@@ -2010,7 +2045,7 @@ void loop() {
     ],
   },
   {
-    id: "simon", needs: [["led"], ["button"], ["buzzer"]], name: "Simon memory game", level: "Intermediate", mins: 40, tags: ["games"],
+    id: "simon", needs: [["led"], ["button"], ["buzzer"]], name: "Simon memory game", level: "Intermediate", mins: 40, tags: ["games", "input"],
     sum: "Four lights, four buttons, four tones. Repeat the growing pattern for as long as you can; the high score is saved.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -2256,7 +2291,7 @@ void loop() {
     ],
   },
   {
-    id: "oled-pong", needs: [["oled"], ["pot"]], name: "OLED Pong", level: "Intermediate", mins: 30, tags: ["games", "display"],
+    id: "oled-pong", needs: [["oled"], ["pot"]], name: "OLED Pong", level: "Intermediate", mins: 30, tags: ["games", "display", "input"],
     sum: "Classic Pong on a tiny OLED with two knobs as paddles. Play a friend, or set one side to the computer.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -2402,7 +2437,7 @@ void loop() {
     ],
   },
   {
-    id: "dice", needs: [["oled"], ["button"]], name: "Electronic dice", level: "Starter", mins: 20, tags: ["games", "display"],
+    id: "dice", needs: [["oled"], ["button"]], name: "Electronic dice", level: "Starter", mins: 20, tags: ["games", "display", "input"],
     sum: "Press a button to roll two dice on an OLED, with a tumbling animation. The serial port keeps score, so you can check how fair the dice are.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -2529,7 +2564,7 @@ void loop() {
     ],
   },
   {
-    id: "ntp-clock", needs: [["oled"]], name: "NTP internet clock", level: "Starter", mins: 20, tags: ["display", "wifi"],
+    id: "ntp-clock", needs: [["oled"]], name: "NTP internet clock", level: "Starter", mins: 20, tags: ["display", "wireless", "logging"],
     sum: "A desk clock that sets itself from the internet and handles daylight saving on its own. Big digits and the date on a small OLED.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: { esp32: { SDA: "21", SCL: "22" }, esp32s3: { SDA: "8", SCL: "9" }, esp32c3: { SDA: "6", SCL: "7" } },
@@ -3218,7 +3253,7 @@ void loop() {
     ],
   },
   {
-    id: "joystick-turret", needs: [["joystick"], ["servo"]], name: "Joystick pan-tilt turret", level: "Starter", mins: 30, tags: ["games", "motion"],
+    id: "joystick-turret", needs: [["joystick"], ["servo"]], name: "Joystick pan-tilt turret", level: "Starter", mins: 30, tags: ["games", "motion", "input"],
     sum: "Steer two servos with a thumb joystick, like a camera turret. Add an MPU-6050 and a click of the stick switches to tilt steering: point your hand and the turret follows.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -3717,7 +3752,7 @@ void loop() {
     ],
   },
   {
-    id: "rfid-reader", needs: [["rc522"], ["led"], ["buzzer"]], name: "RFID card reader", level: "Intermediate", mins: 30, tags: ["sensors"],
+    id: "rfid-reader", needs: [["rc522"], ["led"], ["buzzer"]], name: "RFID card reader", level: "Intermediate", mins: 30, tags: ["input"], added: "2026-11-13",
     sum: "Tap a card or key fob to read its ID. A master card adds and removes cards from an allowed list that survives a power cut, with a green or red light and a beep.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -3903,7 +3938,7 @@ void loop() {
     ],
   },
   {
-    id: "ir-remote", needs: [["irreceiver"], ["led"]], name: "IR remote decoder", level: "Starter", mins: 20, tags: ["sensors", "lights"],
+    id: "ir-remote", needs: [["irreceiver"], ["led"]], name: "IR remote decoder", level: "Starter", mins: 20, tags: ["input", "lights"], added: "2026-11-13",
     sum: "Point any TV or kit remote at an IR receiver and see each button's protocol and code on the bench. Teach it three buttons and they switch three LEDs.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -4028,7 +4063,7 @@ void loop() {
     ],
   },
   {
-    id: "stepper-28byj", needs: [["stepper"]], name: "Stepper motor control", level: "Intermediate", mins: 25, tags: ["motion"],
+    id: "stepper-28byj", needs: [["stepper"]], name: "Stepper motor control", level: "Intermediate", mins: 25, tags: ["motion"], added: "2026-11-13",
     sum: "Drive the 28BYJ-48 stepper from almost every starter kit through its ULN2003 board: smooth acceleration, exact positions, and commands typed on the bench.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -4147,7 +4182,7 @@ void loop() {
     ],
   },
   {
-    id: "keypad-lock", needs: [["keypad"], ["servo"], ["buzzer"]], name: "Keypad code lock", level: "Intermediate", mins: 35, tags: ["motion", "games"],
+    id: "keypad-lock", needs: [["keypad"], ["servo"], ["buzzer"]], name: "Keypad code lock", level: "Intermediate", mins: 35, tags: ["input", "motion", "games"], added: "2026-11-13",
     sum: "A 4x4 keypad and a servo latch make a code lock. Change the code from the keypad; wrong guesses lock it out for longer each time.",
     boards: ["esp32", "esp32s3"],
     vars: {
@@ -4329,7 +4364,7 @@ void loop() {
     ],
   },
   {
-    id: "ph-display", needs: [["oled"]], name: "ProbeHarbor readout display", level: "Intermediate", mins: 20, tags: ["probeharbor", "display", "wifi"],
+    id: "ph-display", needs: [["oled"]], name: "ProbeHarbor readout display", level: "Intermediate", mins: 20, tags: ["probeharbor", "display", "wireless"],
     probeharbor: "reads",
     sum: "Show your ProbeHarbor sensors on a small OLED by the door: each probe's latest reading, how old it is, and a flashing warning for freezing, water or lost power.",
     boards: ["esp32", "esp32s3", "esp32c3"],
@@ -4788,7 +4823,7 @@ void loop() {
     ],
   },
   {
-    id: "ph-lcd", needs: [["lcd1602"], ["encoder"]], name: "ProbeHarbor on a 16x2 LCD", level: "Intermediate", mins: 40, tags: ["probeharbor", "display", "wifi"],
+    id: "ph-lcd", needs: [["lcd1602"], ["encoder"]], name: "ProbeHarbor on a 16x2 LCD", level: "Intermediate", mins: 40, tags: ["probeharbor", "display", "wireless", "input"],
     probeharbor: "reads",
     sum: "Your ProbeHarbor sensors on the classic 16x2 character LCD. Turn a rotary encoder to step through them, press it for the device and the reading's age, and watch for the ! that marks freezing, water or lost power.",
     boards: ["esp32", "esp32s3", "esp32c3"],
@@ -5313,7 +5348,7 @@ void loop() {
     ],
   },
   {
-    id: "ph-motion", needs: [["pir"], ["rgbled", "led"]], name: "PIR motion sensor for ProbeHarbor", level: "Starter", mins: 25, tags: ["probeharbor", "sensors", "wifi"],
+    id: "ph-motion", needs: [["pir"], ["rgbled", "led"]], name: "PIR motion sensor for ProbeHarbor", level: "Starter", mins: 25, tags: ["probeharbor", "sensors", "wireless"],
     probeharbor: "sends",
     sum: "An HC-SR501 PIR sensor reports motion in the garage, shed or workshop to ProbeHarbor, with an RGB LED that glows green when quiet, red on motion and blue if Wi-Fi or ProbeHarbor is unreachable.",
     boards: ["esp32", "esp32s3", "esp32c3"],
@@ -5591,7 +5626,7 @@ void loop() {
     ],
   },
   {
-    id: "nrf24-link", needs: [["nrf24"]], name: "Arduino Uno to ESP32 radio link", level: "Intermediate", mins: 45, tags: ["wifi", "sensors"],
+    id: "nrf24-link", needs: [["nrf24"]], name: "Arduino Uno to ESP32 radio link", level: "Intermediate", mins: 45, tags: ["wireless", "sensors"],
     sum: "Give an old Arduino Uno a radio: two nRF24L01+ modules carry a light sensor and a button from the Uno to an ESP32, which plots them on the bench and serves them on a web page.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -5824,7 +5859,7 @@ void loop() {
     ],
   },
   {
-    id: "led-matrix", needs: [["max7219"]], name: "Scrolling LED matrix", level: "Starter", mins: 20, tags: ["display", "lights"],
+    id: "led-matrix", needs: [["max7219"]], name: "Scrolling LED matrix", level: "Starter", mins: 20, tags: ["display", "lights"], added: "2026-11-13",
     sum: "Scroll your own text across a chain of MAX7219 8x8 LED matrix modules. Type a new message on the bench and it scrolls straight away.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -5942,7 +5977,7 @@ void loop() {
     ],
   },
   {
-    id: "rtc-clock", needs: [["ds3231"]], name: "DS3231 real-time clock", level: "Starter", mins: 20, tags: ["sensors"],
+    id: "rtc-clock", needs: [["ds3231"]], name: "DS3231 real-time clock", level: "Starter", mins: 20, tags: ["logging"], added: "2026-11-13",
     sum: "Keep accurate time without Wi-Fi using a DS3231 clock module and its coin cell, with a daily alarm that beeps and the chip's own temperature for the plotter.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -6093,7 +6128,7 @@ void loop() {
     ],
   },
   {
-    id: "tft-display", needs: [["tft"]], name: "Colour TFT dashboard", level: "Intermediate", mins: 25, tags: ["display"],
+    id: "tft-display", needs: [["tft"]], name: "Colour TFT dashboard", level: "Intermediate", mins: 25, tags: ["display"], added: "2026-11-13",
     sum: "Drive a 2 inch ST7789 colour screen: a sweeping colour gauge, a bouncing ball and a live frame-rate counter, with no sensors or Wi-Fi needed.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
@@ -6237,7 +6272,7 @@ void loop() {
     ],
   },
   {
-    id: "sd-logger", needs: [["sdcard"], ["ldr"]], name: "MicroSD data logger", level: "Intermediate", mins: 25, tags: ["sensors"],
+    id: "sd-logger", needs: [["sdcard"], ["ldr"]], name: "MicroSD data logger", level: "Intermediate", mins: 25, tags: ["logging", "sensors"], added: "2026-11-13",
     sum: "Log readings to a microSD card as a CSV file you can open in a spreadsheet: light level, free memory and, on the S3 and C3, the chip's own temperature. A new file every boot.",
     boards: ["esp32", "esp32s3", "esp32c3"],
     vars: {
