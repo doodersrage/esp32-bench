@@ -413,6 +413,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
 
 <script>
   import { loadBuilt, loadShop, saveBuilt, saveShop } from "../../scripts/progress";
+  import { loadState as loadSyncState } from "../../scripts/sync";
 
   // Board switcher: one pre-rendered panel per board, one visible at a time.
   const buttons = [...document.querySelectorAll<HTMLButtonElement>("#boardswitch [data-board]")];
@@ -453,6 +454,12 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
     builtBtn.setAttribute("aria-pressed", String(Boolean(mark)));
     builtBtn.textContent = mark ? "Built. Undo" : "Mark as built";
     builtNote.textContent = mark ? `Logged on ${new Date(mark.at).toLocaleDateString()}. See your badges on the library page.` : "";
+    if (mark && !loadSyncState()) {
+      const a = document.createElement("a");
+      a.href = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/#sync`;
+      a.textContent = "Sync it to your other devices.";
+      builtNote.append(" ", a);
+    }
   }
   builtBtn.addEventListener("click", () => {
     const all = loadBuilt();

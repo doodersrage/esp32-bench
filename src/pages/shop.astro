@@ -63,6 +63,7 @@ const data = PROJECTS.map((p) => {
         <div class="row">
           <button class="btn sm" type="button" id="shop-copy">Copy the list</button>
           <button class="btn sm" type="button" id="shop-print">Print</button>
+          <a class="btn sm" href={link("/#sync")} id="shop-phone">Take this list to your phone</a>
         </div>
       </div>
       <fieldset class="shopmode">
@@ -98,7 +99,7 @@ const data = PROJECTS.map((p) => {
   #shop-rows .for { font-size: 0.82rem; color: var(--muted); }
   #shop-rows a { color: var(--accent); white-space: nowrap; }
   @media print {
-    #shop-add, #shop-clear, #shop-copy, #shop-print, .shopmode, #shop-projects button { display: none !important; }
+    #shop-add, #shop-clear, #shop-copy, #shop-print, #shop-phone, .shopmode, #shop-projects button { display: none !important; }
   }
 </style>
 

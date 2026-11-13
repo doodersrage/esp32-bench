@@ -1,12 +1,12 @@
 // The "Use this log on another device" panel on the home page.
-import { check, create, deleteCloud, link, loadState, unlink } from "./sync";
+import { create, deleteCloud, link, loadState, unlink } from "./sync";
 
 interface Turnstile {
   render(el: HTMLElement, options: Record<string, unknown>): string;
   reset(id: string): void;
 }
 
-const box = document.getElementById("sync") as HTMLDetailsElement | null;
+const box = document.getElementById("sync");
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
 const off = $("sync-off");
 const on = $("sync-on");
@@ -27,6 +27,8 @@ function render() {
   if (off) off.hidden = Boolean(s);
   if (on) on.hidden = !s;
   if (s && shown) shown.textContent = s.code;
+  const logLink = document.getElementById("loglink");
+  if (logLink) logLink.textContent = s ? "Your bench log · synced" : "Your bench log";
   if (s && when) when.textContent = `Last synced ${new Date(s.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}.`;
 }
 
@@ -132,12 +134,12 @@ $("sync-delete")?.addEventListener("click", async () => {
 const fromLink = /^#sync=([0-9A-Za-z-]{16,24})$/.exec(location.hash);
 if (fromLink && box && input && !loadState()) {
   input.value = fromLink[1];
-  box.open = true;
   history.replaceState(null, "", location.pathname + location.search + "#log");
   box.scrollIntoView({ block: "center" });
   say("Press Link this browser to combine this browser's log with the one behind the code.");
 }
 
+if (location.hash === "#sync" && box) box.scrollIntoView({ block: "center" });
+
 window.addEventListener("bench:sync", render);
 render();
-if (box && loadState()) box.addEventListener("toggle", () => box.open && void check().then(render), { once: true });

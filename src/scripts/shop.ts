@@ -1,5 +1,6 @@
 // Shopping list page: merges the parts of the projects on the list.
 import { loadShop, saveShop } from "./progress";
+import { loadState as loadSyncState } from "./sync";
 
 interface Item {
   key: string;
@@ -144,3 +145,7 @@ copy.addEventListener("click", async () => {
 });
 
 render();
+
+// Already synced: the list is on the other devices, so no need to point there.
+const phone = document.getElementById("shop-phone");
+if (phone && loadSyncState()) phone.hidden = true;

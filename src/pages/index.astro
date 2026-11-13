@@ -88,7 +88,7 @@ const boardOptions = BOARDS.map((b) => ({ id: b.id, name: b.name, count: PROJECT
           </select>
         </label>
         <button class="chip sm" type="button" id="lab-only" aria-pressed="false" hidden title="Projects that passed the latest hardware lab run">Lab tested</button>
-        <a class="loglink" href="#log">Your bench log</a>
+        <a class="loglink" href="#log" id="loglink">Your bench log</a>
         <a class="loglink2" href={link("/shop/")} id="shop-count" hidden>Shopping list</a>
       </div>
     </div>
@@ -155,27 +155,15 @@ const boardOptions = BOARDS.map((b) => ({ id: b.id, name: b.name, count: PROJECT
     <div class="stack tight band" id="log">
       <h2>Bench log</h2>
       <p class="lede" id="log-summary">Mark projects as built to fill this in. The log is kept in this browser unless you sync it.</p>
-      <ul class="badges">
-        {
-          BADGES.map((b) => (
-            <li class="badge" data-badge={b.id}>
-              <span class="badgename">{b.name}</span>
-              <span class="badgehow">{b.how}</span>
-              <span class="badgestate" data-badge-state>Locked</span>
-            </li>
-          ))
-        }
-      </ul>
-
-      <details class="sync" id="sync" data-sitekey={SITE.turnstileSitekey}>
-        <summary>Use this log on another device</summary>
+      <div class="sync" id="sync" data-sitekey={SITE.turnstileSitekey}>
+        <h3 class="synchead">On your phone too</h3>
         <div class="stack tight" id="sync-off">
           <p>
-            A sync code keeps your bench log, shopping list, parts drawer and board the same in every browser you enter it in. There is no
-            account and no email: the code is the only key, so keep it somewhere safe and do not share it.
+            A sync code keeps this log, your shopping list and your parts drawer the same on every device. No account or email: the code
+            is the only key, so keep it to yourself.
           </p>
           <div class="syncrow">
-            <button class="btn" type="button" id="sync-make">Make a sync code</button>
+            <button class="btn go" type="button" id="sync-make">Make a sync code</button>
             <div id="sync-human"></div>
           </div>
           <form class="syncrow" id="sync-link">
@@ -189,15 +177,25 @@ const boardOptions = BOARDS.map((b) => ({ id: b.id, name: b.name, count: PROJECT
           <div class="syncrow">
             <button class="btn sm" type="button" id="sync-copy">Copy code</button>
             <button class="btn sm" type="button" id="sync-copylink">Copy a link for another device</button>
-          </div>
-          <p class="cap left" id="sync-when"></p>
-          <div class="syncrow">
             <button class="btn sm" type="button" id="sync-unlink">Stop syncing in this browser</button>
             <button class="btn sm" type="button" id="sync-delete">Delete the cloud copy</button>
           </div>
+          <p class="cap left" id="sync-when"></p>
         </div>
         <p class="cap left" id="sync-status" role="status"></p>
-      </details>
+      </div>
+      <ul class="badges">
+        {
+          BADGES.map((b) => (
+            <li class="badge" data-badge={b.id}>
+              <span class="badgename">{b.name}</span>
+              <span class="badgehow">{b.how}</span>
+              <span class="badgestate" data-badge-state>Locked</span>
+            </li>
+          ))
+        }
+      </ul>
+
     </div>
   </section>
 </Base>
