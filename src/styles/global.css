@@ -416,3 +416,7 @@ ul.builds { list-style: none; margin: 0; padding: 0; display: flex; flex-directi
 .synctoast button { background: none; border: 1px solid currentColor; color: inherit; border-radius: 2px; padding: 3px 8px; cursor: pointer; }
 .synctoast button.x { border: 0; font-size: 1.1rem; padding: 0 4px; }
 @media print { .sync, .synctoast { display: none; } }
+
+/* "What it prints": the QEMU replay on project pages */
+.previewterm { height: auto; min-height: 0; max-height: 300px; }
+@media print { .preview { display: none !important; } }

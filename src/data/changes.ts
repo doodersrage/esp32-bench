@@ -14,6 +14,17 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-20",
+    date: "2026-11-13",
+    title: "Version 0.20: see what a project prints before you build it",
+    summary: "Projects that need nothing attached now show what their firmware prints, recorded from the real firmware running in an ESP32 emulator.",
+    items: [
+      "What it prints, under Then watch it run: the serial output of the project's library firmware, replayed at its own pace, for the ESP32 and the ESP32-C3.",
+      "Recorded on every firmware library build, so it always matches the firmware you would flash.",
+    ],
+    link: "/projects/blink/",
+  },
+  {
     id: "v0-19",
     date: "2026-11-13",
     title: "Version 0.19: your bench log on every device",

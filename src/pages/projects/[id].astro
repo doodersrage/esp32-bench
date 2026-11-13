@@ -6,12 +6,13 @@ import Pinout from "../../components/Pinout.astro";
 import WiringDiagram from "../../components/WiringDiagram.astro";
 import Flasher from "../../components/Flasher.astro";
 import FirmwareLibrary from "../../components/FirmwareLibrary.astro";
+import { LAB_EXPECT } from "../../data/lab-expect";
 import ProbeSetup from "../../components/ProbeSetup.astro";
 import SettingsForm from "../../components/SettingsForm.astro";
 import SketchBuilder from "../../components/SketchBuilder.astro";
 import COMPILE from "../../data/compile-libs.json";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
-import { boardById, buildChoices, buildTarget } from "../../data/boards";
+import { BOARDS, boardById, buildChoices, buildTarget } from "../../data/boards";
 import { link } from "../../lib/paths";
 import { PROBEHARBOR, SITE, reportUrl } from "../../lib/site";
 import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
@@ -57,6 +58,10 @@ const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
 const boardNames = boards.map((b) => b.name).join(", ");
 const summary = p.sum.length > 150 ? `${p.sum.slice(0, p.sum.lastIndexOf(" ", 147))}...` : p.sum;
 const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`;
+// "What it prints": only projects that need nothing attached can have a QEMU preview (scripts/emulate-firmware.mjs).
+const labExpect = LAB_EXPECT[p.id];
+const previewable = Boolean(labExpect && labExpect.needs === "none" && !(labExpect.settings ?? []).length);
+const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" || b.id === "esp32c3").map((b) => [b.id, b.name]));
 ---
 
 <Base title={`${p.name}: ESP32 project`} description={description} current="library" image={`/og/projects/${p.id}.png`}>
@@ -327,6 +332,21 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
         <span class="pickresult" id="built-note" role="status"></span>
       </div>
       {
+        previewable && (
+          <div class="preview stack tight" id="preview" data-src={`${SITE.fwBase}/${p.id}/preview.json`} data-names={JSON.stringify(previewBoards)} hidden>
+            <div class="codehead">
+              <h3 class="h4">What it prints</h3>
+              <div class="row">
+                <select id="preview-board" aria-label="Board" hidden />
+                <button class="btn sm" type="button" id="preview-replay">Replay</button>
+              </div>
+            </div>
+            <div class="term previewterm" id="preview-term" role="log" aria-label="Serial output, recorded" />
+            <p class="cap left" id="preview-note" />
+          </div>
+        )
+      }
+      {
         onPaths.map((path) => (
           <p class="pathnote">
             Step {path.step} of {path.of} in the <a href={`${link("/")}#paths`}>{path.name}</a> starter path.
@@ -414,6 +434,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
 <script>
   import { loadBuilt, loadShop, saveBuilt, saveShop } from "../../scripts/progress";
   import { loadState as loadSyncState } from "../../scripts/sync";
+  import "../../scripts/preview.ts";
 
   // Board switcher: one pre-rendered panel per board, one visible at a time.
   const buttons = [...document.querySelectorAll<HTMLButtonElement>("#boardswitch [data-board]")];

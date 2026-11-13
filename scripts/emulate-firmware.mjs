@@ -9,7 +9,13 @@
 //
 // QEMU_DIR holds bin/qemu-system-xtensa and bin/qemu-system-riscv32 from
 // https://github.com/espressif/qemu/releases. Without --strict it only reports;
-// with --strict a crash, a boot loop or no boot at all exits 1. A missing
+// with --strict a crash, a boot loop or no boot at all exits 1.
+//
+// It also writes <project>/preview.json next to the images: what each board
+// printed, with timings, for projects that need nothing attached and printed
+// what the lab expects. Project pages replay it as "What it prints". Every
+// project gets the file, empty when there is nothing to show, so a preview
+// that stops being true is overwritten rather than left behind. A missing
 // expected line never fails the run: QEMU's timing and missing peripherals make
 // that a hint, not a verdict.
 import { spawn, spawnSync } from "node:child_process";
@@ -112,20 +118,26 @@ function run(job) {
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
+    const started = Date.now();
+    /** [ms since start, text] per chunk, for the replay on project pages */
+    const timed = [];
     const take = (d) => {
-      if (out.length < 200_000) out += d.toString("utf8");
+      if (out.length >= 200_000) return;
+      const text = d.toString("utf8");
+      out += text;
+      timed.push([Date.now() - started, text]);
     };
     child.stdout.on("data", take);
     child.stderr.on("data", take);
     const timer = setTimeout(() => child.kill("SIGTERM"), seconds * 1000);
     child.on("error", (e) => {
       clearTimeout(timer);
-      done({ ...job, status: "error", note: e.message, out });
+      done({ ...job, status: "error", note: e.message, out, timed });
     });
     child.on("exit", () => {
       clearTimeout(timer);
       rmSync(file, { force: true });
-      done(judge(job, out));
+      done({ ...judge(job, out), timed });
     });
   });
 }
@@ -190,6 +202,44 @@ const count = (s) => results.filter((r) => r.status === s).length;
 const bad = results.filter((r) => BAD.has(r.status));
 const summary = `${results.length} images in QEMU: ${count("ok")} ok, ${count("radio")} stopped at the radio QEMU lacks, ${count("peripheral")} stopped in a peripheral QEMU lacks, ${count("missing")} missing an expected line, ${bad.length} crashed or did not boot.`;
 console.log(`\n${summary}`);
+
+// Previews: the serial output of images that ran as the lab expects, per project.
+const ANSI = /\x1b\[[0-9;]*m/g;
+const NOISE = /^(qemu-system|esp_core_dump|E \(\d+\) esp_core_dump)/;
+function transcript(timed) {
+  const lines = [];
+  let partial = "";
+  let at = 0;
+  for (const [t, chunk] of timed) {
+    const parts = (partial + chunk.replace(ANSI, "").replace(/\r/g, "")).split("\n");
+    partial = parts.pop() ?? "";
+    for (const line of parts) lines.push([at || t, line]);
+    at = partial ? t : 0;
+  }
+  if (partial) lines.push([at, partial]);
+  const kept = lines.filter(([, l]) => !NOISE.test(l));
+  // The ROM's boot messages come before "entry 0x..."; the page shows them dimmed.
+  const app = kept.findIndex(([, l]) => BOOTED.test(l)) + 1;
+  let size = 0;
+  const capped = kept.filter(([, l]) => (size += l.length) < 16_000).slice(0, 400);
+  return { app, lines: capped.map(([t, l]) => [Math.round(t), l.slice(0, 300)]) };
+}
+let builtAt = null;
+try {
+  builtAt = JSON.parse(readFileSync(join(dir, "index.json"), "utf8")).builtAt ?? null;
+} catch {
+  // A library built without an index (a local --only run): previews carry no date.
+}
+const previews = {};
+for (const r of results) {
+  const e = r.expect;
+  const shows = r.status === "ok" && e?.needs === "none" && (e.settings ?? []).length === 0 && /lab expects/.test(r.note);
+  (previews[r.id] ??= { builtAt, emulator: "Espressif QEMU", boards: {} });
+  if (shows) previews[r.id].boards[r.board] = transcript(r.timed);
+}
+for (const [id, preview] of Object.entries(previews)) writeFileSync(join(dir, id, "preview.json"), `${JSON.stringify(preview)}\n`);
+const shown = Object.values(previews).filter((p) => Object.keys(p.boards).length > 0).length;
+console.log(`Previews: ${shown} of ${Object.keys(previews).length} projects have one.`);
 
 const QUIET = new Set(["ok", "radio"]);
 const report = [
