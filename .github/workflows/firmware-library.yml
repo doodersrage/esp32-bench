@@ -82,11 +82,5 @@ jobs:
           QEMU_DIR=.qemu/qemu node scripts/emulate-firmware.mjs
 
       - name: Publish to fw.esp32bench.dev
-        run: |
-          token="$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.esp32bench.dev" | jq -r .value)"
-          if [ -z "$token" ] || [ "$token" = "null" ]; then
-            echo "::error title=No OIDC token::Could not get an id token for the upload."
-            exit 1
-          fi
-          FW_UPLOAD_TOKEN="$token" node scripts/upload-firmware-library.mjs
+        # The script fetches its own OIDC token, and a new one when it expires mid-upload.
+        run: node scripts/upload-firmware-library.mjs
