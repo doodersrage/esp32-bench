@@ -61,6 +61,15 @@ const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
       <a href={PROBEHARBOR.repo}>GitHub</a>.
     </p>
 
+    <h2>Source and contributing</h2>
+    <p>
+      ESP32 Bench is open source: the site, the sketches, the report API, the uptime monitor and the hardware lab
+      runner are all in the <a href={SITE.repo}>esp32-bench repository</a> on GitHub. Corrections, new projects and
+      build reports are welcome as issues or pull requests; the repository's CONTRIBUTING guide explains how. Comments
+      on the site's pages live separately, in the
+      <a href={`https://github.com/${SITE.giscus.repo}/discussions`}>esp32-bench-community</a> discussions.
+    </p>
+
     <h2>License</h2>
     <p>
       The code, including every sketch on the site, is MIT licensed. The written content and data are licensed
