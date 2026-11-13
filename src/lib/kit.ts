@@ -46,6 +46,12 @@ export type IconId =
   | "reed"
   | "thermocouple"
   | "nrf24"
+  | "rfid"
+  | "irrecv"
+  | "remote"
+  | "stepper"
+  | "stepperdrv"
+  | "keypad"
   | "ic"
   | "module";
 
@@ -88,6 +94,12 @@ const RULES: [RegExp, IconId][] = [
   [/potentiometer|trimmer/i, "pot"],
   [/rotary encoder/i, "encoder"],
   [/joystick/i, "joystick"],
+  [/rc522|rfid|mfrc522/i, "rfid"],
+  [/\bir receiver|vs1838|tsop\d|infrared receiver/i, "irrecv"],
+  [/remote control|\bremote\b/i, "remote"],
+  [/uln2003|stepper driver/i, "stepperdrv"],
+  [/28byj|stepper/i, "stepper"],
+  [/keypad/i, "keypad"],
   [/neopixel|ws2812/i, "neopixel"],
   [/rgb led/i, "rgbled"],
   [/7-segment|seven-segment/i, "sevenseg"],

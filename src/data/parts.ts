@@ -273,6 +273,49 @@ export const PARTS: Part[] = [
       { name: "COMMON", kind: "gnd", note: "Common cathode to GND. A common-anode LED goes to 3V3 instead, with the colours inverted in code." },
     ],
   },
+  {
+    id: "rc522", name: "RC522 RFID reader",
+    pins: [
+      { name: "3.3V", kind: "power3", note: "3.3 V only: the RC522 is not 5 V tolerant." },
+      { name: "GND", kind: "gnd" },
+      { name: "RST", kind: "in" },
+      { name: "SDA (SS)", kind: "in", note: "The SPI chip select, despite the label." },
+      { name: "SCK", kind: "in" },
+      { name: "MOSI", kind: "in" },
+      { name: "MISO", kind: "out" },
+    ],
+  },
+  {
+    id: "irreceiver", name: "IR receiver",
+    pins: [
+      { name: "VCC", kind: "power3", note: "Most receivers work at 3.3 V; at 5 V the output would be 5 V too." },
+      { name: "GND", kind: "gnd" },
+      { name: "OUT", kind: "out", note: "Low while it sees the remote's 38 kHz light." },
+    ],
+  },
+  {
+    id: "stepper", name: "ULN2003 stepper driver (28BYJ-48)",
+    pins: [
+      { name: "IN1", kind: "in" },
+      { name: "IN2", kind: "in" },
+      { name: "IN3", kind: "in" },
+      { name: "IN4", kind: "in" },
+      { name: "-", kind: "gnd", note: "Shared with the motor supply's ground." },
+    ],
+  },
+  {
+    id: "keypad", name: "4x4 keypad",
+    pins: [
+      { name: "R1", kind: "bidir" },
+      { name: "R2", kind: "bidir" },
+      { name: "R3", kind: "bidir" },
+      { name: "R4", kind: "bidir" },
+      { name: "C1", kind: "bidir" },
+      { name: "C2", kind: "bidir" },
+      { name: "C3", kind: "bidir" },
+      { name: "C4", kind: "bidir", note: "Rows and columns are just switches: no power pins." },
+    ],
+  },
 ];
 
 export const partById = (id: string): Part | undefined => PARTS.find((p) => p.id === id);

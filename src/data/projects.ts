@@ -109,6 +109,10 @@ export const DRAWER = {
   encoder: "Rotary encoder",
   nrf24: "Two nRF24L01+ radio modules",
   rgbled: "RGB LED",
+  rc522: "RC522 RFID reader",
+  irreceiver: "IR receiver and a remote",
+  stepper: "28BYJ-48 stepper and ULN2003 board",
+  keypad: "4x4 membrane keypad",
 } as const;
 export type DrawerPart = keyof typeof DRAWER;
 
@@ -3706,6 +3710,618 @@ void loop() {
       "light = 52%, duty = 69%",
       "light = 30%, duty = 46%",
       "light = 15%, duty = 0%",
+    ],
+  },
+  {
+    id: "rfid-reader", needs: [["rc522"], ["led"], ["buzzer"]], name: "RFID card reader", level: "Intermediate", mins: 30, tags: ["sensors"],
+    sum: "Tap a card or key fob to read its ID. A master card adds and removes cards from an allowed list that survives a power cut, with a green or red light and a beep.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { SCK: "18", MISO: "19", MOSI: "23", SS: "21", RST: "22", LEDG: "16", LEDR: "17", BUZZ: "25" },
+      esp32s3: { SCK: "12", MISO: "13", MOSI: "11", SS: "10", RST: "14", LEDG: "4", LEDR: "5", BUZZ: "6" },
+      esp32c3: { SCK: "4", MISO: "5", MOSI: "6", SS: "7", RST: "10", LEDG: "0", LEDR: "1", BUZZ: "3" },
+    },
+    pins: ["3V3", "GND", "%SCK%", "%MISO%", "%MOSI%", "%SS%", "%RST%", "%LEDG%", "%LEDR%", "%BUZZ%"],
+    libs: ["MFRC522", "SPI (built in)", "Preferences (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "RC522 RFID reader module (13.56 MHz), with a card and a key fob"],
+      [2, "LEDs: green and red"],
+      [2, "220 Ω resistors"],
+      [1, "Passive buzzer or piezo", BOM.piezoBuzzer],
+      [14, "Jumper wires"],
+    ],
+    wiring: [
+      ["RC522 VCC (3.3V)", "3V3", "3.3 V only: the RC522 is not 5 V tolerant"],
+      ["RC522 GND", "GND", ""],
+      ["RC522 RST", "GPIO %RST%", ""],
+      ["RC522 SDA (SS)", "GPIO %SS%", "On the RC522 the pin labelled SDA is the SPI chip select"],
+      ["RC522 SCK", "GPIO %SCK%", ""],
+      ["RC522 MOSI", "GPIO %MOSI%", ""],
+      ["RC522 MISO", "GPIO %MISO%", ""],
+      ["Green LED anode, through 220 Ω", "GPIO %LEDG%", "The anode is the longer leg"],
+      ["Green LED cathode", "GND", ""],
+      ["Red LED anode, through 220 Ω", "GPIO %LEDR%", ""],
+      ["Red LED cathode", "GND", ""],
+      ["Buzzer +", "GPIO %BUZZ%", ""],
+      ["Buzzer -", "GND", ""],
+    ],
+    code: R`// RFID card reader: tap a card to see its ID. The first card tapped becomes the
+// master card; tap the master, then any card, to add it to or remove it from the
+// allowed list. The list is kept in flash, so it survives a power cut.
+#include <SPI.h>
+#include <MFRC522.h>
+#include <Preferences.h>
+
+const int PIN_SCK = %SCK%, PIN_MISO = %MISO%, PIN_MOSI = %MOSI%, PIN_SS = %SS%, PIN_RST = %RST%;
+const int LED_OK = %LEDG%;   // green
+const int LED_NO = %LEDR%;   // red
+const int BUZZER = %BUZZ%;
+const int MAX_CARDS = 20;
+
+MFRC522 rfid(PIN_SS, PIN_RST);
+Preferences prefs;
+String master;
+String allowed[MAX_CARDS];
+int count = 0;
+bool learning = false;  // after the master card, the next card is added or removed
+
+String uidText(const MFRC522::Uid& uid) {
+  String s;
+  for (byte i = 0; i < uid.size; i++) {
+    if (i) s += ':';
+    if (uid.uidByte[i] < 0x10) s += '0';
+    s += String(uid.uidByte[i], HEX);
+  }
+  s.toUpperCase();
+  return s;
+}
+
+void save() {
+  prefs.putString("master", master);
+  prefs.putInt("count", count);
+  for (int i = 0; i < count; i++) prefs.putString(("c" + String(i)).c_str(), allowed[i]);
+}
+
+void load() {
+  master = prefs.getString("master", "");
+  count = constrain(prefs.getInt("count", 0), 0, MAX_CARDS);
+  for (int i = 0; i < count; i++) allowed[i] = prefs.getString(("c" + String(i)).c_str(), "");
+}
+
+int find(const String& uid) {
+  for (int i = 0; i < count; i++) {
+    if (allowed[i] == uid) return i;
+  }
+  return -1;
+}
+
+void signal(bool ok, int beeps) {
+  digitalWrite(ok ? LED_OK : LED_NO, HIGH);
+  for (int i = 0; i < beeps; i++) {
+    tone(BUZZER, ok ? 2000 : 400, 120);
+    delay(180);
+  }
+  delay(400);
+  digitalWrite(LED_OK, LOW);
+  digitalWrite(LED_NO, LOW);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_OK, OUTPUT);
+  pinMode(LED_NO, OUTPUT);
+  prefs.begin("rfid", false);
+  load();
+  SPI.begin(PIN_SCK, PIN_MISO, PIN_MOSI, PIN_SS);
+  rfid.PCD_Init();
+  delay(10);
+  const byte version = rfid.PCD_ReadRegister(MFRC522::VersionReg);
+  if (version == 0x00 || version == 0xFF) {
+    Serial.println("RC522 not found: check 3V3, GND and the SPI wires");
+  } else {
+    Serial.printf("RC522 ready, chip version 0x%02X\n", version);
+  }
+  if (master.isEmpty()) {
+    Serial.println("No master card yet: tap one to make it the master");
+  } else {
+    Serial.printf("Master card %s, %d allowed cards\n", master.c_str(), count);
+  }
+  Serial.println("Tap a card");
+}
+
+void loop() {
+  if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) return;
+  const String uid = uidText(rfid.uid);
+  rfid.PICC_HaltA();
+  rfid.PCD_StopCrypto1();
+
+  if (master.isEmpty()) {
+    master = uid;
+    save();
+    Serial.printf("card %s is now the master card\n", uid.c_str());
+    signal(true, 3);
+    return;
+  }
+  if (uid == master) {
+    learning = !learning;
+    Serial.println(learning ? "learn mode: tap a card to add or remove it" : "learn mode off");
+    signal(true, 2);
+    return;
+  }
+  if (learning) {
+    learning = false;
+    const int i = find(uid);
+    if (i >= 0) {
+      allowed[i] = allowed[--count];
+      Serial.printf("card %s removed, %d allowed\n", uid.c_str(), count);
+      signal(false, 1);
+    } else if (count < MAX_CARDS) {
+      allowed[count++] = uid;
+      Serial.printf("card %s added, %d allowed\n", uid.c_str(), count);
+      signal(true, 1);
+    } else {
+      Serial.println("the allowed list is full");
+      signal(false, 3);
+    }
+    save();
+    return;
+  }
+  if (find(uid) >= 0) {
+    Serial.printf("card %s allowed\n", uid.c_str());
+    signal(true, 1);
+  } else {
+    Serial.printf("card %s denied\n", uid.c_str());
+    signal(false, 2);
+  }
+}
+`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The RC522 runs on 3.3 V only. Its pins are not 5 V tolerant, so power it from 3V3 and never from 5V.",
+      "The pin labelled SDA on the RC522 is the SPI chip select here, not I2C. IRQ stays unconnected.",
+      "The first card tapped after a fresh flash becomes the master card. Erasing the whole flash clears the master and the allowed list.",
+      "The RC522 reads common 13.56 MHz MIFARE cards and fobs. 125 kHz access cards, the kind many offices use, need a different reader.",
+      "Card IDs are not secret: anyone can read them, and some cards can be cloned. Fine for a demo or a toy lock, not for real security.",
+    ],
+    sample: [
+      "RC522 ready, chip version 0x92",
+      "No master card yet: tap one to make it the master",
+      "Tap a card",
+      "card 3A:1F:9C:44 is now the master card",
+      "learn mode: tap a card to add or remove it",
+      "card 04:8B:2C:6A added, 1 allowed",
+      "card 04:8B:2C:6A allowed",
+      "card D3:77:10:2E denied",
+      "learn mode: tap a card to add or remove it",
+      "card D3:77:10:2E added, 2 allowed",
+      "card D3:77:10:2E allowed",
+    ],
+  },
+  {
+    id: "ir-remote", needs: [["irreceiver"], ["led"]], name: "IR remote decoder", level: "Starter", mins: 20, tags: ["sensors", "lights"],
+    sum: "Point any TV or kit remote at an IR receiver and see each button's protocol and code on the bench. Teach it three buttons and they switch three LEDs.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { IR: "4", LA: "16", LB: "17", LC: "18" },
+      esp32s3: { IR: "4", LA: "5", LB: "6", LC: "7" },
+      esp32c3: { IR: "10", LA: "0", LB: "1", LC: "3" },
+    },
+    pins: ["3V3", "GND", "%IR%", "%LA%", "%LB%", "%LC%"],
+    libs: ["IRremoteESP8266", "Preferences (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "IR receiver: a VS1838B or TSOP38238 on its own, or a 3-pin receiver module"],
+      [1, "Any infrared remote control: a TV remote or the one from a starter kit"],
+      [3, "LEDs: red, green and yellow"],
+      [3, "220 Ω resistors"],
+      [10, "Jumper wires"],
+    ],
+    wiring: [
+      ["IR receiver VCC", "3V3", "Most receivers and modules work at 3.3 V. Check the pin order on yours: it differs between parts"],
+      ["IR receiver GND", "GND", ""],
+      ["IR receiver OUT", "GPIO %IR%", ""],
+      ["Red LED anode, through 220 Ω", "GPIO %LA%", "The anode is the longer leg"],
+      ["Red LED cathode", "GND", ""],
+      ["Green LED anode, through 220 Ω", "GPIO %LB%", ""],
+      ["Green LED cathode", "GND", ""],
+      ["Yellow LED anode, through 220 Ω", "GPIO %LC%", ""],
+      ["Yellow LED cathode", "GND", ""],
+    ],
+    code: R`// IR remote decoder: prints each button's protocol and code, and toggles three
+// LEDs with three buttons you teach it. Type "learn" on the bench to teach again.
+#include <IRremoteESP8266.h>
+#include <IRrecv.h>
+#include <IRutils.h>
+#include <Preferences.h>
+
+const uint16_t IR_PIN = %IR%;
+const int LEDS[3] = {%LA%, %LB%, %LC%};
+const char* NAMES[3] = {"red", "green", "yellow"};
+
+IRrecv irrecv(IR_PIN, 1024, 15, true);
+decode_results results;
+Preferences prefs;
+uint64_t learned[3];
+bool lit[3];
+int learning = 0;  // how many buttons are still to learn, counting down from 3
+
+void startLearning() {
+  learning = 3;
+  Serial.println("learn: press three different buttons for the red, green and yellow LED");
+}
+
+void setup() {
+  Serial.begin(115200);
+  for (int i = 0; i < 3; i++) pinMode(LEDS[i], OUTPUT);
+  prefs.begin("ir", false);
+  for (int i = 0; i < 3; i++) learned[i] = prefs.getULong64(("b" + String(i)).c_str(), 0);
+  irrecv.enableIRIn();
+  Serial.printf("IR remote decoder, receiver on GPIO %d\n", IR_PIN);
+  if (learned[0] == 0 || learned[1] == 0 || learned[2] == 0) startLearning();
+  else Serial.println("Buttons learned: type learn to teach new ones");
+}
+
+void loop() {
+  if (Serial.available()) {
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    if (line == "learn") startLearning();
+  }
+  if (!irrecv.decode(&results)) return;
+  if (results.repeat || results.decode_type == decode_type_t::UNKNOWN) {
+    irrecv.resume();
+    return;
+  }
+  const uint64_t code = results.value;
+  Serial.printf("protocol %s, address 0x%X, command 0x%X, code 0x%s\n", typeToString(results.decode_type).c_str(),
+                (unsigned)results.address, (unsigned)results.command, uint64ToString(code, 16).c_str());
+
+  if (learning > 0) {
+    const int slot = 3 - learning;
+    bool used = false;
+    for (int i = 0; i < slot; i++) used = used || learned[i] == code;
+    if (used) {
+      Serial.println("that button is taken: press a different one");
+    } else {
+      learned[slot] = code;
+      prefs.putULong64(("b" + String(slot)).c_str(), code);
+      Serial.printf("%s LED learned\n", NAMES[slot]);
+      if (--learning == 0) Serial.println("learned all three buttons");
+    }
+  } else {
+    for (int i = 0; i < 3; i++) {
+      if (learned[i] != code) continue;
+      lit[i] = !lit[i];
+      digitalWrite(LEDS[i], lit[i] ? HIGH : LOW);
+      Serial.printf("%s LED %s\n", NAMES[i], lit[i] ? "on" : "off");
+    }
+  }
+  irrecv.resume();
+}
+`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Bare VS1838B and TSOP-style receivers have different pin orders. Look up yours, or use a 3-pin module with the pins labelled.",
+      "Most receivers run fine at 3.3 V. A receiver powered from 5 V would send 5 V into the ESP32, so keep it on 3V3.",
+      "Held buttons send repeat codes, which the sketch ignores, so holding a button does not flicker the LED.",
+      "Some remotes, air conditioners in particular, send very long codes. The decoder still prints them; the LEDs just need a different button.",
+      "Keep the receiver out of direct sunlight and away from bright lamps: both are full of infrared and drown out the remote.",
+    ],
+    sample: [
+      "IR remote decoder, receiver on GPIO 4",
+      "learn: press three different buttons for the red, green and yellow LED",
+      "protocol NEC, address 0x0, command 0x45, code 0xFFA25D",
+      "red LED learned",
+      "protocol NEC, address 0x0, command 0x46, code 0xFF629D",
+      "green LED learned",
+      "protocol NEC, address 0x0, command 0x47, code 0xFFE21D",
+      "yellow LED learned",
+      "learned all three buttons",
+      "protocol NEC, address 0x0, command 0x45, code 0xFFA25D",
+      "red LED on",
+      "protocol SAMSUNG, address 0x7, command 0x2, code 0xE0E040BF",
+    ],
+  },
+  {
+    id: "stepper-28byj", needs: [["stepper"]], name: "Stepper motor control", level: "Intermediate", mins: 25, tags: ["motion"],
+    sum: "Drive the 28BYJ-48 stepper from almost every starter kit through its ULN2003 board: smooth acceleration, exact positions, and commands typed on the bench.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: {
+      esp32: { INA: "16", INB: "17", INC: "18", IND: "19" },
+      esp32s3: { INA: "4", INB: "5", INC: "6", IND: "7" },
+      esp32c3: { INA: "4", INB: "5", INC: "6", IND: "7" },
+    },
+    pins: ["GND", "%INA%", "%INB%", "%INC%", "%IND%"],
+    libs: ["AccelStepper"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "28BYJ-48 5 V stepper motor"],
+      [1, "ULN2003 stepper driver board"],
+      [1, "5 V supply for the motor, such as a USB power bank or a 5 V adapter"],
+      [8, "Jumper wires"],
+    ],
+    wiring: [
+      ["ULN2003 IN1", "GPIO %INA%", ""],
+      ["ULN2003 IN2", "GPIO %INB%", ""],
+      ["ULN2003 IN3", "GPIO %INC%", ""],
+      ["ULN2003 IN4", "GPIO %IND%", ""],
+      ["28BYJ-48 plug", "ULN2003 socket", "The white plug is keyed: it fits one way"],
+      ["ULN2003 +", "5 V supply +", "Not the ESP32's 3V3 pin. The motor draws about 240 mA"],
+      ["ULN2003 -", "GND", ""],
+      ["5 V supply -", "GND", "Joins the motor supply's ground to the ESP32's"],
+    ],
+    code: R`// 28BYJ-48 stepper through a ULN2003 board, with acceleration (AccelStepper).
+// Commands on the bench: go <steps> (negative goes back), speed <rpm>, home.
+#include <AccelStepper.h>
+
+const int IN1 = %INA%, IN2 = %INB%, IN3 = %INC%, IN4 = %IND%;
+// Half steps: nominally 4096 per turn of the output shaft. The gearbox is really
+// about 63.68:1, so a full turn is closer to 4076.
+const float STEPS_PER_REV = 4096;
+const float MAX_RPM = 15;  // above this the motor stalls and just buzzes
+
+// The 28BYJ-48 needs the coils energised in the order IN1, IN3, IN2, IN4.
+AccelStepper stepper(AccelStepper::HALF4WIRE, IN1, IN3, IN2, IN4);
+unsigned long lastReport = 0;
+bool moving = false;
+
+void setRpm(float rpm) {
+  rpm = constrain(rpm, 1.0f, MAX_RPM);
+  stepper.setMaxSpeed(rpm * STEPS_PER_REV / 60);
+  Serial.printf("speed %.1f rpm\n", rpm);
+}
+
+void command(String line) {
+  line.trim();
+  if (line.startsWith("go ")) {
+    const long steps = line.substring(3).toInt();
+    stepper.enableOutputs();
+    stepper.move(steps);
+    Serial.printf("going %ld steps\n", steps);
+  } else if (line.startsWith("speed ")) {
+    setRpm(line.substring(6).toFloat());
+  } else if (line == "home") {
+    stepper.enableOutputs();
+    stepper.moveTo(0);
+    Serial.println("going home");
+  } else if (line.length()) {
+    Serial.println("commands: go <steps>, speed <rpm>, home");
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  stepper.setAcceleration(800);
+  setRpm(10);
+  stepper.disableOutputs();
+  Serial.println("Stepper ready. Commands: go <steps>, speed <rpm>, home");
+  Serial.printf("One turn is about %.0f steps\n", STEPS_PER_REV);
+}
+
+void loop() {
+  if (Serial.available()) command(Serial.readStringUntil('\n'));
+  stepper.run();
+  const bool now = stepper.distanceToGo() != 0;
+  if (now && millis() - lastReport >= 200) {
+    lastReport = millis();
+    Serial.printf("position = %ld, target = %ld\n", stepper.currentPosition(), stepper.targetPosition());
+  }
+  if (moving && !now) {
+    Serial.printf("position = %ld, target = %ld\n", stepper.currentPosition(), stepper.targetPosition());
+    Serial.println("arrived");
+    stepper.disableOutputs();  // the coils get warm if left on
+  }
+  moving = now;
+}
+`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "Power the ULN2003 board from a 5 V supply, never from the ESP32's 3V3 pin. Join the supply's ground to the ESP32's ground, or the board will not see the step signals.",
+      "In half steps the output shaft turns once in nominally 4096 steps. The gearbox is really about 63.68:1, so expect a full turn to be closer to 4076, and allow for a little backlash when changing direction.",
+      "Around 15 rpm is the most a 28BYJ-48 manages. Ask for more and it buzzes without turning; the sketch caps the speed there.",
+      "The coils are switched off once the motor arrives, so it stays cool. It can then be turned by hand, which loses the position: use home before relying on it again.",
+      "The four LEDs on the ULN2003 board show which coils are on: a slow chase means the wiring is right.",
+    ],
+    sample: [
+      "speed 10.0 rpm",
+      "Stepper ready. Commands: go <steps>, speed <rpm>, home",
+      "One turn is about 4096 steps",
+      "going 2048 steps",
+      "position = 61, target = 2048",
+      "position = 245, target = 2048",
+      "position = 552, target = 2048",
+      "position = 892, target = 2048",
+      "position = 1233, target = 2048",
+      "position = 1573, target = 2048",
+      "position = 1880, target = 2048",
+      "position = 2048, target = 2048",
+      "arrived",
+      "going home",
+      "position = 1987, target = 0",
+      "position = 1803, target = 0",
+    ],
+  },
+  {
+    id: "keypad-lock", needs: [["keypad"], ["servo"], ["buzzer"]], name: "Keypad code lock", level: "Intermediate", mins: 35, tags: ["motion", "games"],
+    sum: "A 4x4 keypad and a servo latch make a code lock. Change the code from the keypad; wrong guesses lock it out for longer each time.",
+    boards: ["esp32", "esp32s3"],
+    vars: {
+      esp32: { RA: "32", RB: "33", RC: "25", RD: "26", CA: "27", CB: "4", CC: "16", CD: "17", SERVO: "18", BUZZ: "19" },
+      esp32s3: { RA: "4", RB: "5", RC: "6", RD: "7", CA: "15", CB: "16", CC: "17", CD: "10", SERVO: "11", BUZZ: "12" },
+    },
+    pins: ["5V", "GND", "%RA%", "%RB%", "%RC%", "%RD%", "%CA%", "%CB%", "%CC%", "%CD%", "%SERVO%", "%BUZZ%"],
+    libs: ["Keypad", "ESP32Servo", "Preferences (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "4x4 membrane keypad"],
+      [1, "Micro servo, SG90 or SG92R class, as the latch", BOM.microServo],
+      [1, "Passive buzzer or piezo", BOM.piezoBuzzer],
+      [14, "Jumper wires"],
+    ],
+    wiring: [
+      ["Keypad R1 (pin 1)", "GPIO %RA%", "Pins counted from the left with the keys facing you"],
+      ["Keypad R2 (pin 2)", "GPIO %RB%", ""],
+      ["Keypad R3 (pin 3)", "GPIO %RC%", ""],
+      ["Keypad R4 (pin 4)", "GPIO %RD%", ""],
+      ["Keypad C1 (pin 5)", "GPIO %CA%", ""],
+      ["Keypad C2 (pin 6)", "GPIO %CB%", ""],
+      ["Keypad C3 (pin 7)", "GPIO %CC%", ""],
+      ["Keypad C4 (pin 8)", "GPIO %CD%", ""],
+      ["Servo red (power)", "5V", "One micro servo is fine from USB"],
+      ["Servo brown or black (ground)", "GND", ""],
+      ["Servo orange or yellow (signal)", "GPIO %SERVO%", ""],
+      ["Buzzer +", "GPIO %BUZZ%", ""],
+      ["Buzzer -", "GND", ""],
+    ],
+    code: R`// Keypad code lock: type the code and # to open the servo latch.
+// * starts a code change: old code #, new code #. C clears, A locks again.
+// Wrong codes lock the keypad out, for longer each time.
+#include <Keypad.h>
+#include <ESP32Servo.h>
+#include <Preferences.h>
+
+const byte ROWS = 4, COLS = 4;
+char KEYS[ROWS][COLS] = {
+  {'1', '2', '3', 'A'},
+  {'4', '5', '6', 'B'},
+  {'7', '8', '9', 'C'},
+  {'*', '0', '#', 'D'},
+};
+byte rowPins[ROWS] = {%RA%, %RB%, %RC%, %RD%};
+byte colPins[COLS] = {%CA%, %CB%, %CC%, %CD%};
+const int SERVO_PIN = %SERVO%, BUZZER = %BUZZ%;
+const int LOCKED_ANGLE = 0, OPEN_ANGLE = 90;
+const unsigned long RELOCK_MS = 5000;
+
+Keypad keypad = Keypad(makeKeymap(KEYS), rowPins, colPins, ROWS, COLS);
+Servo latch;
+Preferences prefs;
+String code, entry;
+enum Mode { ENTER, CHANGE_OLD, CHANGE_NEW } mode = ENTER;
+int wrong = 0;
+unsigned long lockedUntil = 0, openedAt = 0;
+bool isOpen = false;
+
+void beep(int hz, int ms) {
+  tone(BUZZER, hz, ms);
+  delay(ms + 30);
+}
+
+void setOpen(bool on) {
+  isOpen = on;
+  latch.write(on ? OPEN_ANGLE : LOCKED_ANGLE);
+  openedAt = millis();
+  Serial.println(on ? "unlocked" : "locked");
+}
+
+void wrongCode() {
+  wrong++;
+  beep(300, 400);
+  if (wrong >= 3) {
+    const unsigned long seconds = min(300UL, 10UL << min(wrong - 3, 5));  // 10 s, 20 s, 40 s ... up to 5 min
+    lockedUntil = millis() + seconds * 1000;
+    Serial.printf("wrong code, keypad locked out for %lu s\n", seconds);
+  } else {
+    Serial.printf("wrong code, %d tries before a lockout\n", 3 - wrong);
+  }
+}
+
+void finish() {
+  if (mode == ENTER) {
+    if (entry == code) {
+      wrong = 0;
+      beep(2000, 120);
+      setOpen(true);
+    } else {
+      wrongCode();
+    }
+  } else if (mode == CHANGE_OLD) {
+    if (entry == code) {
+      mode = CHANGE_NEW;
+      Serial.println("enter the new code, then #");
+      beep(1500, 80);
+    } else {
+      mode = ENTER;
+      wrongCode();
+    }
+  } else {
+    if (entry.length() >= 4) {
+      code = entry;
+      prefs.putString("code", code);
+      Serial.printf("code changed, %u digits\n", code.length());
+      beep(2000, 120);
+      beep(2500, 120);
+    } else {
+      Serial.println("a code needs at least 4 digits: not changed");
+      beep(300, 300);
+    }
+    mode = ENTER;
+  }
+  entry = "";
+}
+
+void setup() {
+  Serial.begin(115200);
+  prefs.begin("lock", false);
+  code = prefs.getString("code", "1234");
+  latch.attach(SERVO_PIN);
+  setOpen(false);
+  Serial.printf("Keypad lock ready, code length %u. Type the code and #\n", code.length());
+  if (code == "1234") Serial.println("Still on the default code 1234: press * to change it");
+}
+
+void loop() {
+  if (isOpen && millis() - openedAt > RELOCK_MS) setOpen(false);
+  const char key = keypad.getKey();
+  if (!key) return;
+  if (millis() < lockedUntil) {
+    Serial.printf("locked out for %lu more s\n", (lockedUntil - millis()) / 1000 + 1);
+    beep(300, 100);
+    return;
+  }
+  beep(1200, 30);
+  if (key >= '0' && key <= '9') {
+    if (entry.length() < 12) entry += key;
+    Serial.printf("entry %u digits\n", entry.length());  // never print the digits themselves
+  } else if (key == '#') {
+    finish();
+  } else if (key == '*') {
+    mode = CHANGE_OLD;
+    entry = "";
+    Serial.println("change code: enter the current code, then #");
+  } else if (key == 'C') {
+    entry = "";
+    mode = ENTER;
+    Serial.println("cleared");
+  } else if (key == 'A' && isOpen) {
+    setOpen(false);
+  }
+}
+`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The keypad needs eight GPIOs, plus the servo and the buzzer. The ESP32-C3 DevKitM has only eight pins free of boot, USB and console duties, so this project is for the classic ESP32 and the S3.",
+      "Most 4x4 membrane keypads put the four row wires first and the four column wires last, counting from the left with the keys facing you. If keys come out mixed up, swap the row and column groups in the sketch.",
+      "The default code is 1234. Press *, type 1234 and #, then the new code (4 to 12 digits) and #. It is saved in flash.",
+      "After three wrong codes the keypad locks out for 10 s, then 20 s, 40 s and so on, up to 5 minutes. A correct code resets the count.",
+      "The serial output never shows the digits typed, only how many. This is a toy lock: anyone with the board and a USB cable can reflash it.",
+    ],
+    sample: [
+      "locked",
+      "Keypad lock ready, code length 4. Type the code and #",
+      "Still on the default code 1234: press * to change it",
+      "entry 1 digits",
+      "entry 2 digits",
+      "entry 3 digits",
+      "entry 4 digits",
+      "unlocked",
+      "locked",
+      "entry 1 digits",
+      "entry 2 digits",
+      "entry 3 digits",
+      "entry 4 digits",
+      "wrong code, 2 tries before a lockout",
     ],
   },
   {

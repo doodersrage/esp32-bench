@@ -100,9 +100,10 @@ const PIN_WORDS = new Set(
     "sig", "do", "so", "anode", "cathode", "signal", "red", "brown", "black", "orange", "yellow", "white", "+", "-",
     "a", "b", "e", "k", "rs", "rw", "collector", "emitter", "base", "wiper", "middle", "+5v", "5v", "common", "side",
     "wire", "push", "output", "ground", "ser", "srclk", "rclk", "oe", "mr", "segments", "decimal", "outer", "other",
+    "plug", "socket",
   ].map((w) => w.toLowerCase()),
 );
-const PIN_PATTERN = /^(q\d|d\d)$/i;
+const PIN_PATTERN = /^(q\d|d\d|in\d|r\d|c\d)$/i;
 
 /** Split "DHT22 VCC" into ["DHT22", "VCC"]; a label with no pin word is a one-pin part. */
 export function splitPart(raw: string): [string, string] {

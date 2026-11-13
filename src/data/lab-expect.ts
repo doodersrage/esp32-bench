@@ -72,6 +72,10 @@ export const LAB_EXPECT: Record<string, LabExpect> = {
   "joystick-turret": { patterns: ["Turret ready\\. MPU-6050 (found|not found)", "pan = \\d+, tilt = \\d+"], seconds: 10, needs: "none", notes: "The servos are not checked; a floating stick still prints angles." },
   "visitor-counter": { patterns: ["Visitor counter\\. Warming up the PIR for \\d+ s\\.", "Counting\\."], seconds: 40, needs: "parts", notes: "Counting starts after the 30 s warm-up even with no PIR; counts need one." },
   "auto-fan": { patterns: ["Auto fan: following the (light|temperature)", "light = \\d+%, duty = \\d+%"], seconds: 10, needs: "none", notes: "In light mode a bare analog pin gives a reading; the motor is not checked." },
+  "rfid-reader": { patterns: ["(RC522 ready, chip version 0x[0-9A-F]{2}|RC522 not found: check 3V3, GND and the SPI wires)", "Tap a card"], seconds: 10, needs: "parts", notes: "Without the reader the sketch reports RC522 not found; reading cards needs a reader and a card." },
+  "ir-remote": { patterns: ["IR remote decoder, receiver on GPIO \\d+", "(learn: press three different buttons|Buttons learned)"], seconds: 8, needs: "parts", notes: "Decoding needs a receiver and a remote pressed in front of it." },
+  "stepper-28byj": { patterns: ["Stepper ready\\. Commands: go <steps>, speed <rpm>, home", "One turn is about \\d+ steps"], seconds: 8, needs: "none", notes: "The command prompt comes up without a motor; movement is not checked." },
+  "keypad-lock": { patterns: ["Keypad lock ready, code length \\d+\\. Type the code and #"], seconds: 8, needs: "parts", notes: "Only the ready line is checked: keys need a keypad and someone to press them." },
   "ph-display": {
     patterns: ["wifi ok \\d+\\.\\d+\\.\\d+\\.\\d+", "(ProbeHarbor: |\\w+: \\w+ = )"],
     seconds: 60,

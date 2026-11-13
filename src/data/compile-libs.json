@@ -17,7 +17,11 @@
     "GxEPD2": "zinggjm/GxEPD2",
     "ArduinoJson": "bblanchon/ArduinoJson",
     "LiquidCrystal": "arduino-libraries/LiquidCrystal",
-    "RF24": "nrf24/RF24"
+    "RF24": "nrf24/RF24",
+    "MFRC522": "miguelbalboa/MFRC522",
+    "IRremoteESP8266": "crankyoldgit/IRremoteESP8266",
+    "AccelStepper": "waspinator/AccelStepper",
+    "Keypad": "chris--a/Keypad"
   },
   "hugeApp": [
     "ble-scan"

@@ -232,6 +232,18 @@ function body(icon: IconId, p: Palette, item?: KitItem): string {
       return rect(6, 10, 30, 26, p.accent, p.ink, 3) + rect(14, 16, 12, 12, p.ink, p.ink, 1, 1) + path("M36 30 C 50 30, 46 50, 58 52", "none", p.gold, 3) + path("M36 24 C 54 24, 50 46, 58 48", "none", p.accent, 3) + circle(58, 50, 3, p.metal, p.ink, 1.5);
     case "nrf24":
       return rect(6, 18, 52, 30, p.ink, p.ink, 3) + path("M10 24 H18 V30 H24 V24 H30 V30 H36", "none", p.gold, 2) + rect(40, 30, 10, 8, p.metal, "none", 1, 0) + pins(10, 40, 4, 6, p) + pins(10, 34, 4, 6, p);
+    case "rfid":
+      return rect(6, 8, 52, 44, p.blue, p.ink, 3) + rect(14, 14, 30, 24, "none", p.gold, 4, 2) + rect(19, 19, 20, 14, "none", p.gold, 3, 2) + rect(46, 16, 6, 6, p.ink, "none", 1, 0) + pins(12, 46, 8, 5.2, p);
+    case "irrecv":
+      return rect(18, 10, 28, 26, p.ink, p.ink, 3) + circle(32, 22, 8, "#3a2a4a", p.metal, 2.5) + legs([24, 32, 40], 36, 60, p);
+    case "remote":
+      return rect(18, 4, 28, 56, p.ink, p.ink, 6) + circle(32, 13, 4, p.accent, "none", 0) + [24, 32, 40].map((x) => [26, 34, 42, 50].map((y) => rect(x - 3, y - 2, 6, 4, p.metal, "none", 1, 0)).join("")).join("");
+    case "stepper":
+      return circle(30, 34, 22, p.metal, p.ink, 2.5) + circle(30, 34, 9, p.gold, p.ink, 2) + line(30, 34, 30, 22, p.ink, 3) + rect(6, 24, 6, 20, p.blue, p.ink, 1, 2) + path("M52 34 C 58 34, 58 50, 62 52", "none", p.accent, 2.5);
+    case "stepperdrv":
+      return rect(6, 10, 52, 44, p.pcb, p.ink, 3) + rect(12, 18, 20, 12, p.ink, p.ink, 1, 1) + [38, 44, 50, 56].map((x) => circle(x - 2, 20, 2.5, p.accent, "none", 0)).join("") + rect(36, 34, 18, 12, p.paper, p.ink, 1, 2) + pins(12, 44, 4, 6, p);
+    case "keypad":
+      return rect(12, 4, 40, 44, p.ink, p.ink, 3) + Array.from({ length: 4 }, (_, r) => [0, 1, 2, 3].map((c) => rect(16 + c * 9, 8 + r * 10, 6, 6, c === 3 ? p.accent : p.paper, "none", 1, 0)).join("")).join("") + rect(26, 48, 12, 12, p.muted, p.ink, 1, 1.5);
     case "ic":
       return rect(12, 16, 40, 32, p.ink, p.ink, 2) + pins(16, 10, 7, 5, p) + pins(16, 48, 7, 5, p) + circle(18, 32, 3, p.muted, "none", 0);
     case "module":
@@ -253,5 +265,5 @@ export const ALL_ICONS: IconId[] = [
   "esp32", "esp32cam", "uno", "breadboard", "wires", "usb", "usbserial", "battery", "power", "service", "hardware",
   "resistor", "led", "rgbled", "button", "pot", "encoder", "buzzer", "speaker", "oled", "lcd", "sevenseg", "neopixel",
   "epaper", "servo", "motor", "relay", "transistor", "diode", "capacitor", "ds18b20", "dht22", "i2c", "hcsr04",
-  "sharpir", "pir", "mpu6050", "joystick", "soil", "ldr", "reed", "thermocouple", "nrf24", "ic", "module",
+  "sharpir", "pir", "mpu6050", "joystick", "soil", "ldr", "reed", "thermocouple", "nrf24", "rfid", "irrecv", "remote", "stepper", "stepperdrv", "keypad", "ic", "module",
 ];
