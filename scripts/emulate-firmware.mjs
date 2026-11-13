@@ -12,10 +12,11 @@
 // with --strict a crash, a boot loop or no boot at all exits 1. A missing
 // expected line never fails the run: QEMU's timing and missing peripherals make
 // that a hint, not a verdict.
-import { spawn } from "node:child_process";
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { cpus, tmpdir } from "node:os";
+import { spawn, spawnSync } from "node:child_process";
+import { appendFileSync, existsSync, globSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpus, homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { gunzipSync } from "node:zlib";
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => {
@@ -42,6 +43,43 @@ const BOOTED = /entry 0x[0-9a-f]+/i;
 // QEMU has no Wi-Fi or Bluetooth radio: starting one asserts in the PHY or
 // controller code. That is the emulator's limit, not a bug in the sketch.
 const RADIO = /esp_phy_enable|phy_init\.c|esp_wifi_init|wifi_init|btdm|bt_controller|esp_bt_|ble_controller/i;
+// Peripherals QEMU models only partly or not at all. A crash inside their
+// drivers (PWM for tone() and servos, the RMT behind NeoPixels, the ADC, touch)
+// is the emulator's gap too: on QEMU's C3, ledc_ll_get_slow_clk_sel reads a
+// clock register QEMU leaves at an invalid value and aborts.
+const PERIPHERAL = /^(ledc|rmt|adc|sar|touch|i2s|mcpwm|pcnt)_|_(ledc|rmt|adc|touch)_|^(ledcAttach|ledcWrite|analogRead|analogWrite|tone|touchRead)/;
+// The interrupt watchdog fires when code spins with interrupts off; under QEMU
+// that is a driver polling a peripheral register that never changes.
+const INT_WDT = /Interrupt wdt timeout/i;
+
+// Turn crash addresses into function names with the build's own ELF (written
+// by build-firmware-library.mjs as elf/<sha>.gz) and the toolchain's addr2line.
+const ADDR2LINE = {
+  esp32: findTool("xtensa-esp32-elf-addr2line") ?? findTool("xtensa-esp-elf-addr2line"),
+  esp32c3: findTool("riscv32-esp-elf-addr2line") ?? which("llvm-addr2line"),
+};
+function findTool(name) {
+  return globSync(join(homedir(), ".platformio", "packages", "*", "bin", name))[0] ?? null;
+}
+function which(name) {
+  const r = spawnSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" });
+  return r.status === 0 ? r.stdout.trim() : null;
+}
+const APP = 0x10000;
+function functionsAt(job, out, at) {
+  const tool = ADDR2LINE[job.board];
+  if (!tool) return [];
+  const sha = readFileSync(job.image).subarray(APP + 0xb0, APP + 0xb0 + 16).toString("hex");
+  const gz = join(dir, "elf", `${sha}.gz`);
+  if (!existsSync(gz)) return [];
+  const elf = join(work, `${sha}.elf`);
+  if (!existsSync(elf)) writeFileSync(elf, gunzipSync(readFileSync(gz)));
+  // Code addresses in the panic dump: the PC, the return address and the backtrace.
+  const addrs = [...new Set(out.slice(at, at + 4000).match(/0x4[0-2][0-9a-f]{6}/gi) ?? [])].slice(0, 40);
+  if (addrs.length === 0) return [];
+  const r = spawnSync(tool, ["-f", "-e", elf, ...addrs], { encoding: "utf8" });
+  return (r.stdout ?? "").split("\n").filter((_, i) => i % 2 === 0).map((f) => f.trim()).filter((f) => f && f !== "??");
+}
 
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8")).projects;
 const jobs = [];
@@ -97,7 +135,14 @@ function judge(job, out) {
   if (!BOOTED.test(out)) return { ...job, status: "no boot", note: "the ROM never started the app", out };
   if (crash && RADIO.test(lineAround(out, crash.index) + out.slice(crash.index, crash.index + 400)))
     return { ...job, status: "radio", note: "booted, then stopped at the Wi-Fi or Bluetooth radio, which QEMU does not emulate", out };
-  if (crash) return { ...job, status: "crash", note: lineAround(out, crash.index), out };
+  if (crash) {
+    const fns = functionsAt(job, out, crash.index);
+    const hal = fns.find((f) => PERIPHERAL.test(f));
+    if (hal) return { ...job, status: "peripheral", note: `stopped in ${hal}, a driver for hardware QEMU does not fully emulate`, out };
+    if (INT_WDT.test(lineAround(out, crash.index)))
+      return { ...job, status: "peripheral", note: `interrupt watchdog${fns[0] ? ` in ${fns[0]}` : ""}: usually a driver waiting on hardware QEMU does not emulate`, out };
+    return { ...job, status: "crash", note: `${lineAround(out, crash.index)}${fns.length ? ` (in ${fns.slice(0, 3).join(" < ")})` : ""}`, out };
+  }
   if (resets > 1) return { ...job, status: "boot loop", note: `${resets} resets`, out };
   const e = job.expect;
   if (!e || e.needs !== "none" || (e.settings ?? []).length > 0) return { ...job, status: "ok", note: e ? `boots (needs ${e.needs})` : "boots", out };
@@ -131,9 +176,10 @@ rmSync(work, { recursive: true, force: true });
 results.sort((a, b) => a.id.localeCompare(b.id) || a.board.localeCompare(b.board));
 const count = (s) => results.filter((r) => r.status === s).length;
 const bad = results.filter((r) => ["crash", "boot loop", "no boot", "error"].includes(r.status));
-const summary = `${results.length} images in QEMU: ${count("ok")} ok, ${count("radio")} stopped at the radio QEMU lacks, ${count("missing")} missing an expected line, ${bad.length} crashed or did not boot.`;
+const summary = `${results.length} images in QEMU: ${count("ok")} ok, ${count("radio")} stopped at the radio QEMU lacks, ${count("peripheral")} stopped in a peripheral QEMU lacks, ${count("missing")} missing an expected line, ${bad.length} crashed or did not boot.`;
 console.log(`\n${summary}`);
 
+const QUIET = new Set(["ok", "radio"]);
 const report = [
   "## Firmware in QEMU",
   "",
@@ -142,12 +188,12 @@ const report = [
   "",
   "| Project | Board | Result | Detail |",
   "|---|---|---|---|",
-  ...results.filter((r) => r.status !== "ok" && r.status !== "radio").map((r) => `| ${r.id} | ${r.board} | ${r.status} | ${r.note.replace(/\|/g, "\\|")} |`),
+  ...results.filter((r) => !QUIET.has(r.status)).map((r) => `| ${r.id} | ${r.board} | ${r.status} | ${r.note.replace(/\|/g, "\\|")} |`),
   "",
   "<details><summary>Output of the images that did not pass</summary>",
   "",
   ...results
-    .filter((r) => r.status !== "ok" && r.status !== "radio")
+    .filter((r) => !QUIET.has(r.status) && r.status !== "peripheral")
     .flatMap((r) => [`**${r.id} on ${r.board}**`, "```", r.out.split("\n").slice(-25).join("\n"), "```", ""]),
   "</details>",
   "",

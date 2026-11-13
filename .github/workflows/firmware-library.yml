@@ -18,7 +18,8 @@ on:
       - scripts/build-firmware-library.mjs
       - scripts/upload-firmware-library.mjs
       - scripts/lib/sketch-build.mjs
-      - scripts/emulate-firmware.mjs
+      # Not scripts/emulate-firmware.mjs: the QEMU check only reports, so a change
+      # to it waits for the next run instead of rebuilding every project.
       - .github/workflows/firmware-library.yml
 
 permissions:
