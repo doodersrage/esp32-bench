@@ -6,6 +6,9 @@ const q = document.getElementById("q") as HTMLInputElement;
 const empty = document.getElementById("empty") as HTMLElement;
 const chips = [...document.querySelectorAll<HTMLButtonElement>("#chips .chip")];
 const levelChips = [...document.querySelectorAll<HTMLButtonElement>("#levels .chip")];
+const boardSelect = document.getElementById("board-filter") as HTMLSelectElement | null;
+const sortSelect = document.getElementById("sort") as HTMLSelectElement | null;
+const grid = document.getElementById("grid") as HTMLElement;
 const cards = [...document.querySelectorAll<HTMLElement>("#grid .card")];
 
 const recall = (key: string): string | null => {
@@ -29,6 +32,31 @@ if (!chips.some((c) => c.dataset.tag === activeTag)) activeTag = "all";
 let activeLevel = recall("level") ?? "all";
 if (!levelChips.some((c) => c.dataset.level === activeLevel)) activeLevel = "all";
 
+// The board is shared with project pages ("bench.board"), so choosing it here
+// also opens every project on that board's pinout. ?board=<id> sets it from a link.
+const boardIds = new Set([...(boardSelect?.options ?? [])].map((o) => o.value));
+const fromLink = new URLSearchParams(location.search).get("board");
+let activeBoard = fromLink && boardIds.has(fromLink) ? fromLink : (recall("board") ?? "all");
+if (!boardIds.has(activeBoard)) activeBoard = "all";
+if (fromLink && activeBoard === fromLink) remember("board", activeBoard);
+if (boardSelect) boardSelect.value = activeBoard;
+const onBoard = (card: HTMLElement) => activeBoard === "all" || (card.dataset.boards ?? "").split(" ").includes(activeBoard);
+
+let activeSort = recall("sort") ?? "suggested";
+if (sortSelect && ![...sortSelect.options].some((o) => o.value === activeSort)) activeSort = "suggested";
+if (sortSelect) sortSelect.value = activeSort;
+
+const num = (card: HTMLElement, key: string) => Number(card.dataset[key] ?? 0);
+const ORDER: Record<string, (a: HTMLElement, b: HTMLElement) => number> = {
+  suggested: (a, b) => num(a, "suggest") - num(b, "suggest"),
+  newest: (a, b) => (b.dataset.added ?? "").localeCompare(a.dataset.added ?? "") || num(b, "order") - num(a, "order"),
+  quickest: (a, b) => num(a, "mins") - num(b, "mins") || num(a, "suggest") - num(b, "suggest"),
+};
+function applySort() {
+  const sorted = [...cards].sort(ORDER[activeSort] ?? ORDER.suggested);
+  grid.append(...sorted);
+}
+
 function applyFilters() {
   const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
   let shown = 0;
@@ -38,11 +66,19 @@ function applyFilters() {
     const ok =
       (activeTag === "all" || tags.includes(activeTag)) &&
       (activeLevel === "all" || card.dataset.level === activeLevel) &&
+      onBoard(card) &&
       words.every((w) => hay.includes(w));
     card.hidden = !ok;
     if (ok) shown++;
   }
   empty.hidden = shown > 0;
+  // Number the cards in the order they are shown.
+  let n = 0;
+  for (const card of grid.querySelectorAll<HTMLElement>(".card")) {
+    if (card.hidden) continue;
+    const no = card.querySelector("[data-no]");
+    if (no) no.textContent = `No. ${String(++n).padStart(2, "0")}`;
+  }
   for (const chip of chips) chip.setAttribute("aria-pressed", String(chip.dataset.tag === activeTag));
   for (const chip of levelChips) chip.setAttribute("aria-pressed", String(chip.dataset.level === activeLevel));
 }
@@ -60,7 +96,19 @@ for (const chip of levelChips) {
     applyFilters();
   });
 }
+boardSelect?.addEventListener("change", () => {
+  activeBoard = boardSelect.value;
+  remember("board", activeBoard === "all" ? "" : activeBoard);
+  applyFilters();
+});
+sortSelect?.addEventListener("change", () => {
+  activeSort = sortSelect.value;
+  remember("sort", activeSort);
+  applySort();
+  applyFilters();
+});
 q.addEventListener("input", applyFilters);
+applySort();
 applyFilters();
 
 /* ---------- Built marks, streak and badges ---------- */
@@ -132,7 +180,8 @@ function buildable(card: HTMLElement): boolean {
 pickButton?.addEventListener("click", () => {
   if (!pickResult) return;
   for (const card of cards) card.classList.remove("picked");
-  const candidates = cards.filter(buildable);
+  // Only projects that run on the chosen board, if one is chosen.
+  const candidates = cards.filter((c) => buildable(c) && onBoard(c));
   // Prefer something not built yet, and avoid repeating the last pick.
   const fresh = candidates.filter((c) => !built[c.dataset.id ?? ""]);
   let pool = fresh.length > 0 ? fresh : candidates;
@@ -150,7 +199,7 @@ pickButton?.addEventListener("click", () => {
   pickResult.replaceChildren(
     `Tonight: `,
     link,
-    `. ${candidates.length} of ${cards.length} projects fit your drawer` + (fresh.length === 0 ? ", and you have built them all." : "."),
+    `. ${candidates.length} of ${cards.filter(onBoard).length} projects fit your drawer` + (fresh.length === 0 ? ", and you have built them all." : "."),
   );
   // Make sure the picked card is visible, then point at it.
   if (pick.hidden) {

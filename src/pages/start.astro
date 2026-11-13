@@ -44,9 +44,17 @@ const BOARDS_URL = "https://espressif.github.io/arduino-esp32/package_esp32_inde
           <tr><td>ESP32 (classic)</td><td>Most tutorials and libraries, Wi-Fi, Bluetooth Classic and BLE, touch pins.</td><td>GPIO 34 to 39 are input only. A few pins set the boot mode.</td></tr>
           <tr><td>ESP32-S3</td><td>More pins and memory, native USB, cameras and displays.</td><td>Two USB ports on many boards. Serial output may need USB CDC On Boot.</td></tr>
           <tr><td>ESP32-C3</td><td>Small and cheap, Wi-Fi and BLE, native USB.</td><td>Fewer pins, no touch pins and no Bluetooth Classic.</td></tr>
+          <tr><td>ESP32-S2</td><td>Native USB and plenty of pins on one core.</td><td>No Bluetooth at all.</td></tr>
+          <tr><td>ESP32-C6</td><td>Wi-Fi 6, BLE, and Thread or Zigbee radios.</td><td>Newer, so some libraries and tutorials have not caught up.</td></tr>
+          <tr><td>Seeed XIAO ESP32C3 or ESP32S3</td><td>Thumb-sized boards for small builds.</td><td>Few pins, labelled D0 to D10, which are not the GPIO numbers sketches use.</td></tr>
+          <tr><td>AI-Thinker ESP32-CAM</td><td>A camera and a microSD slot on one cheap board.</td><td>No USB socket: flash it through a USB serial adapter or a programmer base, with GPIO 0 tied to GND. Few pins are free.</td></tr>
         </tbody>
       </table>
     </div>
+    <p>
+      Every board has its own page with a full pinout on <a href={link("/boards/")}>Boards</a>, and the chips are side
+      by side on <a href={link("/boards/compare/")}>Compare the ESP32 chips</a>.
+    </p>
 
     <h2 id="plug">3. Plug it in</h2>
     <p>

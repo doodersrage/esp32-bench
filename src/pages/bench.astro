@@ -39,6 +39,16 @@ const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
     </div>
     <div class="shareout" id="share-term" hidden></div>
 
+    <div class="samplebar">
+      <span>No board handy?</span>
+      <select id="samplepick" aria-label="Project for sample output">
+        {PROJECTS.map((p) => <option value={p.id}>{p.name}</option>)}
+      </select>
+      <button class="btn sm" id="sample" type="button">Play sample output</button>
+      <span class="sp"></span>
+      <button class="btn sm" id="second-toggle" type="button" aria-expanded="false" aria-controls="second">Add a second board</button>
+    </div>
+
     <div class="terms" id="terms">
       <div class="stack tight pane">
         <div class="term" id="term" role="log" aria-label="Serial output" tabindex="0"></div>
@@ -75,15 +85,6 @@ const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
       </div>
     </div>
 
-    <div class="samplebar">
-      <span>No board handy?</span>
-      <select id="samplepick" aria-label="Project for sample output">
-        {PROJECTS.map((p) => <option value={p.id}>{p.name}</option>)}
-      </select>
-      <button class="btn sm" id="sample" type="button">Play sample output</button>
-      <span class="sp"></span>
-      <button class="btn sm" id="second-toggle" type="button" aria-expanded="false" aria-controls="second">Add a second board</button>
-    </div>
 
     <div class="stack tight">
       <h2 class="h3">Plotter</h2>

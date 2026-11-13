@@ -14,6 +14,18 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-16",
+    date: "2026-11-13",
+    title: "Version 0.16: projects for your board",
+    summary: "Pick your board once and the library shows what runs on it, and every project opens on that board's pinout.",
+    items: [
+      "A board filter in the library, shared with the board switch on project pages. Each board page links to its projects in the library.",
+      "Sort the library by a suggested order (bare-board, Starter and hardware-tested projects first), newest or quickest build.",
+      "The guide compares all eight supported boards, and the bench offers sample output above the terminal when no board is connected.",
+    ],
+    link: "/",
+  },
+  {
     id: "v0-15",
     date: "2026-11-13",
     title: "Version 0.15: easier on a phone",

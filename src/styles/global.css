@@ -198,6 +198,9 @@ details.translator textarea { width: 100%; padding: 8px 10px; border: 1px solid 
 .card .new { margin-left: auto; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
 .card .built:not([hidden]) + .new { margin-left: 0; }
 .chip.sm { padding: 4px 10px; font-size: 0.78rem; }
+a.tag.link { color: var(--accent); text-decoration: none; }
+a.tag.link:hover { border-color: var(--accent); }
+.pick select { padding: 5px 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 2px; font-size: 0.8rem; max-width: 100%; }
 .loglink { margin-left: auto; font-size: 0.85rem; color: var(--accent); }
 details.drawer { background: var(--panel); border: 1px solid var(--line); padding: 10px 14px; }
 details.drawer summary { cursor: pointer; font: 600 1.1rem/1.2 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }

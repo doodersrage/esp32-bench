@@ -57,7 +57,7 @@ const tone = { safe: "ok", care: "warnt", avoid: "bad", power: "" } as const;
             <span class="tag todo">From vendor documentation, not hardware tested</span>
           )
         }
-        <span class="tag">{projects.length} projects</span>
+        {projects.length > 0 && <a class="tag link" href={`${link("/")}?board=${b.id}`} title="Show these projects in the library">{projects.length} projects</a>}
       </div>
     </div>
 
