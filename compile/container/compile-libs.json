@@ -1,0 +1,25 @@
+{
+  "_comment": "Libraries the compile service and the firmware builds can install: site name to PlatformIO registry id. Shared by scripts/lib/sketch-build.mjs and the site (Build a sketch). Add a library here, and to the compile service image, to support it.",
+  "libs": {
+    "DHT sensor library (Adafruit)": "adafruit/DHT sensor library",
+    "Adafruit Unified Sensor": "adafruit/Adafruit Unified Sensor",
+    "Adafruit SSD1306": "adafruit/Adafruit SSD1306",
+    "Adafruit GFX Library": "adafruit/Adafruit GFX Library",
+    "Adafruit NeoPixel": "adafruit/Adafruit NeoPixel",
+    "Adafruit BME280 Library": "adafruit/Adafruit BME280 Library",
+    "Adafruit MAX31855 library": "adafruit/Adafruit MAX31855 library",
+    "MAX6675 library": "adafruit/MAX6675 library",
+    "PubSubClient (Nick O'Leary)": "knolleary/PubSubClient",
+    "OneWire": "paulstoffregen/OneWire",
+    "DallasTemperature": "milesburton/DallasTemperature",
+    "WiFiManager (tzapu)": "tzapu/WiFiManager",
+    "ESP32Servo": "madhephaestus/ESP32Servo",
+    "GxEPD2": "zinggjm/GxEPD2",
+    "ArduinoJson": "bblanchon/ArduinoJson",
+    "LiquidCrystal": "arduino-libraries/LiquidCrystal",
+    "RF24": "nrf24/RF24"
+  },
+  "hugeApp": [
+    "ble-scan"
+  ]
+}
