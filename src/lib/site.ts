@@ -7,8 +7,8 @@ export const SITE = {
   tagline: "ESP32 projects, pinouts and a serial workbench in your browser",
   description:
     "Free ESP32 project library with pinouts, wiring tables and copy-paste Arduino sketches, plus a Web Serial monitor, crash translator and browser flasher.",
-  /** Public source repository. Leave empty while the repository is private. */
-  repo: "",
+  /** Public source repository. */
+  repo: "https://github.com/doodersrage/esp32-bench",
   /** Ahrefs Web Analytics site key. Empty turns analytics off. */
   ahrefsKey: "OCD7LFsMxlGOUms5cW+xFw",
   /** Backend that emails reports to the site owner (api/ in this repository) */
