@@ -67,6 +67,7 @@ jobs:
           node --experimental-strip-types tests/settings.test.ts
           node --experimental-strip-types tests/editor.test.ts
           node --experimental-strip-types tests/flash-hook.test.ts
+          node --experimental-strip-types tests/sync-merge.test.ts
           node --experimental-strip-types tests/library-elf.test.ts
           bash tests/settings-snippet/run.sh
           node scripts/test-tools.mjs
@@ -78,7 +79,7 @@ jobs:
 
       - name: Test the report API and the monitor
         run: |
-          (cd api && npm ci && node --experimental-strip-types test/report.test.ts && node --experimental-strip-types test/turnstile.test.ts && node --experimental-strip-types test/builds.test.ts && node --experimental-strip-types test/oidc.test.ts && node --experimental-strip-types test/lab.test.ts)
+          (cd api && npm ci && node --experimental-strip-types test/report.test.ts && node --experimental-strip-types test/turnstile.test.ts && node --experimental-strip-types test/builds.test.ts && node --experimental-strip-types test/oidc.test.ts && node --experimental-strip-types test/lab.test.ts && node --experimental-strip-types test/sync.test.ts)
           (cd lab && pip install -q -r requirements.txt && python3 -m unittest discover -s tests)
           (cd monitor && npm ci && node --experimental-strip-types test/checks.test.ts)
           (cd compile && npm ci && node --experimental-strip-types test/shared.test.ts)

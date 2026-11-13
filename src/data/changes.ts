@@ -14,6 +14,17 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-19",
+    date: "2026-11-13",
+    title: "Version 0.19: your bench log on every device",
+    summary: "A sync code keeps your bench log, shopping list and parts drawer the same on your phone and your laptop, with no account.",
+    items: [
+      "Make a sync code under Bench log on the home page, then enter it, or open its link, on your other devices. Changes travel both ways, and changes made on two devices at once are combined.",
+      "No account and no email: the code is the only key, and only a hash of it is stored. Stop syncing in one browser, or delete the cloud copy, at any time.",
+    ],
+    link: "/#log",
+  },
+  {
     id: "v0-18",
     date: "2026-11-13",
     title: "Version 0.18: decode library crashes, and which project runs where",

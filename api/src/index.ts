@@ -5,6 +5,7 @@ import { verifyTurnstile } from "./turnstile.ts";
 import { uploadFirmware } from "./firmware.ts";
 import { moderationPage, newToken, publicBuild, resultPage, sameHash, sha256, summarise, type BuildRow } from "./builds.ts";
 import { checkLabRun, publicLab, tokenMatches, type LabResultRow, type LabRunRow } from "./lab.ts";
+import { checkSyncData, codeFrom, newSyncCode } from "./sync.ts";
 
 interface Env {
 	EMAIL: SendEmail;
@@ -28,8 +29,8 @@ function cors(origin: string | null): Record<string, string> {
 	if (!origin || !allowed.includes(origin)) return {};
 	return {
 		"Access-Control-Allow-Origin": origin,
-		"Access-Control-Allow-Methods": "POST, OPTIONS",
-		"Access-Control-Allow-Headers": "Content-Type",
+		"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+		"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		"Access-Control-Max-Age": "86400",
 		Vary: "Origin",
 	};
@@ -143,6 +144,76 @@ async function labRuns(request: Request): Promise<Response> {
 	return json({ ok: true, run: runId, results: run.results.length, passed }, 200, none);
 }
 
+/**
+ * /sync: a bench log stored under a sync code (see sync.ts).
+ *   POST   {turnstile, data}  makes a code and stores data; returns {code, updated_at}
+ *   GET    Bearer <code>      returns {data, updated_at}
+ *   PUT    Bearer <code>, {data}  replaces the data; returns {updated_at}
+ *   DELETE Bearer <code>      removes the cloud copy
+ * Only browsers on the site's origins get past CORS; the code is the only key.
+ */
+async function sync(request: Request, headers: Record<string, string>): Promise<Response> {
+	if (request.method === "OPTIONS") return new Response(null, { status: headers["Access-Control-Allow-Origin"] ? 204 : 403, headers });
+	if (!headers["Access-Control-Allow-Origin"]) return json({ ok: false, error: "Use sync from esp32bench.dev." }, 403, headers);
+	const now = Date.now();
+
+	async function body(): Promise<Record<string, unknown> | null> {
+		if (Number(request.headers.get("Content-Length") ?? 0) > 80_000) return null;
+		try {
+			const parsed: unknown = JSON.parse((await request.text()).slice(0, 80_000));
+			return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+		} catch {
+			return null;
+		}
+	}
+
+	if (request.method === "POST") {
+		const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+		const { success } = await config.LIMIT.limit({ key: `sync:${ip}` });
+		if (!success) return json({ ok: false, error: "Too many new codes in a minute. Please try again shortly." }, 429, headers);
+		const b = await body();
+		if (!b) return json({ ok: false, error: "Send JSON." }, 400, headers);
+		const checked = checkSyncData(b.data);
+		if (!checked.ok) return json({ ok: false, error: checked.error }, 400, headers);
+		const human = await verifyTurnstile({
+			secret: config.TURNSTILE_SECRET,
+			token: b.turnstile,
+			ip,
+			expectedAction: "sync",
+			expectedHostnames: new Set(config.TURNSTILE_HOSTNAMES.split(",").map((h) => h.trim()).filter(Boolean)),
+		});
+		if (!human) return json({ ok: false, error: "The human check failed or expired. Please complete it again." }, 403, headers);
+		const code = newSyncCode();
+		await config.DB.prepare("INSERT INTO sync (code_hash, data, created_at, updated_at) VALUES (?, ?, ?, ?)")
+			.bind(await sha256(code), JSON.stringify(checked.data), now, now)
+			.run();
+		return json({ ok: true, code, updated_at: now }, 200, headers);
+	}
+
+	const code = codeFrom(request);
+	if (!code) return json({ ok: false, error: "Send the sync code as a Bearer token." }, 401, headers);
+	const hash = await sha256(code);
+	const gone = () => json({ ok: false, error: "No data for that sync code." }, 404, headers);
+
+	if (request.method === "GET") {
+		const row = await config.DB.prepare("SELECT data, updated_at FROM sync WHERE code_hash = ?").bind(hash).first<{ data: string; updated_at: number }>();
+		return row ? json({ ok: true, data: JSON.parse(row.data), updated_at: row.updated_at }, 200, headers) : gone();
+	}
+	if (request.method === "PUT") {
+		const b = await body();
+		if (!b) return json({ ok: false, error: "Send JSON." }, 400, headers);
+		const checked = checkSyncData(b.data);
+		if (!checked.ok) return json({ ok: false, error: checked.error }, 400, headers);
+		const res = await config.DB.prepare("UPDATE sync SET data = ?, updated_at = ? WHERE code_hash = ?").bind(JSON.stringify(checked.data), now, hash).run();
+		return res.meta.changes ? json({ ok: true, updated_at: now }, 200, headers) : gone();
+	}
+	if (request.method === "DELETE") {
+		await config.DB.prepare("DELETE FROM sync WHERE code_hash = ?").bind(hash).run();
+		return json({ ok: true }, 200, headers);
+	}
+	return json({ ok: false, error: "Use GET, POST, PUT or DELETE." }, 405, { ...headers, Allow: "GET, POST, PUT, DELETE, OPTIONS" });
+}
+
 /** GET /moderate/<id>?t=...: the report with Approve and Reject buttons. Nothing changes until a button posts. */
 async function showModeration(id: number, url: URL): Promise<Response> {
 	const row = await findForToken(id, url.searchParams.get("t") ?? "");
@@ -176,6 +247,7 @@ export default {
 			if (request.method !== "PUT") return json({ ok: false, error: "Use PUT." }, 405, { Allow: "PUT" });
 			return uploadFirmware(request, url.pathname.slice(4), config.FIRMWARE, API_ORIGIN, "doodersrage/esp32-bench");
 		}
+		if (url.pathname === "/sync") return sync(request, headers);
 		if (url.pathname === "/builds/summary" && request.method === "GET") return buildsSummary();
 		if (url.pathname === "/builds" && request.method === "GET") return listBuilds(url);
 		if (url.pathname === "/lab/latest" && request.method === "GET") return labLatest();

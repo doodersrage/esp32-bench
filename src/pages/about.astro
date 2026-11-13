@@ -40,7 +40,9 @@ const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
     <p>
       There are no accounts. Visits are counted with Ahrefs Web Analytics and Cloudflare Web Analytics, which record
       page views, referrers and rough location without cookies; they never see what you type or anything from your board. Your bench log, badges,
-      saved board passports, theme and serial settings are kept in this browser's local storage and never leave it. Serial data goes from the board to this page and
+      saved board passports, theme and serial settings are kept in this browser's local storage. If you make a sync code, your bench log,
+      shopping list, parts drawer and chosen board are also stored on our server under that code, so your other browsers can share them; the code itself is
+      stored only as a hash, nothing ties it to you, and Delete the cloud copy on the home page removes it. Serial data goes from the board to this page and
       nowhere else. Wi-Fi details you type into a probe's settings form are sent to the
       board over USB only.
     </p>

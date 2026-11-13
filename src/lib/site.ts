@@ -19,6 +19,8 @@ export const SITE = {
   compileApi: "https://compile.esp32bench.dev",
   /** Approved community build reports: GET ?project=<id> */
   buildsApi: "https://api.esp32bench.dev/builds",
+  /** Sync codes: one bench log across browsers (api/ in this repository) */
+  syncApi: "https://api.esp32bench.dev/sync",
   /** The hardware lab's latest run, per project (api/ in this repository) */
   labLatestApi: "https://api.esp32bench.dev/lab/latest",
   /** Prebuilt firmware for every project (R2 bucket esp32-bench-firmware, filled by the Firmware library workflow) */
