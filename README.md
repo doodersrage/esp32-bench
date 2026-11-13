@@ -122,7 +122,7 @@ Version 0.17 (release notes at `/changes/`, from `src/data/changes.ts`).
 Running and checked automatically:
 
 - Every push is built, type checked and tested in GitHub Actions (`Build`), and the site, report API and uptime monitor deploy on push to main (`Deploy`). `scripts/smoke-pages.mjs` loads one page of each kind in headless Chrome and fails on any script error.
-- Every library sketch is compiled for every board it supports, on Tuesdays and when sketches change, and published as flashable firmware (`Firmware library`). A weekly job (`Weekly check`) compiles the sketches against the newest Arduino core and checks outside links.
+- Every library sketch is compiled for every board it supports, on Tuesdays and when sketches change, booted in QEMU (ESP32 and ESP32-C3 images), and published as flashable firmware (`Firmware library`). A weekly job (`Weekly check`) compiles the sketches against the newest Arduino core and checks outside links.
 - The compile service, firmware library, lab API and community build reports are live.
 
 Tested on hardware so far, and what is not:
@@ -144,6 +144,7 @@ Not built yet:
 - **Compile service:** `compile/` is the `esp32-bench-compile` Worker at `compile.esp32bench.dev`, running PlatformIO in Cloudflare Containers (`standard-2`, at most two instances, stopped 2 minutes after the last build). Quotas: 4 builds a minute and 40 a day per visitor, 600 a day in total. Its library list comes from `src/data/compile-libs.json` (`compile/scripts/sync-libs.mjs`). It is deployed by hand, not by CI, because the image is 8.6 GB: see `compile/README.md`.
 - **Editor:** "Edit and build" on project pages and `/tools/build/` (`src/components/SketchBuilder.astro`, `src/scripts/editor/`, CodeMirror loaded only when used).
 - **Crash decoding for library firmware:** library images are built with their ELF's SHA-256 embedded (`--elf-sha256-offset 0xb0`, added by `elf_sha.py` in each PlatformIO project, as the Arduino IDE does), so a crash prints "ELF file SHA256". The firmware library uploads each ELF gzipped as `elf/<first 32 hex digits>.gz` with `elf/index.json` (90 days of builds). The backtrace decoder (`src/lib/library-elf.ts`) looks up a pasted crash's hash and decodes it with that ELF, no file needed. Old ELFs are removed by an R2 lifecycle rule on the `elf/` prefix of `esp32-bench-firmware` (expire after 100 days), set once in the Cloudflare dashboard.
+- **Emulator check:** after building, the firmware library boots every ESP32 and ESP32-C3 image in Espressif's QEMU (`scripts/emulate-firmware.mjs`) and reports, in the job summary, whether it booted, crashed or reboot-looped, and whether projects that need no parts printed what the lab expects. QEMU has no Wi-Fi, Bluetooth or sensors, so radio projects are reported as stopping at the radio. Report only for now; `--strict` makes a crash block publishing.
 - **Hardware lab:** `lab/` is a Raspberry Pi runner that flashes each project from the firmware library, checks its serial output against `src/data/lab-expect.ts`, and posts results to `api.esp32bench.dev/lab/runs`; see `lab/README.md`.
 
 ## Community

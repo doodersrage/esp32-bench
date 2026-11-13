@@ -19,3 +19,7 @@ firmware/pin-detective/src/idf_component.yml
 .sketch-check/
 sketch-report.md
 link-report.md
+
+# Firmware library: QEMU boot check
+.qemu/
+emulator-report.md
