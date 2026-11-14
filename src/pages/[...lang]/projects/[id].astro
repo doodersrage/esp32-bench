@@ -138,7 +138,21 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
         <span class="tag">{t("baud", { n: p.baud })}</span>
         <span class="tag ok" data-lab-tag hidden title={t("labTagTitle")}>{t("labTested")}</span>
         <button class="btn sm printbtn" type="button" data-print>{t("print")}</button>
+        {
+          p.code !== undefined && (
+            <button
+              class="btn sm"
+              type="button"
+              data-keep-offline
+              data-project={p.id}
+              data-name={name}
+              data-boards={boards.map((b) => b.short).join(", ")}
+              hidden
+            />
+          )
+        }
       </div>
+      <p class="cap left" data-keep-status role="status" hidden></p>
       {
         p.tags.includes("probeharbor") && (
           <p class="phcredit">

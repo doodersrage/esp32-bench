@@ -1,0 +1,30 @@
+---
+import { localePaths } from "../../i18n/locales";
+import Base from "../../layouts/Base.astro";
+import { localLink } from "../../lib/paths";
+import { translator } from "../../i18n/t";
+import { OFFLINE } from "../../i18n/strings/offline";
+
+const link = localLink(Astro.currentLocale);
+const t = translator(OFFLINE, Astro.currentLocale);
+
+// Shown by the service worker for a page that was never saved, in the
+// language of the page that was asked for.
+export const getStaticPaths = localePaths;
+---
+
+<Base title={t("offlineTitle")} current="none" noindex description={t("offlineTitle")}>
+  <section class="view">
+    <h1 class="h2">{t("offlineTitle")}</h1>
+    <p class="lede">{t("offlineIntro")}</p>
+    <ul class="jump">
+      <li><a href={link("/")}>{t("offlineLibrary")}</a></li>
+      <li><a href={link("/start/")}>{t("offlineStart")}</a></li>
+      <li><a href={link("/boards/")}>{t("offlineBoards")}</a></li>
+      <li><a href={link("/bench/")}>{t("offlineBench")}</a> <span>{t("offlineBenchNote")}</span></li>
+    </ul>
+    <h2 class="h3">{t("offlineKept")}</h2>
+    <p class="cap left" data-kept-empty>{t("cardEmpty")}</p>
+    <ul class="keptlist" data-kept-list></ul>
+  </section>
+</Base>

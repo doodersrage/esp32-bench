@@ -98,6 +98,10 @@ Add an entry to `PROJECTS` in `src/data/projects.ts`. The `Project` type documen
 - Record real hardware checks in `verified`. A project with none is labelled "Not hardware tested".
 - For prebuilt firmware, put the merged images and an ESP Web Tools `manifest.json` under `public/firmware/<id>/` and set `flash`.
 
+## Offline
+
+The site installs as an app and works offline (`src/pages/sw.js.ts`). On install the service worker saves every English page, the search index and every script and style those pages load; a page in another language has that language's pages saved too (skipped on a data-saver connection). "Keep for offline" on a project page (`src/scripts/offline.ts`) saves the project's firmware for every board, its manifests and preview, and the page itself, in caches that survive deploys; online, firmware is always fetched fresh and kept copies are refreshed. The home page lists what a device has kept. Compiling an edited sketch needs the compile server and does not work offline.
+
 ## Languages
 
 English is the original and lives at the site root. The library, project pages, tools, bench, guide, shop and about pages are also machine-translated into Spanish, German, French and Brazilian Portuguese, under `/es/`, `/de/`, `/fr/` and `/pt-br/`; translated pages say so and link to the English original. Board pages, the error guide, the hall of flames and the changelog are English only. Sketch code, pin names and serial output are never translated.

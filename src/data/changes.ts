@@ -14,6 +14,18 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-24",
+    date: "2026-11-14",
+    title: "Version 0.24: flash without a connection",
+    summary: "Keep a project for offline use and its page and firmware work with no internet: open it, flash it, watch it on the bench.",
+    items: [
+      "Keep for offline, at the top of every project page: saves the page and its firmware for every board it supports. Saved copies update themselves whenever you are online.",
+      "Saved for offline, on the home page: what this device has kept, how much space it takes, and a Remove button.",
+      "The tools now work offline as well as the pages: the bench, the wiring checker and the partition builder load without a connection once you have visited the site.",
+    ],
+    link: "/projects/blink/",
+  },
+  {
     id: "v0-23",
     date: "2026-11-14",
     title: "Version 0.23: ESP32 Bench in Spanish, German, French and Portuguese",

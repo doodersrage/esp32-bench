@@ -11,10 +11,12 @@ import { localLink } from "../../lib/paths";
 import { translator } from "../../i18n/t";
 import { contentTranslator } from "../../i18n/content";
 import { SHELL } from "../../i18n/strings/shell";
+import { OFFLINE } from "../../i18n/strings/offline";
 import { BADGE_TEXT, DRAWER_NAMES, GROUP_NAMES, HOME, LEVEL_NAMES, PATH_TEXT, TAG_NAMES, dataLabel } from "../../i18n/strings/home";
 
 const link = localLink(Astro.currentLocale);
 const t = translator(HOME, Astro.currentLocale);
+const to = translator(OFFLINE, Astro.currentLocale);
 const tc = contentTranslator(Astro.currentLocale);
 const drawerName = dataLabel(DRAWER_NAMES, Astro.currentLocale);
 const groupName = dataLabel(GROUP_NAMES, Astro.currentLocale) as (id: string, english: string) => string;
@@ -196,6 +198,14 @@ export const getStaticPaths = localePaths;
           <p class="cap left">{t("syncLost")}</p>
         </div>
         <p class="cap left" id="sync-status" role="status"></p>
+      </div>
+      <div class="sync keptcard" id="offline">
+        <h3 class="synchead">{to("cardTitle")}</h3>
+        <p>{to("cardIntro")}</p>
+        <p class="cap left" data-kept-empty>{to("cardEmpty")}</p>
+        <ul class="keptlist" data-kept-list></ul>
+        <p class="cap left" data-kept-total></p>
+        <p class="cap left">{to("cardInstall")}</p>
       </div>
       <ul class="badges">
         {
