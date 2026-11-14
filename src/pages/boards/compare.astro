@@ -2,7 +2,9 @@
 import Base from "../../layouts/Base.astro";
 import { BOARDS } from "../../data/boards";
 import { CHIPS, type Chip } from "../../data/chips";
-import { link } from "../../lib/paths";
+import { localLink } from "../../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 const chips = Object.values(CHIPS);
 const ROWS: [string, (c: Chip) => string][] = [

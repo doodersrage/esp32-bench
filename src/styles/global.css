@@ -298,6 +298,17 @@ a.brand { text-decoration: none; color: var(--ink); }
 }
 .bname.short { display: none; }
 .offline-note { margin: 12px 0 0; padding: 8px 12px; border: 1px solid var(--warn); border-left-width: 4px; background: var(--panel); font-size: 0.88rem; max-width: none; }
+/* Language menu, the machine-translation note and the "also in your language" offer */
+.langmenu { position: relative; }
+.langmenu > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; }
+.langmenu > summary::-webkit-details-marker { display: none; }
+.langmenu ul { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; margin: 0; padding: 4px 0; list-style: none; min-width: 190px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 6px 18px rgb(0 0 0 / 0.15); }
+.langmenu li a { display: block; padding: 6px 12px; color: var(--ink); text-decoration: none; font-size: 0.9rem; }
+.langmenu li a:hover, .langmenu li a:focus-visible { background: var(--paper); }
+.langmenu li a[aria-current] { font-weight: 600; }
+.mtnote, .langoffer { margin: 12px 0 0; padding: 8px 12px; border: 1px solid var(--line); border-left: 4px solid var(--pad); background: var(--panel); font-size: 0.88rem; max-width: none; }
+.langoffer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.langoffer[hidden] { display: none; }
 footer { display: flex; flex-direction: column; gap: 8px; }
 footer a { color: var(--ink); }
 .footnav { display: flex; flex-wrap: wrap; gap: 4px 16px; }
@@ -391,7 +402,7 @@ ul.builds { list-style: none; margin: 0; padding: 0; display: flex; flex-directi
 @media print {
   :root { --paper: #fff; --panel: #fff; --term-bg: #fff; --term-ink: #000; }
   body { font-size: 11pt; }
-  header.top nav.tabs, header.top .tools, header.top .rev, footer, .skip, .offline-note, .back,
+  header.top nav.tabs, header.top .tools, header.top .rev, footer, .skip, .offline-note, .mtnote, .langoffer, .back,
   #try-it, #boardswitch, #community, #discuss, .fwlib, .flashbox, .sb, .nextsteps, .wd-tools, .wd-build,
   [data-copy], [data-unclip], [data-print], #shop-toggle, #shop-link, .pathnote, .kitcard, .cap.left { display: none !important; }
   header.top { border-bottom-width: 1px; }

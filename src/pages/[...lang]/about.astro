@@ -1,11 +1,16 @@
 ---
-import Base from "../layouts/Base.astro";
-import { link } from "../lib/paths";
-import { PROBEHARBOR, SITE } from "../lib/site";
-import { AFFILIATE_DISCLOSURE } from "../lib/shop";
-import { PROJECTS } from "../data/projects";
+import { localePaths } from "../../i18n/locales";
+import Base from "../../layouts/Base.astro";
+import { localLink } from "../../lib/paths";
+import { PROBEHARBOR, SITE } from "../../lib/site";
+import { AFFILIATE_DISCLOSURE } from "../../lib/shop";
+import { PROJECTS } from "../../data/projects";
+
+const link = localLink(Astro.currentLocale);
 
 const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base

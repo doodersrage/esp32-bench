@@ -1,7 +1,9 @@
 ---
 import { boardsOf, isNew, pickerNeeds, type Project } from "../data/projects";
 import { boardById } from "../data/boards";
-import { link } from "../lib/paths";
+import { localLink } from "../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 interface Props {
   project: Project;

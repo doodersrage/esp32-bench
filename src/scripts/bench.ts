@@ -3,7 +3,8 @@ import { PROJECTS, boardsOf, forBoard } from "../data/projects";
 import { decodeItem } from "./decode-link";
 import { explainLine, explainLog } from "../lib/crash";
 import { errorSlugForKey } from "../data/errors";
-import { link } from "../lib/paths";
+import { link, localLink } from "../lib/paths";
+import { pageLocale } from "../i18n/t";
 import { decodeLog, encodeLog, logCodeFromHash, trimLog } from "../lib/share";
 import { feedPlotter, initPlotter, resetPlotter } from "./plotter";
 import { feedRadar, initRadar, resetRadar } from "./radar";
@@ -337,7 +338,7 @@ async function shareLog(raw: string, panel: HTMLElement) {
     return;
   }
   const { text, trimmed } = trimLog(raw);
-  const url = `${location.origin}${link("/bench/")}#log=${await encodeLog(text)}`;
+  const url = `${location.origin}${localLink(pageLocale())("/bench/")}#log=${await encodeLog(text)}`;
   const input = document.createElement("input");
   input.type = "text";
   input.readOnly = true;

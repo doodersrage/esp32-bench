@@ -1,27 +1,30 @@
 ---
-import Base from "../../layouts/Base.astro";
-import Comments from "../../components/Comments.astro";
-import Preview from "../../components/Preview.astro";
-import Pinout from "../../components/Pinout.astro";
-import WiringDiagram from "../../components/WiringDiagram.astro";
-import Flasher from "../../components/Flasher.astro";
-import FirmwareLibrary from "../../components/FirmwareLibrary.astro";
-import { LAB_EXPECT } from "../../data/lab-expect";
-import ProbeSetup from "../../components/ProbeSetup.astro";
-import SettingsForm from "../../components/SettingsForm.astro";
-import SketchBuilder from "../../components/SketchBuilder.astro";
-import COMPILE from "../../data/compile-libs.json";
-import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects";
-import { BOARDS, boardById, buildChoices, buildTarget } from "../../data/boards";
-import { link } from "../../lib/paths";
-import { PROBEHARBOR, SITE, reportUrl } from "../../lib/site";
-import { AFFILIATE_DISCLOSURE, buyFor } from "../../lib/shop";
-import { kitFor } from "../../lib/kit";
-import { PATHS } from "../../data/paths";
-import { PAGE_PALETTE, kitIconSvg } from "../../lib/kit-icons";
+import { withLocales } from "../../../i18n/locales";
+import Base from "../../../layouts/Base.astro";
+import Comments from "../../../components/Comments.astro";
+import Preview from "../../../components/Preview.astro";
+import Pinout from "../../../components/Pinout.astro";
+import WiringDiagram from "../../../components/WiringDiagram.astro";
+import Flasher from "../../../components/Flasher.astro";
+import FirmwareLibrary from "../../../components/FirmwareLibrary.astro";
+import { LAB_EXPECT } from "../../../data/lab-expect";
+import ProbeSetup from "../../../components/ProbeSetup.astro";
+import SettingsForm from "../../../components/SettingsForm.astro";
+import SketchBuilder from "../../../components/SketchBuilder.astro";
+import COMPILE from "../../../data/compile-libs.json";
+import { PROJECTS, boardsOf, forBoard, type Project } from "../../../data/projects";
+import { BOARDS, boardById, buildChoices, buildTarget } from "../../../data/boards";
+import { localLink } from "../../../lib/paths";
+import { PROBEHARBOR, SITE, reportUrl } from "../../../lib/site";
+import { AFFILIATE_DISCLOSURE, buyFor } from "../../../lib/shop";
+import { kitFor } from "../../../lib/kit";
+import { PATHS } from "../../../data/paths";
+import { PAGE_PALETTE, kitIconSvg } from "../../../lib/kit-icons";
+
+const link = localLink(Astro.currentLocale);
 
 export function getStaticPaths() {
-  return PROJECTS.map((p) => ({ params: { id: p.id }, props: { p } }));
+  return withLocales(PROJECTS.map((p) => ({ params: { id: p.id }, props: { p } })));
 }
 
 interface Props {
@@ -429,13 +432,13 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
 </style>
 
 <script>
-  import "../../scripts/community.ts";
+  import "../../../scripts/community.ts";
 </script>
 
 <script>
-  import { loadBuilt, loadShop, saveBuilt, saveShop } from "../../scripts/progress";
-  import { loadState as loadSyncState } from "../../scripts/sync";
-  import "../../scripts/preview.ts";
+  import { loadBuilt, loadShop, saveBuilt, saveShop } from "../../../scripts/progress";
+  import { loadState as loadSyncState } from "../../../scripts/sync";
+  import "../../../scripts/preview.ts";
 
   // Board switcher: one pre-rendered panel per board, one visible at a time.
   const buttons = [...document.querySelectorAll<HTMLButtonElement>("#boardswitch [data-board]")];

@@ -1,14 +1,19 @@
 ---
-import Base from "../layouts/Base.astro";
-import { link } from "../lib/paths";
-import Flasher from "../components/Flasher.astro";
-import { HEADER_BOARDS } from "../data/boards";
-import { CHIPS } from "../data/chips";
-import { DETECTIVE_CHIPS } from "../lib/detective";
+import { localePaths } from "../../i18n/locales";
+import Base from "../../layouts/Base.astro";
+import { localLink } from "../../lib/paths";
+import Flasher from "../../components/Flasher.astro";
+import { HEADER_BOARDS } from "../../data/boards";
+import { CHIPS } from "../../data/chips";
+import { DETECTIVE_CHIPS } from "../../lib/detective";
+
+const link = localLink(Astro.currentLocale);
 
 const boards = HEADER_BOARDS.filter((b) => DETECTIVE_CHIPS.includes(b.chip));
 const chipList = DETECTIVE_CHIPS.map((c) => CHIPS[c].name);
 const families = `${chipList.slice(0, -1).join(", ")} and ${chipList.at(-1)}`;
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base
@@ -98,5 +103,5 @@ const families = `${chipList.slice(0, -1).join(", ")} and ${chipList.at(-1)}`;
 </style>
 
 <script>
-  import "../scripts/detective.ts";
+  import "../../scripts/detective.ts";
 </script>

@@ -1,6 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
-import { link } from "../lib/paths";
+import { localLink } from "../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 ---
 
 <Base title="Page not found" current="none" noindex description="This page does not exist on ESP32 Bench.">

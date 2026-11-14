@@ -11,9 +11,16 @@ import sairaBold from "@fontsource/saira-condensed/files/saira-condensed-latin-7
 import sairaSemi from "@fontsource/saira-condensed/files/saira-condensed-latin-600-normal.woff2?url";
 import plexSans from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2?url";
 import "../styles/global.css";
-import { link } from "../lib/paths";
+import { isTranslatedPage, localLink } from "../lib/paths";
+import { HTML_LANG, LOCALES, LOCALE_NAMES, localeOf, localePath, unlocalePath } from "../i18n/locales";
+import { translator } from "../i18n/t";
+import { SHELL } from "../i18n/strings/shell";
 import { SITE, absolute, reportUrl } from "../lib/site";
 import { amazonTags } from "../lib/shop";
+
+const link = localLink(Astro.currentLocale);
+const locale = localeOf(Astro.currentLocale);
+const t = translator(SHELL, locale);
 
 type Section =
   | "library"
@@ -43,11 +50,23 @@ interface Props {
   noindex?: boolean;
 }
 
-const { title, description = SITE.description, current, image = "/og.png", jsonLd, noindex = false } = Astro.props;
-const pageTitle = title ? `${title} | ${SITE.name}` : `${SITE.name}: ${SITE.tagline}`;
+const { title, description = t("description"), current, image = "/og.png", jsonLd, noindex = false } = Astro.props;
+const pageTitle = title ? `${title} | ${SITE.name}` : `${SITE.name}: ${t("tagline")}`;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const sitePath = base && Astro.url.pathname.startsWith(base) ? Astro.url.pathname.slice(base.length) : Astro.url.pathname;
 const canonical = absolute(sitePath, Astro.site);
+
+// Languages: a translated page links to its other versions (hreflang, the
+// language menu); an English-only page offers each language's home page.
+const { path: englishPath } = unlocalePath(sitePath);
+const translated = isTranslatedPage(englishPath);
+const versions = LOCALES.map((l) => ({
+  locale: l,
+  name: LOCALE_NAMES[l],
+  href: `${base}${localePath(translated ? englishPath : "/", l)}`,
+  url: absolute(localePath(englishPath, l), Astro.site),
+}));
+const englishUrl = `${base}${englishPath}`;
 const imageUrl = absolute(image, Astro.site);
 const correctionUrl = noindex || current === "report" ? "" : reportUrl("correction", { page: canonical });
 
@@ -55,27 +74,35 @@ const correctionUrl = noindex || current === "report" ? "" : reportUrl("correcti
 const PARENT: Partial<Record<Section, Section>> = { detective: "tools", flames: "errors" };
 const navSection = PARENT[current] ?? current;
 const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
-  ["library", "/", "Library"],
-  ["start", "/start/", "Guide"],
-  ["boards", "/boards/", "Boards"],
-  ["wire", "/wire/", "Wire"],
-  ["bench", "/bench/", "Bench"],
-  ["errors", "/errors/", "Errors"],
-  ["tools", "/tools/", "Tools"],
+  ["library", "/", t("navLibrary")],
+  ["start", "/start/", t("navGuide")],
+  ["boards", "/boards/", t("navBoards")],
+  ["wire", "/wire/", t("navWire")],
+  ["bench", "/bench/", t("navBench")],
+  ["errors", "/errors/", t("navErrors")],
+  ["tools", "/tools/", t("navTools")],
 ];
 ---
 
 <!doctype html>
-<html lang="en" data-amazon-tags={amazonTags() === "{}" ? undefined : amazonTags()}>
+<html lang={HTML_LANG[locale]} data-locale={locale} data-translated={translated ? "" : undefined} data-amazon-tags={amazonTags() === "{}" ? undefined : amazonTags()}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    {
+      translated &&
+        !noindex && [
+          ...versions.map((v) => <link rel="alternate" hreflang={HTML_LANG[v.locale]} href={v.url} />),
+          <link rel="alternate" hreflang="x-default" href={versions[0].url} />,
+        ]
+    }
     {noindex && <meta name="robots" content="noindex" />}
 
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content={HTML_LANG[locale].replace("-", "_")} />
     <meta property="og:site_name" content={SITE.name} />
     <meta property="og:title" content={title ?? SITE.name} />
     <meta property="og:description" content={description} />
@@ -113,19 +140,19 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
     }
   </head>
   <body>
-    <a class="skip" href="#main">Skip to content</a>
+    <a class="skip" href="#main">{t("skip")}</a>
     <div class="wrap">
       <header class="top">
         <a class="brand" href={link("/")}>ESP32 <span>Bench</span></a>
-        <div class="rev">Boards: ESP32, S2, S3, C3, C6<br />Flash and monitor: Web Serial</div>
+        <div class="rev" set:html={t("rev")} />
         <div class="tools">
           <form class="hsearch" id="hsearch" role="search" action={link("/search/")} method="get">
-            <label class="sr" for="hsearch-q">Search ESP32 Bench</label>
+            <label class="sr" for="hsearch-q">{t("searchLabel")}</label>
             <input
               id="hsearch-q"
               name="q"
               type="search"
-              placeholder="Search  /"
+              placeholder={t("searchPlaceholder")}
               autocomplete="off"
               spellcheck="false"
               role="combobox"
@@ -133,18 +160,32 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
               aria-controls="hsearch-list"
               aria-expanded="false"
             />
-            <button class="btn sm hsearch-go" type="submit" aria-label="Search">
+            <button class="btn sm hsearch-go" type="submit" aria-label={t("searchButton")}>
               <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
                 <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"></circle>
                 <path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
               </svg>
             </button>
-            <ul class="hsearch-list" id="hsearch-list" role="listbox" aria-label="Quick results" hidden></ul>
+            <ul class="hsearch-list" id="hsearch-list" role="listbox" aria-label={t("quickResults")} hidden></ul>
           </form>
-          <button class="btn sm" type="button" id="install-app" hidden>Install app</button>
-          <button class="btn sm" type="button" id="theme">Theme: auto</button>
+          <button class="btn sm" type="button" id="install-app" hidden>{t("install")}</button>
+          <button class="btn sm" type="button" id="theme">{t("theme", { theme: t("themeAuto") })}</button>
+          <details class="langmenu">
+            <summary class="btn sm" aria-label={t("language")}>{locale === "en" ? "EN" : locale.toUpperCase()}</summary>
+            <ul>
+              {
+                versions.map((v) => (
+                  <li>
+                    <a href={v.href} hreflang={HTML_LANG[v.locale]} lang={HTML_LANG[v.locale]} data-locale-link={v.locale} aria-current={v.locale === locale ? "true" : undefined}>
+                      {v.name}
+                    </a>
+                  </li>
+                ))
+              }
+            </ul>
+          </details>
         </div>
-        <nav class="tabs" aria-label="Sections">
+        <nav class="tabs" aria-label={t("sections")}>
           {
             NAV.map(([id, href, label]) => (
               <a href={link(href)} aria-current={current === id ? "page" : navSection === id ? "true" : undefined}>
@@ -154,25 +195,36 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
           }
         </nav>
       </header>
-      <p class="offline-note" id="offline-note" role="status" hidden>
-        You are offline. Pages you have opened before still work. Flashing and buy links need a connection.
+      <p class="offline-note" id="offline-note" role="status" hidden>{t("offline")}</p>
+      {
+        locale !== "en" && (
+          <p class="mtnote" lang={HTML_LANG[locale]}>
+            {t("machine")} <a href={englishUrl} hreflang="en" lang="en" data-locale-link="en">{t("original")}</a>
+          </p>
+        )
+      }
+      <p class="langoffer" id="langoffer" hidden>
+        <span></span> <a class="btn sm" href="#"></a> <button class="btn sm" type="button"></button>
       </p>
       <main id="main">
         <slot />
       </main>
       <footer>
-        <nav class="footnav" aria-label="Site">
-          <a href={link("/about/")} aria-current={current === "about" ? "page" : undefined}>About</a>
-          <a href={link("/changes/")}>What's new</a>
-          <a href={link("/report/?kind=message")} aria-current={current === "report" ? "page" : undefined}>Contact</a>
-          <a href={link("/rss.xml")}>RSS feed</a>
-          {SITE.repo && <a href={SITE.repo}>Source code</a>}
-          {correctionUrl && <a href={correctionUrl}>Report a mistake on this page</a>}
+        <nav class="footnav" aria-label={t("footSite")}>
+          <a href={link("/about/")} aria-current={current === "about" ? "page" : undefined}>{t("footAbout")}</a>
+          <a href={link("/changes/")}>{t("footNew")}</a>
+          <a href={link("/report/?kind=message")} aria-current={current === "report" ? "page" : undefined}>{t("footContact")}</a>
+          <a href={link("/rss.xml")}>{t("footRss")}</a>
+          {SITE.repo && <a href={SITE.repo}>{t("footSource")}</a>}
+          {correctionUrl && <a href={correctionUrl}>{t("footMistake")}</a>}
         </nav>
-        <p>
-          {SITE.name} is made by <a href={SITE.author.url} rel="author">{SITE.author.name}</a>. Pin numbers are GPIO numbers. Check your own board's pinout before powering anything. Some buy
-          links earn a commission; see <a href={link("/about/#affiliate")}>About</a>.
-        </p>
+        <p
+          set:html={t("footMade", {
+            site: SITE.name,
+            author: `<a href="${SITE.author.url}" rel="author">${SITE.author.name}</a>`,
+            about: `<a href="${link("/about/#affiliate")}">${t("footAbout")}</a>`,
+          })}
+        />
       </footer>
     </div>
   </body>

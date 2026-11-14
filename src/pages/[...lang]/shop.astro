@@ -1,11 +1,14 @@
 ---
+import { localePaths } from "../../i18n/locales";
 // Shopping list: the parts for the projects you picked, merged into one list.
 // Everything is rendered as data here; the list itself lives in this browser.
-import Base from "../layouts/Base.astro";
-import { PROJECTS } from "../data/projects";
-import { kitFor } from "../lib/kit";
-import { AFFILIATE_DISCLOSURE, buyFor } from "../lib/shop";
-import { link } from "../lib/paths";
+import Base from "../../layouts/Base.astro";
+import { PROJECTS } from "../../data/projects";
+import { kitFor } from "../../lib/kit";
+import { AFFILIATE_DISCLOSURE, buyFor } from "../../lib/shop";
+import { localLink } from "../../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 const data = PROJECTS.map((p) => {
   const kit = kitFor(p.parts);
@@ -27,6 +30,8 @@ const data = PROJECTS.map((p) => {
     })),
   };
 });
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base
@@ -105,5 +110,5 @@ const data = PROJECTS.map((p) => {
 </style>
 
 <script>
-  import "../scripts/shop.ts";
+  import "../../scripts/shop.ts";
 </script>

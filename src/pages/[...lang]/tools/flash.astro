@@ -1,6 +1,11 @@
 ---
-import Base from "../../layouts/Base.astro";
-import { link } from "../../lib/paths";
+import { localePaths } from "../../../i18n/locales";
+import Base from "../../../layouts/Base.astro";
+import { localLink } from "../../../lib/paths";
+
+const link = localLink(Astro.currentLocale);
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base
@@ -106,5 +111,5 @@ import { link } from "../../lib/paths";
 </style>
 
 <script>
-  import "../../scripts/flash-tool.ts";
+  import "../../../scripts/flash-tool.ts";
 </script>

@@ -1,9 +1,14 @@
 ---
-import Base from "../../layouts/Base.astro";
-import { link } from "../../lib/paths";
-import { TOOLS } from "../../data/tools";
+import { localePaths } from "../../../i18n/locales";
+import Base from "../../../layouts/Base.astro";
+import { localLink } from "../../../lib/paths";
+import { TOOLS } from "../../../data/tools";
+
+const link = localLink(Astro.currentLocale);
 
 
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base

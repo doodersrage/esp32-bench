@@ -5,7 +5,9 @@ import { BOARDS } from "../../data/boards";
 import { CHIPS } from "../../data/chips";
 import { PROJECTS, boardsOf } from "../../data/projects";
 import { padRows } from "../../lib/pins";
-import { link } from "../../lib/paths";
+import { localLink } from "../../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 const countFor = (id: string) => PROJECTS.filter((p) => boardsOf(p).some((b) => b === id)).length;
 const cards = BOARDS.map((b) => {

@@ -1,9 +1,11 @@
 ---
 import Base from "../layouts/Base.astro";
-import { link } from "../lib/paths";
+import { localLink } from "../lib/paths";
 import { PROBEHARBOR } from "../lib/site";
 import { FLAMES } from "../data/flames";
 import { explainLog } from "../lib/crash";
+
+const link = localLink(Astro.currentLocale);
 
 const fromTests = FLAMES.filter((f) => f.source === "probeharbor").length;
 ---

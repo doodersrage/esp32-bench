@@ -1,7 +1,12 @@
 ---
-import Base from "../../layouts/Base.astro";
-import { link } from "../../lib/paths";
-import { SITE } from "../../lib/site";
+import { localePaths } from "../../../i18n/locales";
+import Base from "../../../layouts/Base.astro";
+import { localLink } from "../../../lib/paths";
+import { SITE } from "../../../lib/site";
+
+const link = localLink(Astro.currentLocale);
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base
@@ -103,5 +108,5 @@ import { SITE } from "../../lib/site";
 </style>
 
 <script>
-  import "../../scripts/backtrace-page.ts";
+  import "../../../scripts/backtrace-page.ts";
 </script>

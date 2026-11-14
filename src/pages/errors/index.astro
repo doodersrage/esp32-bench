@@ -2,7 +2,9 @@
 import Base from "../../layouts/Base.astro";
 import { ERRORS, GROUPS } from "../../data/errors";
 import { checkErrors } from "../../lib/errors-check";
-import { link } from "../../lib/paths";
+import { localLink } from "../../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 checkErrors();
 

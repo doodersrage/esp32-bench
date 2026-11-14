@@ -1,6 +1,11 @@
 ---
-import Base from "../layouts/Base.astro";
-import { link } from "../lib/paths";
+import { localePaths } from "../../i18n/locales";
+import Base from "../../layouts/Base.astro";
+import { localLink } from "../../lib/paths";
+
+const link = localLink(Astro.currentLocale);
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base
@@ -37,5 +42,5 @@ import { link } from "../lib/paths";
 </Base>
 
 <script>
-  import "../scripts/search-page.ts";
+  import "../../scripts/search-page.ts";
 </script>

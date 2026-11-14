@@ -1,6 +1,11 @@
 // Site search in the browser: the header box with its dropdown, the "/" key,
 // and the /search/ page. The index is fetched the first time it is needed.
-import { link } from "../lib/paths";
+import { link, localLink } from "../lib/paths";
+import { SHELL } from "../i18n/strings/shell";
+import { pageLocale, translator } from "../i18n/t";
+
+const t = translator(SHELL, pageLocale());
+const pageLink = localLink(pageLocale());
 import { prepare, search, unpackIndex, type Entry, type IndexFile, type Prepared } from "../lib/search";
 
 let loading: Promise<Prepared[]> | null = null;
@@ -52,7 +57,7 @@ document.addEventListener("keydown", (event) => {
     target.focus();
     target.select();
   } else {
-    location.href = link("/search/");
+    location.href = pageLink("/search/");
   }
 });
 
@@ -104,9 +109,9 @@ if (form && input && list) {
     const all = document.createElement("li");
     all.className = "sall";
     const more = document.createElement("a");
-    more.href = `${link("/search/")}?q=${encodeURIComponent(q)}`;
+    more.href = `${pageLink("/search/")}?q=${encodeURIComponent(q)}`;
     more.tabIndex = -1;
-    more.textContent = hits.length ? `All results for "${q}"` : `No quick matches. Search all for "${q}"`;
+    more.textContent = t(hits.length ? "searchAll" : "searchNone", { q });
     all.append(more);
     list.append(all);
     list.hidden = false;

@@ -1,7 +1,9 @@
 ---
 // Browser install button, the same ESP Web Tools setup ProbeHarbor uses on /flash.
 // The manifest picks the right image for the connected chip family.
-import { link } from "../lib/paths";
+import { localLink } from "../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 interface Props {
   manifest: string;

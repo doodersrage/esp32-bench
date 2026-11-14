@@ -1,12 +1,15 @@
 ---
-import Base from "../layouts/Base.astro";
-import ProjectCard from "../components/ProjectCard.astro";
-import { DRAWER, DRAWER_GROUPS, LEVELS, PROJECTS, TAGS, bareBoard, boardsOf } from "../data/projects";
-import { BOARDS } from "../data/boards";
-import { PATHS } from "../data/paths";
-import { BADGES } from "../scripts/progress";
-import { SITE } from "../lib/site";
-import { link } from "../lib/paths";
+import { localePaths } from "../../i18n/locales";
+import Base from "../../layouts/Base.astro";
+import ProjectCard from "../../components/ProjectCard.astro";
+import { DRAWER, DRAWER_GROUPS, LEVELS, PROJECTS, TAGS, bareBoard, boardsOf } from "../../data/projects";
+import { BOARDS } from "../../data/boards";
+import { PATHS } from "../../data/paths";
+import { BADGES } from "../../scripts/progress";
+import { SITE } from "../../lib/site";
+import { localLink } from "../../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 // Build-time checks so the picker and the "No extra parts" filter cannot drift
 // from the data as projects are added.
@@ -34,6 +37,8 @@ const suggested = PROJECTS.map((p, i) => ({ p, i }))
   .sort((a, b) => score(b.p) - score(a.p) || a.p.mins - b.p.mins || a.i - b.i)
   .map(({ p }) => p.id);
 const boardOptions = BOARDS.map((b) => ({ id: b.id, name: b.name, count: PROJECTS.filter((p) => boardsOf(p).includes(b.id)).length }));
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base
@@ -203,6 +208,6 @@ const boardOptions = BOARDS.map((b) => ({ id: b.id, name: b.name, count: PROJECT
 </Base>
 
 <script>
-  import "../scripts/library.ts";
-  import "../scripts/sync-ui.ts";
+  import "../../scripts/library.ts";
+  import "../../scripts/sync-ui.ts";
 </script>

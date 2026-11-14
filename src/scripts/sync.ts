@@ -2,10 +2,13 @@
 // and board the same in every browser linked to one code (api/src/sync.ts).
 // Loaded on every page; does nothing until this browser is linked.
 import { SITE } from "../lib/site";
+import { SHELL } from "../i18n/strings/shell";
+import { pageLocale, translator } from "../i18n/t";
 import { SYNC_KEYS, fingerprint, mergeSync, normaliseCode, plan, type SyncData } from "../lib/sync-merge";
 
 const STATE_KEY = "bench.sync";
 const api = SITE.syncApi;
+const tr = translator(SHELL, pageLocale());
 
 export interface SyncState {
   code: string;
@@ -85,7 +88,7 @@ export function check(): Promise<string> {
     // Only the sync API's own answer means the code is gone; any other 404 (a deploy in progress, a proxy) is just "offline".
     if (got.status === 404 && /sync code/.test(String(got.json.error ?? ""))) {
       saveState(null);
-      toast("The sync code this browser used was deleted, so it no longer syncs. Your log here is unchanged.");
+      toast(tr("syncGone"));
       return "gone";
     }
     if (got.status !== 200) return "offline";
@@ -149,7 +152,7 @@ export async function deleteCloud(): Promise<void> {
 }
 
 function pulled() {
-  toast("Your bench log changed on another device.", "Reload to see it");
+  toast(tr("syncPulled"), tr("syncReload"));
 }
 
 function toast(text: string, action?: string) {
@@ -169,7 +172,7 @@ function toast(text: string, action?: string) {
   const close = document.createElement("button");
   close.type = "button";
   close.className = "x";
-  close.setAttribute("aria-label", "Dismiss");
+  close.setAttribute("aria-label", tr("dismiss"));
   close.textContent = "×";
   close.addEventListener("click", () => box.remove());
   box.append(close);

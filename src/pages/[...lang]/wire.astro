@@ -1,8 +1,9 @@
 ---
-import Base from "../layouts/Base.astro";
-import { HEADER_BOARDS } from "../data/boards";
-import { PARTS } from "../data/parts";
-import { DRAWER_GROUPS, PROJECTS } from "../data/projects";
+import { localePaths } from "../../i18n/locales";
+import Base from "../../layouts/Base.astro";
+import { HEADER_BOARDS } from "../../data/boards";
+import { PARTS } from "../../data/parts";
+import { DRAWER_GROUPS, PROJECTS } from "../../data/projects";
 
 const remixable = PROJECTS.filter((p) => p.needs.length > 0);
 // The pad's parts in the same groups as the library's parts drawer (the ids are shared).
@@ -10,6 +11,8 @@ const partGroups = DRAWER_GROUPS.map(([label, ids]) => [label, PARTS.filter((p) 
 const ungroupedParts = PARTS.filter((p) => !DRAWER_GROUPS.some(([, ids]) => ids.includes(p.id)));
 if (ungroupedParts.length) throw new Error(`Wire parts missing from DRAWER_GROUPS: ${ungroupedParts.map((p) => p.id).join(", ")}`);
 const needsAttr = (needs: string[][]) => needs.map((group) => group.join("|")).join(" ");
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base
@@ -121,7 +124,7 @@ const needsAttr = (needs: string[][]) => needs.map((group) => group.join("|")).j
 </Base>
 
 <script>
-  import "../scripts/wire.ts";
+  import "../../scripts/wire.ts";
 
   // The parts list is long: on phones it starts folded, and its summary names what is on the pad.
   const box = document.getElementById("w-partsbox") as HTMLDetailsElement | null;

@@ -1,7 +1,12 @@
 ---
-import Base from "../../layouts/Base.astro";
-import { link } from "../../lib/paths";
-import { PRESETS } from "../../lib/partitions";
+import { localePaths } from "../../../i18n/locales";
+import Base from "../../../layouts/Base.astro";
+import { localLink } from "../../../lib/paths";
+import { PRESETS } from "../../../lib/partitions";
+
+const link = localLink(Astro.currentLocale);
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base
@@ -129,5 +134,5 @@ import { PRESETS } from "../../lib/partitions";
 </style>
 
 <script>
-  import "../../scripts/partitions-page.ts";
+  import "../../../scripts/partitions-page.ts";
 </script>

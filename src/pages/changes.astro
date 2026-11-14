@@ -1,7 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
 import { CHANGES } from "../data/changes";
-import { link } from "../lib/paths";
+import { localLink } from "../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 const fmt = (d: string) =>
   new Date(`${d}T12:00:00Z`).toLocaleDateString("en", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });

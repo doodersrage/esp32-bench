@@ -1,6 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
-import { link } from "../lib/paths";
+import { localLink } from "../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 ---
 
 <Base title="Offline" current="none" noindex description="You are offline.">

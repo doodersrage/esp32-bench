@@ -4,8 +4,10 @@
 // mode "tool": the standalone /tools/build/ page, with board and library pickers.
 // The editor (CodeMirror) and the flasher (esptool-js) load only when used.
 import { SITE } from "../lib/site";
-import { link } from "../lib/paths";
+import { localLink } from "../lib/paths";
 import COMPILE from "../data/compile-libs.json";
+
+const link = localLink(Astro.currentLocale);
 
 interface Props {
   mode: "project" | "tool";

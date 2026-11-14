@@ -5,7 +5,9 @@ import { ERRORS, GROUPS, errorBySlug, type ErrorEntry } from "../../data/errors"
 import { FLAMES } from "../../data/flames";
 import { explainLog } from "../../lib/crash";
 import { checkErrors } from "../../lib/errors-check";
-import { link } from "../../lib/paths";
+import { localLink } from "../../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 export function getStaticPaths() {
   checkErrors();

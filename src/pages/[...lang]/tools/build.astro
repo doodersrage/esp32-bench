@@ -1,13 +1,18 @@
 ---
-import Base from "../../layouts/Base.astro";
-import SketchBuilder from "../../components/SketchBuilder.astro";
-import { link } from "../../lib/paths";
-import { BOARDS, buildChoices } from "../../data/boards";
-import { PROJECTS, forBoard } from "../../data/projects";
+import { localePaths } from "../../../i18n/locales";
+import Base from "../../../layouts/Base.astro";
+import SketchBuilder from "../../../components/SketchBuilder.astro";
+import { localLink } from "../../../lib/paths";
+import { BOARDS, buildChoices } from "../../../data/boards";
+import { PROJECTS, forBoard } from "../../../data/projects";
+
+const link = localLink(Astro.currentLocale);
 
 const blink = PROJECTS.find((p) => p.id === "blink");
 const starter = (blink && forBoard(blink, "esp32").code) ?? "void setup() {\n}\n\nvoid loop() {\n}\n";
 const boards = buildChoices(BOARDS);
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base

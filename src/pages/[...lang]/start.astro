@@ -1,8 +1,13 @@
 ---
-import Base from "../layouts/Base.astro";
-import { link } from "../lib/paths";
+import { localePaths } from "../../i18n/locales";
+import Base from "../../layouts/Base.astro";
+import { localLink } from "../../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 const BOARDS_URL = "https://espressif.github.io/arduino-esp32/package_esp32_index.json";
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base

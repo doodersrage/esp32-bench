@@ -5,8 +5,10 @@ import { BOARDS, type Board } from "../../data/boards";
 import { CHIPS } from "../../data/chips";
 import { PROJECTS, boardsOf } from "../../data/projects";
 import { padRows, wiredRows } from "../../lib/pins";
-import { link } from "../../lib/paths";
+import { localLink } from "../../lib/paths";
 import { AFFILIATE_DISCLOSURE, buyAttrs, shopVendor } from "../../lib/shop";
+
+const link = localLink(Astro.currentLocale);
 
 export function getStaticPaths() {
   return BOARDS.map((b) => ({ params: { id: b.id }, props: { b } }));

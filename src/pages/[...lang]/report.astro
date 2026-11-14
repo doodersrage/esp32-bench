@@ -1,11 +1,16 @@
 ---
-import Base from "../layouts/Base.astro";
-import { PROJECTS } from "../data/projects";
-import { BOARDS } from "../data/boards";
-import { SITE } from "../lib/site";
-import { link } from "../lib/paths";
+import { localePaths } from "../../i18n/locales";
+import Base from "../../layouts/Base.astro";
+import { PROJECTS } from "../../data/projects";
+import { BOARDS } from "../../data/boards";
+import { SITE } from "../../lib/site";
+import { localLink } from "../../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
+
+export const getStaticPaths = localePaths;
 ---
 
 <Base
@@ -153,5 +158,5 @@ const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
 
 <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <script>
-  import "../scripts/report.ts";
+  import "../../scripts/report.ts";
 </script>

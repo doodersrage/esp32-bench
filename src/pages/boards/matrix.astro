@@ -4,8 +4,10 @@
 import Base from "../../layouts/Base.astro";
 import { BOARDS } from "../../data/boards";
 import { PROJECTS, boardsOf } from "../../data/projects";
-import { link } from "../../lib/paths";
+import { localLink } from "../../lib/paths";
 import { SITE, reportUrl } from "../../lib/site";
+
+const link = localLink(Astro.currentLocale);
 
 const rows = PROJECTS.map((p) => ({ id: p.id, name: p.name, boards: new Set(boardsOf(p)) }));
 const combos = rows.reduce((n, r) => n + r.boards.size, 0);

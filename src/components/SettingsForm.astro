@@ -4,7 +4,9 @@
 // is the "ESP32 Bench settings block" in the sketch; the wire format is in
 // src/lib/settings-protocol.ts. Nothing typed here is stored by the site.
 import type { Setting } from "../data/bench-settings";
-import { link } from "../lib/paths";
+import { localLink } from "../lib/paths";
+
+const link = localLink(Astro.currentLocale);
 
 interface Props {
   settings: Setting[];
