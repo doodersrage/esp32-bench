@@ -18,7 +18,9 @@ export default defineConfig({
 			EMAIL: bindings.sendEmail(),
 			// 3 reports a minute per visitor address.
 			// Build reports waiting for approval, and the approved ones shown on project pages.
-			DB: bindings.d1({ id: "9fe09f5a-3e8b-40f0-8be5-6e7ca050c335", name: "esp32-bench-reports" }),
+			// No name here: a version saved from the dashboard (adding a secret) drops it, and
+			// cf deploy would then refuse to upload over the "difference".
+			DB: bindings.d1({ id: "9fe09f5a-3e8b-40f0-8be5-6e7ca050c335" }),
 			// Prebuilt firmware for every project, served at fw.esp32bench.dev; written by GitHub Actions.
 			FIRMWARE: bindings.r2({ name: "esp32-bench-firmware" }),
 			LIMIT: bindings.rateLimit({ namespace: "3201", simple: { limit: 3, period: 60 } }),
