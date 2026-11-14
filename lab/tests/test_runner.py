@@ -220,6 +220,18 @@ class RunnerFlow(unittest.TestCase):
         self.assertEqual(report["results"][0]["status"], "flash_failed")
         self.assertIn("Failed to connect", report["results"][0]["output"])
 
+    def test_flash_is_tried_twice_before_failing(self):
+        attempts = []
+
+        def flaky_flash(port, chip, image, timeout=240):
+            attempts.append(1)
+            return (len(attempts) > 1), "first connection failed" if len(attempts) == 1 else "ok"
+
+        r = lab.Runner(self.config, http=self.http, flasher=flaky_flash, capturer=lambda *a: "")
+        report = r.run(only="blink", board_label="devkit")
+        self.assertEqual(len(attempts), 2)
+        self.assertNotEqual(report["results"][0]["status"], "flash_failed")
+
     def test_missing_pattern_fails_with_output(self):
         r = lab.Runner(self.config, http=self.http, flasher=self.fake_flash, capturer=lambda *a: "boot\nnothing useful\n")
         report = r.run(only="blink")

@@ -313,6 +313,12 @@ class Runner:
             return result
         ok, flash_out = self.flasher(board.port, chip, image)
         if not ok:
+            # A board that was just plugged in, or left in a bad state by the
+            # last project, often fails the first connection: try once more.
+            log.info("  flash failed, trying once more")
+            time.sleep(2)
+            ok, flash_out = self.flasher(board.port, chip, image)
+        if not ok:
             result.status = STATUS_FLASH_FAILED
             result.output = tail_lines(flash_out)
             return result
