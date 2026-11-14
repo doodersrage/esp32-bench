@@ -28,3 +28,4 @@ emulator-report.md
 lab/config.toml
 lab/lab-token.txt
 lab/*.json
+__pycache__/

@@ -118,6 +118,21 @@ def tail_lines(text: str, n: int = OUTPUT_KEEP_LINES) -> str:
     return "\n".join(lines[-n:])
 
 
+# What a lab setting is shown as once hidden. Reports are public (project pages
+# show the last lines each board printed), and Wi-Fi sketches print the network
+# name, which can be looked up on public Wi-Fi maps.
+HIDDEN_AS = {"wifi_ssid": "your-network"}
+
+
+def redact(text: str, settings: dict[str, str]) -> str:
+    """Hide every lab setting value (Wi-Fi name, password, URLs) in board output before it is posted."""
+    # Longest first, so a value that contains another is hidden whole.
+    for key, value in sorted(settings.items(), key=lambda kv: -len(kv[1])):
+        if len(value) >= 3:
+            text = text.replace(value, HIDDEN_AS.get(key, "[hidden]"))
+    return text
+
+
 def settings_lines(keys: list[str], available: dict[str, str]) -> list[str]:
     """SET lines for the settings this project asks for and the lab has; then SAVE.
 
@@ -312,13 +327,13 @@ class Runner:
             text = self.capturer(board.port, int(info.get("baud", 115200)), seconds, setup)
         except Exception as e:  # noqa: BLE001
             result.status = STATUS_FAILED
-            result.output = f"serial capture failed: {e}"
+            result.output = redact(f"serial capture failed: {e}", self.config.settings)
             result.missing = patterns
             return result
         result.seconds = int(round(time.monotonic() - started))
         result.matched, result.missing = check_patterns(text, patterns)
         result.status = STATUS_PASSED if not result.missing and patterns else STATUS_FAILED
-        result.output = tail_lines(text)
+        result.output = tail_lines(redact(text, self.config.settings))
         return result
 
     def run(self, only: str | None = None, board_label: str | None = None, dry_run: bool = False) -> dict[str, Any]:

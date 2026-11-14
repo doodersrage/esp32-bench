@@ -82,6 +82,12 @@ class PureLogic(unittest.TestCase):
         with self.assertRaises(ValueError):
             lab.settings_lines(["wifi_ssid"], {"wifi_ssid": "bad\tvalue"})
 
+    def test_redact_hides_lab_settings_in_posted_output(self):
+        settings = {"wifi_ssid": "Smith Home 2.4", "wifi_pass": "hunter22", "share_url": "https://probeharbor.dev/api/share/abc"}
+        out = lab.redact("wifi joining Smith Home 2.4\nwifi ok 192.168.1.40\nposting to https://probeharbor.dev/api/share/abc\npw hunter22", settings)
+        self.assertEqual(out, "wifi joining your-network\nwifi ok 192.168.1.40\nposting to [hidden]\npw [hidden]")
+        self.assertEqual(lab.redact("tick", {"wifi_ssid": "ab"}), "tick", "values too short to hide are left alone")
+
     def test_plan_pairs_boards_with_built_projects(self):
         jobs = lab.plan(MANIFEST, INDEX, BOARDS, skip=[])
         self.assertEqual([(p, b.label) for p, b in jobs], [("blink", "devkit"), ("web-led", "devkit"), ("web-led", "c3")])

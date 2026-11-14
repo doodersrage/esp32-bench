@@ -55,7 +55,7 @@ chmod 600 config.toml
 nano config.toml
 ```
 
-Fill in the boards, your lab Wi-Fi under `[settings]`, and projects to skip.
+Fill in the boards, your lab Wi-Fi under `[settings]`, and projects to skip. The Wi-Fi must be 2.4 GHz and reach the internet (the NTP clock fetches the time). Reports are public, and Wi-Fi sketches print the network name, so the runner replaces every `[settings]` value in the posted output: the network name becomes `your-network`, anything else `[hidden]`.
 
 ### The lab token
 
