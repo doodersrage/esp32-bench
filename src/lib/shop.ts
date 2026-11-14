@@ -2,8 +2,14 @@
 // Amazon links get an Associates tag when PUBLIC_AMAZON_ASSOCIATE_TAG is set at
 // build time; without it they stay plain. Adafruit runs no affiliate program,
 // so those links are always direct.
+//
+// Parts with no product link of their own get an Amazon search instead
+// (AMAZON_SEARCH below, one query per kind of part): generic parts such as
+// jumper wires and HC-SR04s come from many sellers, and a search never points
+// at a listing that has gone or changed.
+import { kitItem, type IconId } from "./kit";
 
-const tag = (import.meta.env.PUBLIC_AMAZON_ASSOCIATE_TAG ?? "").trim();
+const tag = (import.meta.env?.PUBLIC_AMAZON_ASSOCIATE_TAG ?? "").trim();
 
 function isAmazon(url: string): boolean {
   try {
@@ -26,6 +32,78 @@ export const shopRel = (url: string): string =>
   isAmazon(url) ? "sponsored noopener noreferrer" : "noopener noreferrer";
 
 export const shopVendor = (url: string): string => (isAmazon(url) ? "Amazon" : "Adafruit");
+
+const isAmazonSearch = (url: string) => isAmazon(url) && new URL(url).pathname === "/s";
+
+/** Link text for a buy link: a search is "Find on Amazon", a product is "Buy at …". */
+export const shopText = (url: string): string => (isAmazonSearch(url) ? "Find on Amazon" : `Buy at ${shopVendor(url)}`);
+
+export const amazonSearch = (query: string) => affiliateHref(`https://www.amazon.com/s?k=${encodeURIComponent(query).replace(/%20/g, "+")}`);
+
+// What to search Amazon for, by kind of part. A function gets the part's text
+// for parts whose value matters (resistors, capacitors). Kinds left out have
+// nothing to buy: a service, any I2C device, a TV remote, a card base, and
+// ProbeHarbor's power sense module, which has no one product to point at.
+const ohms = (t: string) => /(\d+(?:\.\d+)?)\s*(k|M)?Ω/.exec(t);
+const AMAZON_SEARCH: Partial<Record<IconId, string | ((text: string) => string | null)>> = {
+  wires: "breadboard jumper wires dupont kit",
+  breadboard: "breadboard with jumper wires kit",
+  usb: "USB data cable",
+  usbserial: "CP2102 USB to TTL serial adapter 3.3V",
+  battery: (t) => (/CR2032/.test(t) ? "CR2032 coin cell battery" : "3.7V LiPo battery with protection circuit JST"),
+  power: "5V 2A USB power adapter",
+  resistor: (t) => {
+    const m = ohms(t);
+    return m ? `${m[1]}${m[2] ?? ""} ohm resistor 1/4W` : "resistor assortment kit 1/4W";
+  },
+  led: "5mm LED assortment kit",
+  rgbled: "5mm RGB LED common cathode",
+  button: "6mm tactile push button breadboard",
+  pot: (t) => (/trimmer/i.test(t) ? "10k trimmer potentiometer" : "10k potentiometer breadboard"),
+  encoder: "KY-040 rotary encoder module",
+  buzzer: "passive buzzer module 3.3V",
+  oled: "0.96 inch SSD1306 OLED I2C 128x64",
+  lcd: "16x2 LCD HD44780 I2C",
+  sevenseg: "single digit 7 segment LED display",
+  epaper: "2.9 inch e-paper module SPI 296x128",
+  esp32cam: "AI-Thinker ESP32-CAM OV2640",
+  uno: "Arduino Uno R3",
+  motor: "130 DC motor with propeller",
+  transistor: "2N2222 NPN transistor",
+  capacitor: (t) => {
+    const m = /(\d+(?:\.\d+)?)\s*µF/.exec(t);
+    if (!m) return "capacitor assortment kit";
+    return /ceramic/i.test(t) ? `${m[1]}uF ceramic capacitor` : `${m[1]}uF electrolytic capacitor`;
+  },
+  dht22: "DHT22 AM2302 temperature humidity sensor",
+  hcsr04: "HC-SR04 ultrasonic sensor",
+  pir: "HC-SR501 PIR motion sensor",
+  mpu6050: "MPU-6050 GY-521 module",
+  soil: "capacitive soil moisture sensor v1.2",
+  ldr: "photoresistor LDR 5mm",
+  nrf24: "nRF24L01+ wireless module",
+  rfid: "RC522 RFID module kit",
+  irrecv: "VS1838B IR receiver",
+  stepper: "28BYJ-48 stepper motor ULN2003",
+  stepperdrv: "ULN2003 stepper motor driver board",
+  keypad: "4x4 membrane keypad",
+  ledmatrix: "MAX7219 4 in 1 dot matrix module",
+  sdcard: "microSD card 32GB",
+  thermocouple: (t) => (/MAX6675/.test(t) ? "MAX6675 module K-type thermocouple" : /MAX31855/.test(t) ? "MAX31855 thermocouple breakout" : "K-type thermocouple probe"),
+  hardware: (t) => (/pan-tilt/i.test(t) ? "SG90 pan tilt bracket" : null),
+};
+
+/** Where to buy one parts line: its own link, or else an Amazon search for its kind of part. */
+export function buyFor(part: readonly [number, string, string?]): { href: string; rel: string; text: string } | null {
+  let href = part[2];
+  if (!href) {
+    const q = AMAZON_SEARCH[kitItem(part).icon];
+    const query = typeof q === "function" ? q(part[1]) : q;
+    if (!query) return null;
+    href = amazonSearch(query);
+  }
+  return { href, rel: shopRel(href), text: shopText(href) };
+}
 
 /** On-page disclosure for pages that carry Amazon buy links. */
 export const AFFILIATE_DISCLOSURE =

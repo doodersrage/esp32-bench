@@ -4,7 +4,7 @@
 import Base from "../layouts/Base.astro";
 import { PROJECTS } from "../data/projects";
 import { kitFor } from "../lib/kit";
-import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../lib/shop";
+import { AFFILIATE_DISCLOSURE, buyFor } from "../lib/shop";
 import { link } from "../lib/paths";
 
 const data = PROJECTS.map((p) => {
@@ -13,16 +13,16 @@ const data = PROJECTS.map((p) => {
     id: p.id,
     name: p.name,
     url: link(`/projects/${p.id}/`),
-    items: p.parts.map(([qty, text, href], i) => ({
+    items: p.parts.map(([qty, text], i) => ({
       key: kit[i].label.toLowerCase(),
       label: kit[i].label,
       qty,
       text,
       optional: kit[i].optional,
       alternative: kit[i].alternative,
-      href: href ?? "",
-      rel: href ? shopRel(href) : "",
-      vendor: href ? shopVendor(href) : "",
+      href: buyFor(p.parts[i])?.href ?? "",
+      rel: buyFor(p.parts[i])?.rel ?? "",
+      buy: buyFor(p.parts[i])?.text ?? "",
     })),
   };
 });

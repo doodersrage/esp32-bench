@@ -14,6 +14,17 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-21",
+    date: "2026-11-14",
+    title: "Version 0.21: a buy link for nearly every part",
+    summary: "Parts lists and the shopping list now link almost every part, not just the ones with a specific product to point at.",
+    items: [
+      "Find on Amazon, for generic parts such as jumper wires, resistors, OLEDs and HC-SR04s: a search for that kind of part, since many sellers make them.",
+      "Parts with a specific product keep their Buy at Amazon or Buy at Adafruit link, and the shopping list prefers that link when two projects share a part.",
+    ],
+    link: "/shop/",
+  },
+  {
     id: "v0-20",
     date: "2026-11-13",
     title: "Version 0.20: see what a project prints before you build it",

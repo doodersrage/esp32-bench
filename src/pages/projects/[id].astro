@@ -15,7 +15,7 @@ import { PROJECTS, boardsOf, forBoard, type Project } from "../../data/projects"
 import { BOARDS, boardById, buildChoices, buildTarget } from "../../data/boards";
 import { link } from "../../lib/paths";
 import { PROBEHARBOR, SITE, reportUrl } from "../../lib/site";
-import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
+import { AFFILIATE_DISCLOSURE, buyFor } from "../../lib/shop";
 import { kitFor } from "../../lib/kit";
 import { PATHS } from "../../data/paths";
 import { PAGE_PALETTE, kitIconSvg } from "../../lib/kit-icons";
@@ -36,7 +36,8 @@ const panels = boards.map((board) => ({
   verified: (p.verified ?? []).filter((v) => v.board === board.id),
 }));
 const needsLibraries = p.libs.some((l) => !/built in/.test(l));
-const hasBuyLinks = p.parts.some((x) => x[2]);
+const buy = p.parts.map((x) => buyFor(x));
+const hasBuyLinks = buy.some(Boolean);
 // "What you'll need": the kit card image and an icon per parts row.
 const kit = kitFor(p.parts);
 const kitAlt = `Parts for ${p.name}: ${kit
@@ -140,7 +141,7 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
                         <span>{what}</span>
                       </div>
                     </td>
-                    <td class="m">{href && <a href={href} rel={shopRel(href)} target="_blank">Buy at {shopVendor(href)}</a>}</td>
+                    <td class="m">{buy[i] && <a href={buy[i].href} rel={buy[i].rel} target="_blank">{buy[i].text}</a>}</td>
                   </tr>
                 ))}
               </tbody>

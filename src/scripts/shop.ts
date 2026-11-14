@@ -11,7 +11,7 @@ interface Item {
   alternative: boolean;
   href: string;
   rel: string;
-  vendor: string;
+  buy: string;
 }
 interface ShopProject {
   id: string;
@@ -27,7 +27,7 @@ interface Line {
   texts: string[];
   href: string;
   rel: string;
-  vendor: string;
+  buy: string;
 }
 
 const data = JSON.parse(document.getElementById("shop-data")?.textContent ?? "[]") as ShopProject[];
@@ -50,14 +50,15 @@ function merge(projects: ShopProject[], together: boolean): Line[] {
     for (const item of p.items.filter((i) => !i.alternative)) {
       let line = lines.get(item.key);
       if (!line) {
-        line = { label: item.label, qty: 0, optional: true, projects: [], texts: [], href: "", rel: "", vendor: "" };
+        line = { label: item.label, qty: 0, optional: true, projects: [], texts: [], href: "", rel: "", buy: "" };
         lines.set(item.key, line);
       }
       line.qty = together ? line.qty + item.qty : Math.max(line.qty, item.qty);
       line.optional &&= item.optional;
       if (!line.projects.includes(p.name)) line.projects.push(p.name);
       if (!line.texts.includes(item.text)) line.texts.push(item.text);
-      if (!line.href && item.href) Object.assign(line, { href: item.href, rel: item.rel, vendor: item.vendor });
+      // A product link beats a search when two projects list the same part.
+      if (item.href && (!line.href || (line.buy.startsWith("Find") && !item.buy.startsWith("Find")))) Object.assign(line, { href: item.href, rel: item.rel, buy: item.buy });
     }
   }
   return [...lines.values()].sort((a, b) => Number(a.optional) - Number(b.optional) || a.label.localeCompare(b.label));
@@ -108,7 +109,7 @@ function render() {
       const used = el("td", "for", line.projects.length === projects.length && projects.length > 1 ? "All" : line.projects.join(", "));
       const buy = el("td", "m");
       if (line.href) {
-        const a = el("a", "", `Buy at ${line.vendor}`);
+        const a = el("a", "", line.buy);
         a.href = line.href;
         a.rel = line.rel;
         a.target = "_blank";
