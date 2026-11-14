@@ -184,18 +184,24 @@ export const getStaticPaths = localePaths;
             <input id="sync-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="7KQ4-M2XD-9PQA-R3TW" />
             <button class="btn" type="submit">{t("syncLinkBtn")}</button>
           </form>
+          <p class="cap left">{t("syncGithubWhy")}</p>
+          <div class="syncrow">
+            <button class="btn" type="button" id="sync-github">{t("syncGithub")}</button>
+          </div>
         </div>
         <div class="stack tight" id="sync-on" hidden>
-          <p set:html={t("syncShown", { code: '<code class="synccode" id="sync-shown"></code>' })} />
+          <p data-sync-code set:html={t("syncShown", { code: '<code class="synccode" id="sync-shown"></code>' })} />
+          <p data-sync-github hidden>{t("syncGithubShown")}</p>
           <div class="syncrow">
-            <button class="btn sm" type="button" id="sync-copy">{t("syncCopy")}</button>
-            <button class="btn sm" type="button" id="sync-copylink">{t("syncCopyLink")}</button>
-            <button class="btn sm" type="button" id="sync-save">{t("syncSave")}</button>
-            <button class="btn sm" type="button" id="sync-unlink">{t("syncUnlink")}</button>
+            <button class="btn sm" type="button" id="sync-copy" data-sync-code>{t("syncCopy")}</button>
+            <button class="btn sm" type="button" id="sync-copylink" data-sync-code>{t("syncCopyLink")}</button>
+            <button class="btn sm" type="button" id="sync-save" data-sync-code>{t("syncSave")}</button>
+            <button class="btn sm" type="button" id="sync-unlink" data-sync-code>{t("syncUnlink")}</button>
+            <button class="btn sm" type="button" id="sync-signout" data-sync-github hidden>{t("syncSignOut")}</button>
             <button class="btn sm" type="button" id="sync-delete">{t("syncDelete")}</button>
           </div>
           <p class="cap left" id="sync-when"></p>
-          <p class="cap left">{t("syncLost")}</p>
+          <p class="cap left" data-sync-code>{t("syncLost")}</p>
         </div>
         <p class="cap left" id="sync-status" role="status"></p>
       </div>

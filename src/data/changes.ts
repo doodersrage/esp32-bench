@@ -14,6 +14,17 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-25",
+    date: "2026-11-14",
+    title: "Version 0.25: sync with your GitHub account",
+    summary: "Have a GitHub account? Sign in with it to share your bench log, shopping list and parts drawer across browsers, with no code to write down.",
+    items: [
+      "Sign in with GitHub, in the sync card on the home page. Sync codes still work as before.",
+      "We ask GitHub for no permissions and keep only a hash of your account number. Sign out ends one browser's sign-in; Delete the cloud copy removes the data.",
+    ],
+    link: "/#sync",
+  },
+  {
     id: "v0-24",
     date: "2026-11-14",
     title: "Version 0.24: flash without a connection",

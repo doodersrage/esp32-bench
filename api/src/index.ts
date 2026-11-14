@@ -6,6 +6,17 @@ import { uploadFirmware } from "./firmware.ts";
 import { moderationPage, newToken, publicBuild, resultPage, sameHash, sha256, summarise, type BuildRow } from "./builds.ts";
 import { checkLabRun, publicLab, tokenMatches, type LabResultRow, type LabRunRow } from "./lab.ts";
 import { checkSyncData, codeFrom, newSyncCode } from "./sync.ts";
+import {
+	accountKey,
+	authorizeUrl,
+	clearStateCookie,
+	githubAccountId,
+	newSessionKey,
+	readStateCookie,
+	safeReturn,
+	sessionKeyFrom,
+	stateCookie,
+} from "./github-auth.ts";
 
 interface Env {
 	EMAIL: SendEmail;
@@ -20,6 +31,9 @@ interface Env {
 	REPORT_TO?: string;
 	/** Bearer token the hardware lab runner posts with, set as a Worker secret */
 	LAB_TOKEN?: string;
+	/** GitHub OAuth App for "Sign in with GitHub" (sync), set as Worker secrets */
+	GITHUB_CLIENT_ID?: string;
+	GITHUB_CLIENT_SECRET?: string;
 }
 
 const config = env as unknown as Env;
@@ -190,10 +204,21 @@ async function sync(request: Request, headers: Record<string, string>): Promise<
 		return json({ ok: true, code, updated_at: now }, 200, headers);
 	}
 
-	const code = codeFrom(request);
-	if (!code) return json({ ok: false, error: "Send the sync code as a Bearer token." }, 401, headers);
-	const hash = await sha256(code);
 	const gone = () => json({ ok: false, error: "No data for that sync code." }, 404, headers);
+	// A sync code, or the key of a browser signed in with GitHub.
+	const session = sessionKeyFrom(request);
+	const code = session ? null : codeFrom(request);
+	if (!session && !code) return json({ ok: false, error: "Send the sync code as a Bearer token." }, 401, headers);
+	let hash: string;
+	if (session) {
+		const keyHash = await sha256(session);
+		const row = await config.DB.prepare("SELECT sync_hash FROM sync_sessions WHERE key_hash = ?").bind(keyHash).first<{ sync_hash: string }>();
+		if (!row) return gone();
+		hash = row.sync_hash;
+		await config.DB.prepare("UPDATE sync_sessions SET used_at = ? WHERE key_hash = ?").bind(now, keyHash).run();
+	} else {
+		hash = await sha256(code!);
+	}
 
 	if (request.method === "GET") {
 		const row = await config.DB.prepare("SELECT data, updated_at FROM sync WHERE code_hash = ?").bind(hash).first<{ data: string; updated_at: number }>();
@@ -208,10 +233,76 @@ async function sync(request: Request, headers: Record<string, string>): Promise<
 		return res.meta.changes ? json({ ok: true, updated_at: now }, 200, headers) : gone();
 	}
 	if (request.method === "DELETE") {
-		await config.DB.prepare("DELETE FROM sync WHERE code_hash = ?").bind(hash).run();
+		// Deleting the cloud copy also signs out every browser on that GitHub account.
+		await config.DB.batch([
+			config.DB.prepare("DELETE FROM sync WHERE code_hash = ?").bind(hash),
+			config.DB.prepare("DELETE FROM sync_sessions WHERE sync_hash = ?").bind(hash),
+		]);
 		return json({ ok: true }, 200, headers);
 	}
 	return json({ ok: false, error: "Use GET, POST, PUT or DELETE." }, 405, { ...headers, Allow: "GET, POST, PUT, DELETE, OPTIONS" });
+}
+
+/** GET /auth/github/start?return=<page>: off to GitHub, remembering where to come back to. */
+async function githubStart(request: Request, url: URL): Promise<Response> {
+	const allowed = config.ALLOWED_ORIGINS.split(",").map((s) => s.trim());
+	const returnTo = safeReturn(url.searchParams.get("return"), allowed);
+	if (!returnTo) return html(resultPage("Not allowed", "Sign in with GitHub from esp32bench.dev."), 400);
+	if (!config.GITHUB_CLIENT_ID || !config.GITHUB_CLIENT_SECRET) return html(resultPage("Not set up yet", "Sign in with GitHub is not available yet. Use a sync code instead."), 503);
+	const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+	const { success } = await config.LIMIT.limit({ key: `github:${ip}` });
+	if (!success) return html(resultPage("Too many tries", "Please wait a minute and try again."), 429);
+	const { token: state } = await newToken();
+	const secure = url.protocol === "https:";
+	return new Response(null, {
+		status: 302,
+		headers: {
+			Location: authorizeUrl(config.GITHUB_CLIENT_ID, `${url.origin}/auth/github/callback`, state),
+			"Set-Cookie": stateCookie(state, returnTo, secure),
+			"Cache-Control": "no-store",
+		},
+	});
+}
+
+/** GET /auth/github/callback: GitHub sends the browser back here. */
+async function githubCallback(request: Request, url: URL): Promise<Response> {
+	const secure = url.protocol === "https:";
+	const saved = readStateCookie(request);
+	const allowed = config.ALLOWED_ORIGINS.split(",").map((s) => s.trim());
+	const returnTo = saved ? safeReturn(saved.returnTo, allowed) : null;
+	const back = (fragment: string) =>
+		new Response(null, { status: 302, headers: { Location: `${returnTo}#${fragment}`, "Set-Cookie": clearStateCookie(secure), "Cache-Control": "no-store" } });
+	if (!saved || !returnTo || !sameHash(await sha256(saved.state), await sha256(url.searchParams.get("state") ?? ""))) {
+		return html(resultPage("Sign-in expired", "That sign-in link is old or was opened in another browser. Start again from esp32bench.dev."), 400);
+	}
+	// Cancelled on GitHub, or GitHub said no.
+	const code = url.searchParams.get("code");
+	if (!code || !config.GITHUB_CLIENT_ID || !config.GITHUB_CLIENT_SECRET) return back("sync-error=cancelled");
+	const id = await githubAccountId({
+		clientId: config.GITHUB_CLIENT_ID,
+		clientSecret: config.GITHUB_CLIENT_SECRET,
+		code,
+		redirectUri: `${url.origin}/auth/github/callback`,
+	}).catch(() => null);
+	if (!id) return back("sync-error=github");
+	const now = Date.now();
+	const syncHash = await sha256(accountKey(id));
+	const key = newSessionKey();
+	await config.DB.batch([
+		// The account's row, empty the first time; the browser merges its own log into it.
+		config.DB.prepare("INSERT OR IGNORE INTO sync (code_hash, data, created_at, updated_at) VALUES (?, '{}', ?, ?)").bind(syncHash, now, now),
+		config.DB.prepare("INSERT INTO sync_sessions (key_hash, sync_hash, created_at, used_at) VALUES (?, ?, ?, ?)").bind(await sha256(key), syncHash, now, now),
+	]);
+	return back(`sync-session=${key}`);
+}
+
+/** DELETE /auth/session: sign this browser out. The account's data stays for its other browsers. */
+async function signOut(request: Request, headers: Record<string, string>): Promise<Response> {
+	if (request.method === "OPTIONS") return new Response(null, { status: headers["Access-Control-Allow-Origin"] ? 204 : 403, headers });
+	if (request.method !== "DELETE") return json({ ok: false, error: "Use DELETE." }, 405, { ...headers, Allow: "DELETE, OPTIONS" });
+	const key = sessionKeyFrom(request);
+	if (key) await config.DB.prepare("DELETE FROM sync_sessions WHERE key_hash = ?").bind(await sha256(key)).run();
+	return json({ ok: true }, 200, headers);
 }
 
 /** GET /moderate/<id>?t=...: the report with Approve and Reject buttons. Nothing changes until a button posts. */
@@ -248,6 +339,9 @@ export default {
 			return uploadFirmware(request, url.pathname.slice(4), config.FIRMWARE, API_ORIGIN, "doodersrage/esp32-bench");
 		}
 		if (url.pathname === "/sync") return sync(request, headers);
+		if (url.pathname === "/auth/github/start" && request.method === "GET") return githubStart(request, url);
+		if (url.pathname === "/auth/github/callback" && request.method === "GET") return githubCallback(request, url);
+		if (url.pathname === "/auth/session") return signOut(request, headers);
 		if (url.pathname === "/builds/summary" && request.method === "GET") return buildsSummary();
 		if (url.pathname === "/builds" && request.method === "GET") return listBuilds(url);
 		if (url.pathname === "/lab/latest" && request.method === "GET") return labLatest();

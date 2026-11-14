@@ -1,5 +1,5 @@
 // The "Use this log on another device" panel on the home page.
-import { create, deleteCloud, link, loadState, unlink } from "./sync";
+import { create, deleteCloud, link, loadState, unlink, startGithub, finishGithub } from "./sync";
 import { pageLocale, translator } from "../i18n/t";
 import { HOME } from "../i18n/strings/home";
 import { HTML_LANG } from "../i18n/locales";
@@ -33,7 +33,11 @@ function render() {
   const s = loadState();
   if (off) off.hidden = Boolean(s);
   if (on) on.hidden = !s;
-  if (s && shown) shown.textContent = s.code;
+  const github = s?.via === "github";
+  if (s && shown && !github) shown.textContent = s.code;
+  // A GitHub sign-in has no code to copy or save: show the account line and Sign out instead.
+  for (const el of document.querySelectorAll<HTMLElement>("#sync-on [data-sync-code]")) el.hidden = github;
+  for (const el of document.querySelectorAll<HTMLElement>("#sync-on [data-sync-github]")) el.hidden = !github;
   const logLink = document.getElementById("loglink");
   if (logLink) logLink.textContent = s ? t("logLinkSynced") : t("logLink");
   if (s && when) when.textContent = t("lastSynced", { when: new Date(s.at).toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" }) });
@@ -147,12 +151,20 @@ $("sync-save")?.addEventListener("click", () => {
   const s = loadState();
   if (s) saveCode(s.code);
 });
+$("sync-github")?.addEventListener("click", () => {
+  say(t("githubSigningIn"));
+  startGithub();
+});
+$("sync-signout")?.addEventListener("click", () => {
+  unlink();
+  say(t("signedOut"));
+});
 $("sync-unlink")?.addEventListener("click", () => {
   unlink();
   say(t("unlinked"));
 });
 $("sync-delete")?.addEventListener("click", async () => {
-  if (!confirm(t("deleteConfirm"))) return;
+  if (!confirm(t(loadState()?.via === "github" ? "deleteConfirmGithub" : "deleteConfirm"))) return;
   try {
     await deleteCloud();
     say(t("deleted"));
@@ -171,6 +183,38 @@ if (fromLink && box && input && !loadState()) {
 }
 
 if (location.hash === "#sync" && box) box.scrollIntoView({ block: "center" });
+
+// Back from GitHub. The key rides in the #fragment, which is never sent to a server; take it out of the address at once.
+const fromGithub = /^#sync-session=(gh_[A-Za-z0-9_-]{43})$/.exec(location.hash);
+const githubError = /^#sync-error=(\w+)$/.exec(location.hash);
+if (fromGithub || githubError) {
+  history.replaceState(null, "", location.pathname + location.search + "#log");
+  box?.scrollIntoView({ block: "center" });
+}
+if (githubError) say(t(githubError[1] === "cancelled" ? "githubCancelled" : "githubFailed"));
+if (fromGithub) {
+  say(t("githubSigningIn"));
+  finishGithub(fromGithub[1]).then(
+    () => {
+      try {
+        sessionStorage.setItem("bench.githubDone", "1");
+      } catch {
+        // The message is a nicety.
+      }
+      // The library, badges and drawer read storage once at load: start fresh with the combined log.
+      location.reload();
+    },
+    (e: unknown) => say((e as Error).message || t("githubFailed")),
+  );
+}
+try {
+  if (sessionStorage.getItem("bench.githubDone")) {
+    sessionStorage.removeItem("bench.githubDone");
+    say(t("githubDone"));
+  }
+} catch {
+  // No session storage: no message.
+}
 
 window.addEventListener("bench:sync", render);
 render();

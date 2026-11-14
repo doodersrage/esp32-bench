@@ -70,6 +70,7 @@ jobs:
           node --experimental-strip-types test/oidc.test.ts
           node --experimental-strip-types test/lab.test.ts
           node --experimental-strip-types test/sync.test.ts
+          node --experimental-strip-types test/github-auth.test.ts
 
       - name: Deploy to Cloudflare
         env:

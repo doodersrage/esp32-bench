@@ -11,7 +11,10 @@ const api = SITE.syncApi;
 const tr = translator(SHELL, pageLocale());
 
 export interface SyncState {
+  /** The sync code, or the sign-in key (gh_…) of a browser signed in with GitHub */
   code: string;
+  /** How this browser is linked: a code (the default) or GitHub */
+  via?: "github";
   /** Fingerprint of the copy this browser and the cloud last agreed on */
   agreed: string;
   /** When they last agreed (ms) */
@@ -125,6 +128,23 @@ export async function create(turnstile: string): Promise<string> {
   return res.json.code;
 }
 
+/** Sign in with GitHub: the API sends the browser to GitHub and back to this page with #sync-session=<key>. */
+export function startGithub() {
+  const back = location.origin + location.pathname + location.search;
+  location.href = `${new URL(api).origin}/auth/github/start?return=${encodeURIComponent(back)}`;
+}
+
+/** Back from GitHub with a sign-in key: combine this browser's log with the account's. */
+export async function finishGithub(key: string): Promise<void> {
+  const got = await call("GET", key);
+  if (got.status !== 200) throw new Error(tr("syncUnreachable"));
+  const both = mergeSync((got.json.data ?? {}) as SyncData, snapshot());
+  const put = await call("PUT", key, { data: both });
+  if (put.status !== 200) throw new Error(tr("syncSaveFailed"));
+  apply(both);
+  saveState({ code: key, via: "github", agreed: fingerprint(both), at: Date.now() });
+}
+
 /** Link this browser to an existing code, combining both copies. */
 export async function link(typed: string): Promise<void> {
   const code = normaliseCode(typed);
@@ -139,8 +159,12 @@ export async function link(typed: string): Promise<void> {
   saveState({ code, agreed: fingerprint(both), at: Date.now() });
 }
 
-/** Stop syncing here; the cloud copy and this browser's log both stay. */
+/** Stop syncing here; the cloud copy and this browser's log both stay. A GitHub sign-in is also ended on the server. */
 export function unlink() {
+  const s = loadState();
+  if (s?.via === "github") {
+    void fetch(`${new URL(api).origin}/auth/session`, { method: "DELETE", headers: { Authorization: `Bearer ${s.code}` }, keepalive: true }).catch(() => undefined);
+  }
   saveState(null);
 }
 

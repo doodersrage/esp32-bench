@@ -81,7 +81,7 @@ jobs:
 
       - name: Test the report API and the monitor
         run: |
-          (cd api && npm ci && node --experimental-strip-types test/report.test.ts && node --experimental-strip-types test/turnstile.test.ts && node --experimental-strip-types test/builds.test.ts && node --experimental-strip-types test/oidc.test.ts && node --experimental-strip-types test/lab.test.ts && node --experimental-strip-types test/sync.test.ts)
+          (cd api && npm ci && node --experimental-strip-types test/report.test.ts && node --experimental-strip-types test/turnstile.test.ts && node --experimental-strip-types test/builds.test.ts && node --experimental-strip-types test/oidc.test.ts && node --experimental-strip-types test/lab.test.ts && node --experimental-strip-types test/sync.test.ts && node --experimental-strip-types test/github-auth.test.ts)
           (cd lab && pip install -q -r requirements.txt && python3 -m unittest discover -s tests)
           (cd monitor && npm ci && node --experimental-strip-types test/checks.test.ts)
           (cd compile && npm ci && node --experimental-strip-types test/shared.test.ts)
