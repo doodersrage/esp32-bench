@@ -31,7 +31,7 @@ interface Env {
 	REPORT_TO?: string;
 	/** Bearer token the hardware lab runner posts with, set as a Worker secret */
 	LAB_TOKEN?: string;
-	/** GitHub OAuth App for "Sign in with GitHub" (sync), set as Worker secrets */
+	/** GitHub OAuth App for "Sign in with GitHub" (sync): the public id in cloudflare.config.ts, the secret as a Worker secret */
 	GITHUB_CLIENT_ID?: string;
 	GITHUB_CLIENT_SECRET?: string;
 }

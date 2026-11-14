@@ -26,6 +26,8 @@ export default defineConfig({
 			SENDER: bindings.text("reports@esp32bench.dev"),
 			// Turnstile: the frontend hostnames whose tokens are accepted. Never localhost in production.
 			TURNSTILE_HOSTNAMES: bindings.text("esp32bench.dev"),
+			// GitHub OAuth App for "Sign in with GitHub" (sync). The id is public; GITHUB_CLIENT_SECRET is a Worker secret.
+			GITHUB_CLIENT_ID: bindings.text("Ov23listiW9CpJ3tVCih"),
 		},
 	},
 });
