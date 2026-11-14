@@ -18,8 +18,8 @@ on:
       - scripts/build-firmware-library.mjs
       - scripts/upload-firmware-library.mjs
       - scripts/lib/sketch-build.mjs
-      # Not scripts/emulate-firmware.mjs: the QEMU check only reports, so a change
-      # to it waits for the next run instead of rebuilding every project.
+      # Not scripts/emulate-firmware.mjs: a change to the QEMU check waits for the
+      # next run instead of rebuilding every project.
       - .github/workflows/firmware-library.yml
 
 permissions:
@@ -67,8 +67,9 @@ jobs:
         run: node scripts/build-firmware-library.mjs
 
       # Espressif's QEMU boots each ESP32 and ESP32-C3 image and checks its serial
-      # output (scripts/emulate-firmware.mjs). Report only for now: the results go
-      # in the job summary and nothing here blocks publishing.
+      # output (scripts/emulate-firmware.mjs). The results go in the job summary.
+      # --strict: a crash, boot loop or no boot (twice in a row) stops the run
+      # before publishing; radio and peripheral stops QEMU cannot emulate do not.
       - name: Boot the images in QEMU
         env:
           GH_TOKEN: ${{ github.token }}
@@ -80,7 +81,7 @@ jobs:
             gh release download -R espressif/qemu esp-develop-9.2.2-20261109 -D .qemu -p "qemu-$arch-softmmu-*-x86_64-linux-gnu.tar.xz"
             tar xf .qemu/qemu-$arch-softmmu-*-x86_64-linux-gnu.tar.xz -C .qemu
           done
-          QEMU_DIR=.qemu/qemu node scripts/emulate-firmware.mjs
+          QEMU_DIR=.qemu/qemu node scripts/emulate-firmware.mjs --strict
 
       - name: Publish to fw.esp32bench.dev
         # The script fetches its own OIDC token, and a new one when it expires mid-upload.
