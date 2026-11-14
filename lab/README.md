@@ -149,8 +149,9 @@ systemctl --user list-timers
 - `GET https://api.esp32bench.dev/lab/latest` summarises the latest run across
   all projects.
 
-Results are kept per run, so a later run replaces what the pages show but the
-history stays in the database.
+Results are kept per run and the history stays in the database. Pages show the
+newest result for each project and board, from whichever run had it, so a run
+limited with `--only` or `--board` updates just those and leaves the rest.
 
 ## Tests
 

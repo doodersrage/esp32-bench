@@ -14,6 +14,17 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-26",
+    date: "2026-11-14",
+    title: "Version 0.26: ProbeHarbor probe firmware 1.5.0, and the first hardware lab run",
+    summary: "The ProbeHarbor probe now flashes as firmware 1.5.0, which updates itself and checks ProbeHarbor's certificate, and every classic ESP32 project has passed on real hardware.",
+    items: [
+      "ProbeHarbor probe 1.5.0: flash it once and it installs ProbeHarbor's signed updates by itself, going back if an update cannot post. It also checks ProbeHarbor's certificate before posting.",
+      "Lab tested: all 52 projects that run on the classic ESP32 passed on a real ESP32 DevKit. Each project page shows its result.",
+    ],
+    link: "/projects/probeharbor-probe/",
+  },
+  {
     id: "v0-25",
     date: "2026-11-14",
     title: "Version 0.25: sync with your GitHub account",

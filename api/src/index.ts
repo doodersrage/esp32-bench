@@ -116,9 +116,15 @@ async function labLatest(): Promise<Response> {
 	const headers = { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300" };
 	const run = await config.DB.prepare("SELECT id, finished_at, core, firmware_built_at FROM lab_runs ORDER BY finished_at DESC LIMIT 1").first<LabRunRow>();
 	if (!run) return json({ run: null, projects: {} }, 200, headers);
-	const { results } = await config.DB.prepare("SELECT project, board, status, seconds FROM lab_results WHERE run_id = ? ORDER BY project, board")
-		.bind(run.id)
-		.all<{ project: string; board: string; status: string; seconds: number }>();
+	// The newest result for each project and board, from whichever run had it: a
+	// run limited to a few projects (--only, --board) updates those and leaves the rest.
+	const { results } = await config.DB.prepare(
+		`SELECT project, board, status, seconds FROM (
+			SELECT r.project, r.board, r.status, r.seconds,
+				ROW_NUMBER() OVER (PARTITION BY r.project, r.board ORDER BY u.finished_at DESC, u.id DESC) AS n
+			FROM lab_results r JOIN lab_runs u ON u.id = r.run_id
+		) WHERE n = 1 ORDER BY project, board`,
+	).all<{ project: string; board: string; status: string; seconds: number }>();
 	const projects: Record<string, { board: string; status: string; seconds: number }[]> = {};
 	for (const r of results) (projects[r.project] ??= []).push({ board: r.board, status: r.status, seconds: r.seconds });
 	return json({ run: { finished_at: run.finished_at, core: run.core, firmware_built_at: run.firmware_built_at }, projects }, 200, headers);
