@@ -177,10 +177,12 @@ const boardOptions = BOARDS.map((b) => ({ id: b.id, name: b.name, count: PROJECT
           <div class="syncrow">
             <button class="btn sm" type="button" id="sync-copy">Copy code</button>
             <button class="btn sm" type="button" id="sync-copylink">Copy a link for another device</button>
+            <button class="btn sm" type="button" id="sync-save">Save the code as a file</button>
             <button class="btn sm" type="button" id="sync-unlink">Stop syncing in this browser</button>
             <button class="btn sm" type="button" id="sync-delete">Delete the cloud copy</button>
           </div>
           <p class="cap left" id="sync-when"></p>
+          <p class="cap left">There is no way to recover a lost code, so keep a copy somewhere safe, such as a password manager or the saved file.</p>
         </div>
         <p class="cap left" id="sync-status" role="status"></p>
       </div>

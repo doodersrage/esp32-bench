@@ -23,6 +23,7 @@ const data = PROJECTS.map((p) => {
       href: buyFor(p.parts[i])?.href ?? "",
       rel: buyFor(p.parts[i])?.rel ?? "",
       buy: buyFor(p.parts[i])?.text ?? "",
+      amazonQ: buyFor(p.parts[i])?.amazonQ ?? "",
     })),
   };
 });

@@ -93,16 +93,51 @@ const AMAZON_SEARCH: Partial<Record<IconId, string | ((text: string) => string |
   hardware: (t) => (/pan-tilt/i.test(t) ? "SG90 pan tilt bracket" : null),
 };
 
+export interface BuyLink {
+  href: string;
+  rel: string;
+  text: string;
+  /** For Amazon links: what to search for on another country's store (src/scripts/amazon-region.ts) */
+  amazonQ?: string;
+}
+
 /** Where to buy one parts line: its own link, or else an Amazon search for its kind of part. */
-export function buyFor(part: readonly [number, string, string?]): { href: string; rel: string; text: string } | null {
-  let href = part[2];
-  if (!href) {
-    const q = AMAZON_SEARCH[kitItem(part).icon];
-    const query = typeof q === "function" ? q(part[1]) : q;
-    if (!query) return null;
-    href = amazonSearch(query);
+export function buyFor(part: readonly [number, string, string?]): BuyLink | null {
+  const item = kitItem(part);
+  const q = AMAZON_SEARCH[item.icon];
+  const query = (typeof q === "function" ? q(part[1]) : q) ?? undefined;
+  const href = part[2] ?? (query ? amazonSearch(query) : undefined);
+  if (!href) return null;
+  return { href, rel: shopRel(href), text: shopText(href), amazonQ: isAmazon(href) ? (query ?? item.label) : undefined };
+}
+
+/** Attributes for a buy link, with the search to use on another country's Amazon. */
+export const buyAttrs = (href: string, amazonQ: string) => ({
+  href,
+  rel: shopRel(href),
+  ...(isAmazon(href) ? { "data-amazon-q": amazonQ } : {}),
+});
+
+// Amazon stores by visitor country, for PUBLIC_AMAZON_TAGS. Keys are the
+// store's domain after "amazon.".
+const STORES: Record<string, string> = {
+  GB: "co.uk", IE: "co.uk", DE: "de", AT: "de", CH: "de", FR: "fr", BE: "fr", IT: "it", ES: "es", NL: "nl",
+  CA: "ca", AU: "com.au", NZ: "com.au", IN: "in", JP: "co.jp", MX: "com.mx", BR: "com.br", SE: "se", PL: "pl",
+};
+export const amazonStoreFor = (country: string): string | undefined => STORES[country];
+
+export const localAmazonHref = (query: string, store: string, storeTag: string) =>
+  `https://www.amazon.${store}/s?k=${encodeURIComponent(query).replace(/%20/g, "+")}&tag=${encodeURIComponent(storeTag)}`;
+
+/** PUBLIC_AMAZON_TAGS: a JSON object of store to tag, such as {"co.uk":"name-21","de":"name-21"}. */
+export function amazonTags(): string {
+  try {
+    const raw = JSON.parse(import.meta.env?.PUBLIC_AMAZON_TAGS || "{}") as Record<string, unknown>;
+    const ok = Object.fromEntries(Object.entries(raw).filter(([k, v]) => Object.values(STORES).includes(k) && typeof v === "string" && /^[\w-]{1,40}$/.test(v)));
+    return JSON.stringify(ok);
+  } catch {
+    return "{}";
   }
-  return { href, rel: shopRel(href), text: shopText(href) };
 }
 
 /** On-page disclosure for pages that carry Amazon buy links. */

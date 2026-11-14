@@ -45,6 +45,9 @@ jobs:
         env:
           # Adds the Amazon Associates tag to Amazon buy links (src/lib/shop.ts).
           PUBLIC_AMAZON_ASSOCIATE_TAG: ${{ secrets.PUBLIC_AMAZON_ASSOCIATE_TAG }}
+          # Optional tags for other Amazon stores, as JSON such as {"co.uk":"name-21"}:
+          # visitors from those countries get their own store (src/scripts/amazon-region.ts).
+          PUBLIC_AMAZON_TAGS: ${{ secrets.PUBLIC_AMAZON_TAGS }}
         run: npx astro build
 
       - name: Test the site's libraries

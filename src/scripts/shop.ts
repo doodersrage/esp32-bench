@@ -1,6 +1,7 @@
 // Shopping list page: merges the parts of the projects on the list.
 import { loadShop, saveShop } from "./progress";
 import { loadState as loadSyncState } from "./sync";
+import { localiseAmazon } from "./amazon-region";
 
 interface Item {
   key: string;
@@ -12,6 +13,7 @@ interface Item {
   href: string;
   rel: string;
   buy: string;
+  amazonQ: string;
 }
 interface ShopProject {
   id: string;
@@ -28,6 +30,7 @@ interface Line {
   href: string;
   rel: string;
   buy: string;
+  amazonQ: string;
 }
 
 const data = JSON.parse(document.getElementById("shop-data")?.textContent ?? "[]") as ShopProject[];
@@ -50,7 +53,7 @@ function merge(projects: ShopProject[], together: boolean): Line[] {
     for (const item of p.items.filter((i) => !i.alternative)) {
       let line = lines.get(item.key);
       if (!line) {
-        line = { label: item.label, qty: 0, optional: true, projects: [], texts: [], href: "", rel: "", buy: "" };
+        line = { label: item.label, qty: 0, optional: true, projects: [], texts: [], href: "", rel: "", buy: "", amazonQ: "" };
         lines.set(item.key, line);
       }
       line.qty = together ? line.qty + item.qty : Math.max(line.qty, item.qty);
@@ -58,7 +61,7 @@ function merge(projects: ShopProject[], together: boolean): Line[] {
       if (!line.projects.includes(p.name)) line.projects.push(p.name);
       if (!line.texts.includes(item.text)) line.texts.push(item.text);
       // A product link beats a search when two projects list the same part.
-      if (item.href && (!line.href || (line.buy.startsWith("Find") && !item.buy.startsWith("Find")))) Object.assign(line, { href: item.href, rel: item.rel, buy: item.buy });
+      if (item.href && (!line.href || (line.buy.startsWith("Find") && !item.buy.startsWith("Find")))) Object.assign(line, { href: item.href, rel: item.rel, buy: item.buy, amazonQ: item.amazonQ });
     }
   }
   return [...lines.values()].sort((a, b) => Number(a.optional) - Number(b.optional) || a.label.localeCompare(b.label));
@@ -113,12 +116,14 @@ function render() {
         a.href = line.href;
         a.rel = line.rel;
         a.target = "_blank";
+        if (line.amazonQ) a.dataset.amazonQ = line.amazonQ;
         buy.append(a);
       }
       tr.append(qty, part, used, buy);
       return tr;
     }),
   );
+  localiseAmazon(rows);
 }
 
 add.addEventListener("change", () => {

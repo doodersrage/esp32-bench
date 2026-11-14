@@ -73,7 +73,7 @@ make?.addEventListener("click", async () => {
         say("Making your code…");
         try {
           const code = await create(token);
-          say(`Your sync code is ${code}. Write it down or copy the link, then enter it on your other devices.`);
+          say(`Your sync code is ${code}. Save it as a file or copy the link, then enter it on your other devices.`);
           human.replaceChildren();
           widget = null;
           make.disabled = false;
@@ -115,6 +115,31 @@ $("sync-copy")?.addEventListener("click", () => {
 $("sync-copylink")?.addEventListener("click", () => {
   const s = loadState();
   if (s) void copy(shareLink(s.code), "Link copied. Open it on the other device and press Link this browser.");
+});
+/** A small text file with the code and its link, for safekeeping: there is no way to recover a lost code. */
+function saveCode(code: string) {
+  const text = [
+    "ESP32 Bench sync code",
+    "",
+    `Code: ${code}`,
+    `Link: ${shareLink(code)}`,
+    `Saved: ${new Date().toLocaleString()}`,
+    "",
+    "Enter the code under \"On your phone too\" on the ESP32 Bench home page, or open the link,",
+    "to bring your bench log, shopping list and parts drawer to another browser.",
+    "Anyone with the code can see and change that copy, so keep it to yourself.",
+    "",
+  ].join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  a.download = "esp32-bench-sync-code.txt";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  say("Saved esp32-bench-sync-code.txt. Keep it somewhere safe.");
+}
+$("sync-save")?.addEventListener("click", () => {
+  const s = loadState();
+  if (s) saveCode(s.code);
 });
 $("sync-unlink")?.addEventListener("click", () => {
   unlink();

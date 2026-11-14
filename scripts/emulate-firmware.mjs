@@ -1,4 +1,4 @@
-// Boot every ESP32 and ESP32-C3 image of the firmware library in Espressif's
+// Boot every ESP32, ESP32-S3 and ESP32-C3 image of the firmware library in Espressif's
 // QEMU and read its serial output: did it boot, did it crash or reboot in a
 // loop, and (for projects that need nothing attached) did it print what the
 // hardware lab expects. QEMU has no Wi-Fi and no sensors, so Wi-Fi and parts
@@ -35,13 +35,17 @@ const strict = args.includes("--strict");
 const qemuDir = resolve(process.env.QEMU_DIR ?? "qemu");
 const manifestPath = resolve(opt("--manifest", "dist/lab-manifest.json"));
 
-// Boards QEMU can run whose serial output goes to UART0. The XIAO C3 and the
-// C3 SuperMini print over native USB, which QEMU does not emulate.
+// Boards QEMU can run whose serial output goes to UART0. The XIAO boards and
+// the C3 SuperMini print over native USB, which QEMU does not emulate; the
+// S3 DevKitC's Arduino build keeps Serial on UART0.
 const MACHINES = {
   esp32: { bin: "qemu-system-xtensa", args: ["-machine", "esp32"] },
+  esp32s3: { bin: "qemu-system-xtensa", args: ["-machine", "esp32s3"] },
   esp32c3: { bin: "qemu-system-riscv32", args: ["-machine", "esp32c3", "-icount", "3"] },
 };
-const FLASH = 4 * 1024 * 1024;
+// QEMU wants a flash chip of the size the bootloader header names (byte 3,
+// high nibble: 0 = 1 MB … 4 = 16 MB): 4 MB on the DevKitC, 8 MB on the S3 DevKitC.
+const flashSize = (image) => (1 << Math.min(image[3] >> 4, 4)) * 1024 * 1024;
 
 const CRASH = /Guru Meditation|abort\(\) was called|panic'ed|Stack smashing|assert failed|Backtrace: 0x/i;
 const RESET = /rst:0x[0-9a-f]+ \(/gi;
@@ -63,6 +67,7 @@ const INT_WDT = /Interrupt wdt timeout/i;
 // by build-firmware-library.mjs as elf/<sha>.gz) and the toolchain's addr2line.
 const ADDR2LINE = {
   esp32: findTool("xtensa-esp32-elf-addr2line") ?? findTool("xtensa-esp-elf-addr2line"),
+  esp32s3: findTool("xtensa-esp32s3-elf-addr2line") ?? findTool("xtensa-esp-elf-addr2line"),
   esp32c3: findTool("riscv32-esp-elf-addr2line") ?? which("llvm-addr2line"),
 };
 function findTool(name) {
@@ -98,7 +103,7 @@ for (const [id, p] of Object.entries(manifest)) {
   }
 }
 if (jobs.length === 0) {
-  console.error(`No ESP32 or ESP32-C3 images found in ${dir}.`);
+  console.error(`No ESP32, ESP32-S3 or ESP32-C3 images found in ${dir}.`);
   process.exit(2);
 }
 
@@ -108,8 +113,9 @@ function run(job) {
   return new Promise((done) => {
     const m = MACHINES[job.board];
     // QEMU wants the whole flash chip: the image, then erased (0xFF) flash.
-    const flash = Buffer.alloc(FLASH, 0xff);
-    readFileSync(job.image).copy(flash);
+    const image = readFileSync(job.image);
+    const flash = Buffer.alloc(flashSize(image), 0xff);
+    image.copy(flash);
     const file = join(work, `${job.id}-${job.board}.bin`);
     writeFileSync(file, flash);
 

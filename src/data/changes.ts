@@ -14,6 +14,17 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-22",
+    date: "2026-11-14",
+    title: "Version 0.22: the ESP32-S3 in the emulator, and a safe copy of your sync code",
+    summary: "ESP32-S3 firmware is now booted in the emulator too, so S3 projects get the crash check and, where they need nothing attached, a preview of what they print.",
+    items: [
+      "The emulator check covers the ESP32-S3 DevKitC as well as the ESP32 and ESP32-C3. Touch piano gets its first preview, since the S3's touch keys run in the emulator.",
+      "Save the code as a file, in the sync card: a sync code cannot be recovered, so keep a copy somewhere safe.",
+    ],
+    link: "/projects/touch-piano/",
+  },
+  {
     id: "v0-21",
     date: "2026-11-14",
     title: "Version 0.21: a buy link for nearly every part",

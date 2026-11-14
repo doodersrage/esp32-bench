@@ -62,7 +62,7 @@ const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`
 // "What it prints": only projects that need nothing attached can have a QEMU preview (scripts/emulate-firmware.mjs).
 const labExpect = LAB_EXPECT[p.id];
 const previewable = Boolean(labExpect && labExpect.needs === "none" && !(labExpect.settings ?? []).length);
-const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" || b.id === "esp32c3").map((b) => [b.id, b.name]));
+const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" || b.id === "esp32s3" || b.id === "esp32c3").map((b) => [b.id, b.name]));
 ---
 
 <Base title={`${p.name}: ESP32 project`} description={description} current="library" image={`/og/projects/${p.id}.png`}>
@@ -141,7 +141,7 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
                         <span>{what}</span>
                       </div>
                     </td>
-                    <td class="m">{buy[i] && <a href={buy[i].href} rel={buy[i].rel} target="_blank">{buy[i].text}</a>}</td>
+                    <td class="m">{buy[i] && <a href={buy[i].href} rel={buy[i].rel} data-amazon-q={buy[i].amazonQ} target="_blank">{buy[i].text}</a>}</td>
                   </tr>
                 ))}
               </tbody>

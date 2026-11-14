@@ -6,7 +6,7 @@ import { CHIPS } from "../../data/chips";
 import { PROJECTS, boardsOf } from "../../data/projects";
 import { padRows, wiredRows } from "../../lib/pins";
 import { link } from "../../lib/paths";
-import { AFFILIATE_DISCLOSURE, shopRel, shopVendor } from "../../lib/shop";
+import { AFFILIATE_DISCLOSURE, buyAttrs, shopVendor } from "../../lib/shop";
 
 export function getStaticPaths() {
   return BOARDS.map((b) => ({ params: { id: b.id }, props: { b } }));
@@ -220,7 +220,7 @@ const tone = { safe: "ok", care: "warnt", avoid: "bad", power: "" } as const;
     <div class="row">
       {
         b.buy.map((x) => (
-          <a class="btn sm" href={x.href} rel={shopRel(x.href)} target="_blank">
+          <a class="btn sm" {...buyAttrs(x.href, x.label)} target="_blank">
             Buy {x.label} at {shopVendor(x.href)}
           </a>
         ))

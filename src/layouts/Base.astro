@@ -13,6 +13,7 @@ import plexSans from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-no
 import "../styles/global.css";
 import { link } from "../lib/paths";
 import { SITE, absolute, reportUrl } from "../lib/site";
+import { amazonTags } from "../lib/shop";
 
 type Section =
   | "library"
@@ -65,7 +66,7 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-amazon-tags={amazonTags() === "{}" ? undefined : amazonTags()}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -182,4 +183,5 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
   import "../scripts/search-ui.ts";
   import "../scripts/scroll-rows.ts";
   import "../scripts/sync.ts";
+  import "../scripts/amazon-region.ts";
 </script>

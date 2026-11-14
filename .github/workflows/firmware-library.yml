@@ -66,7 +66,7 @@ jobs:
       - name: Compile and merge every project for every board
         run: node scripts/build-firmware-library.mjs
 
-      # Espressif's QEMU boots each ESP32 and ESP32-C3 image and checks its serial
+      # Espressif's QEMU boots each ESP32, ESP32-S3 and ESP32-C3 image and checks its serial
       # output (scripts/emulate-firmware.mjs). The results go in the job summary.
       # --strict: a crash, boot loop or no boot (twice in a row) stops the run
       # before publishing; radio and peripheral stops QEMU cannot emulate do not.
