@@ -23,3 +23,8 @@ link-report.md
 # Firmware library: QEMU boot check
 .qemu/
 emulator-report.md
+
+# Hardware lab: the runner config holds the lab token and Wi-Fi password
+lab/config.toml
+lab/lab-token.txt
+lab/*.json
