@@ -243,12 +243,16 @@ async function sync(request: Request, headers: Record<string, string>): Promise<
 	return json({ ok: false, error: "Use GET, POST, PUT or DELETE." }, 405, { ...headers, Allow: "GET, POST, PUT, DELETE, OPTIONS" });
 }
 
+// The OAuth App's id and secret, trimmed: a value pasted into the dashboard can pick up spaces.
+const github = () => ({ id: config.GITHUB_CLIENT_ID?.trim() ?? "", secret: config.GITHUB_CLIENT_SECRET?.trim() ?? "" });
+
 /** GET /auth/github/start?return=<page>: off to GitHub, remembering where to come back to. */
 async function githubStart(request: Request, url: URL): Promise<Response> {
 	const allowed = config.ALLOWED_ORIGINS.split(",").map((s) => s.trim());
 	const returnTo = safeReturn(url.searchParams.get("return"), allowed);
 	if (!returnTo) return html(resultPage("Not allowed", "Sign in with GitHub from esp32bench.dev."), 400);
-	if (!config.GITHUB_CLIENT_ID || !config.GITHUB_CLIENT_SECRET) return html(resultPage("Not set up yet", "Sign in with GitHub is not available yet. Use a sync code instead."), 503);
+	const app = github();
+	if (!app.id || !app.secret) return html(resultPage("Not set up yet", "Sign in with GitHub is not available yet. Use a sync code instead."), 503);
 	const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
 	const { success } = await config.LIMIT.limit({ key: `github:${ip}` });
 	if (!success) return html(resultPage("Too many tries", "Please wait a minute and try again."), 429);
@@ -257,7 +261,7 @@ async function githubStart(request: Request, url: URL): Promise<Response> {
 	return new Response(null, {
 		status: 302,
 		headers: {
-			Location: authorizeUrl(config.GITHUB_CLIENT_ID, `${url.origin}/auth/github/callback`, state),
+			Location: authorizeUrl(app.id, `${url.origin}/auth/github/callback`, state),
 			"Set-Cookie": stateCookie(state, returnTo, secure),
 			"Cache-Control": "no-store",
 		},
@@ -277,10 +281,11 @@ async function githubCallback(request: Request, url: URL): Promise<Response> {
 	}
 	// Cancelled on GitHub, or GitHub said no.
 	const code = url.searchParams.get("code");
-	if (!code || !config.GITHUB_CLIENT_ID || !config.GITHUB_CLIENT_SECRET) return back("sync-error=cancelled");
+	const app = github();
+	if (!code || !app.id || !app.secret) return back("sync-error=cancelled");
 	const id = await githubAccountId({
-		clientId: config.GITHUB_CLIENT_ID,
-		clientSecret: config.GITHUB_CLIENT_SECRET,
+		clientId: app.id,
+		clientSecret: app.secret,
 		code,
 		redirectUri: `${url.origin}/auth/github/callback`,
 	}).catch(() => null);
