@@ -91,11 +91,11 @@ export const LAB_EXPECT: Record<string, LabExpect> = {
     notes: `${WIFI_FROM_LAB} The LCD cannot be checked over serial.`,
   },
   "ph-motion": {
-    patterns: ["wifi ok \\d+\\.\\d+\\.\\d+\\.\\d+", "posted (motion|quiet) (ok|FAILED)"],
+    patterns: ["wifi ok \\d+\\.\\d+\\.\\d+\\.\\d+", "(posted (motion|quiet) (ok|FAILED)|ingest address not set)"],
     seconds: 60,
     needs: "wifi",
     settings: ["wifi_ssid", "wifi_pass", "ingest_url"],
-    notes: `${WIFI_FROM_LAB} Without a device key the post fails, which still shows the sketch runs.`,
+    notes: `${WIFI_FROM_LAB} A lab without a ProbeHarbor ingest address stops after joining Wi-Fi and says so; with one but no device key the post fails, which still shows the sketch runs.`,
   },
   "nrf24-link": { patterns: ["(radio listening|nRF24 not found)"], seconds: 15, needs: "parts", notes: "Without the radio the sketch stops after nRF24 not found." },
   "led-matrix": { patterns: ["matrix ready: \\d+ modules", "passes = \\d+"], seconds: 15, needs: "none", notes: "The sketch scrolls with or without modules attached; the matrix itself is not checked." },
@@ -103,12 +103,12 @@ export const LAB_EXPECT: Record<string, LabExpect> = {
   "tft-display": { patterns: ["TFT ready: \\d+x\\d+ ST7789", "fps = \\d+\\.\\d"], seconds: 10, needs: "none", notes: "The sketch draws with or without a screen attached; the panel itself is not checked." },
   "sd-logger": { patterns: ["(SD card not found|logging to /log\\d{3}\\.csv)"], seconds: 15, needs: "parts", notes: "Without a card module the sketch reports SD card not found and retries; with one, it logs a row every 5 s." },
   "ph-ds18b20": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in, which the lab cannot set; only the boot line is checked." },
-  "ph-ds18b20-portal": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "Opens a setup portal on first boot; only the boot line is checked." },
+  "ph-ds18b20-portal": { patterns: ["(Starting Web Portal|WiFi ok)"], seconds: 10, needs: "wifi", notes: "With no Wi-Fi saved it opens its setup portal (ProbeHarbor-Setup); that is what is checked." },
   "ph-door": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in; only the boot line is checked." },
   "ph-leak": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in; only the boot line is checked." },
   "ph-power": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in; only the boot line is checked." },
-  "ph-max31855": { patterns: ["(MAX31855 not found|WiFi ok)"], seconds: 10, needs: "parts", notes: "Without the module the sketch stops after MAX31855 not found." },
-  "ph-max6675": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in; only the boot line is checked." },
+  "ph-max31855": { patterns: ["(MAX31855 not found|\\.\\.\\.|WiFi ok)"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in, so on the lab it keeps trying to join (dots); only that it boots that far is checked. A bare module can read as present." },
+  "ph-max6675": { patterns: ["(\\.\\.\\.|WiFi ok)"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in, so on the lab it keeps trying to join (dots); only that it boots that far is checked." },
 };
 
 /** Chip name for esptool, from a board id. */
