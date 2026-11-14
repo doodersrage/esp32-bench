@@ -1,6 +1,6 @@
 // Site search in the browser: the header box with its dropdown, the "/" key,
 // and the /search/ page. The index is fetched the first time it is needed.
-import { link, localLink } from "../lib/paths";
+import { isTranslatedPage, link, localLink } from "../lib/paths";
 import { SHELL } from "../i18n/strings/shell";
 import { pageLocale, translator } from "../i18n/t";
 
@@ -27,11 +27,14 @@ export function loadIndex(): Promise<Prepared[]> {
 export function resultItem(e: Entry, tag: "li" | "div" = "li"): HTMLElement {
   const item = document.createElement(tag);
   const a = document.createElement("a");
-  a.href = e.url;
+  // The index is English; results for translated pages open in the page's language.
+  const base = link("/").slice(0, -1);
+  const path = e.url.startsWith(base) ? e.url.slice(base.length) : e.url;
+  a.href = isTranslatedPage(path) ? pageLink(path) : e.url;
   a.className = "sresult";
   const kind = document.createElement("span");
   kind.className = `tag skind skind-${e.kind.toLowerCase()}`;
-  kind.textContent = e.kind;
+  kind.textContent = t(`kind${e.kind}` as Parameters<typeof t>[0]);
   const title = document.createElement("span");
   title.className = "stitle";
   title.textContent = e.title;

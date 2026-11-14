@@ -2,19 +2,24 @@
 // as you can. False starts blink the LED, 3 s without a press is "too slow", and the
 // best time is kept, all as in the sketch.
 import { button, el, sleep, store, stored, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
+
+const t = translator(PREVIEWS, pageLocale());
 
 export const mount: Mount = ({ host, say }) => {
   let best = stored("reactionBest");
   let phase: "stopped" | "waiting" | "lit" = "stopped";
   let litAt = 0;
   let run = 0; // invalidates old rounds when restarted
+  let started = false; // the Start/Stop button's state
 
-  const led = el("div", { class: "rled", role: "img", "aria-label": "LED off" });
+  const led = el("div", { class: "rled", role: "img", "aria-label": t("ledOff") });
   const setLed = (on: boolean) => {
     led.classList.toggle("on", on);
-    led.setAttribute("aria-label", on ? "LED on: press now" : "LED off");
+    led.setAttribute("aria-label", on ? t("ledOn") : t("ledOff"));
   };
-  const result = el("span", { class: "readout", text: best ? `Best: ${best} ms` : "No best time yet" });
+  const result = el("span", { class: "readout", text: best ? t("reactBest", { ms: best }) : t("reactNoBest") });
 
   const round = async (id: number) => {
     while (id === run) {
@@ -68,7 +73,7 @@ export const mount: Mount = ({ host, say }) => {
         store("reactionBest", best);
         line += `, new best!`;
       }
-      result.textContent = `Last: ${ms} ms. Best: ${best} ms`;
+      result.textContent = t("reactLast", { ms, best });
       say(line);
       const id = ++run;
       await sleep(1500);
@@ -78,7 +83,7 @@ export const mount: Mount = ({ host, say }) => {
 
   // Presses count on pointerdown (fastest); the click handler below only serves the keyboard.
   const key = button("BOOT", () => {}, "btn go rbutton");
-  key.setAttribute("aria-label", "BOOT button: press when the LED lights");
+  key.setAttribute("aria-label", t("reactBootAria"));
   key.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     void hit();
@@ -88,17 +93,19 @@ export const mount: Mount = ({ host, say }) => {
     if ((e as PointerEvent).pointerType) return;
     void hit();
   };
-  const startStop = button("Start", () => {
-    if (phase === "stopped" && startStop.textContent === "Start") {
-      startStop.textContent = "Stop";
+  const startStop = button(t("start"), () => {
+    if (phase === "stopped" && !started) {
+      started = true;
+      startStop.textContent = t("stop");
       void round(++run);
       key.focus();
     } else {
       run++;
       phase = "stopped";
       setLed(false);
-      startStop.textContent = "Start";
-      say("Stopped.");
+      started = false;
+      startStop.textContent = t("start");
+      say(t("stopped"));
     }
   });
   host.addEventListener("keydown", (e) => {

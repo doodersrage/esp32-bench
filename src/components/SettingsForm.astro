@@ -5,8 +5,11 @@
 // src/lib/settings-protocol.ts. Nothing typed here is stored by the site.
 import type { Setting } from "../data/bench-settings";
 import { localLink } from "../lib/paths";
+import { FIRMWARE, settingText } from "../i18n/strings/firmware";
+import { translator } from "../i18n/t";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(FIRMWARE, Astro.currentLocale);
 
 interface Props {
   settings: Setting[];
@@ -14,23 +17,21 @@ interface Props {
   baud: number;
 }
 
-const { settings, project, baud } = Astro.props;
+const { settings: given, project, baud } = Astro.props;
+// Labels and hints in the page's language; the script reads them from data-settings too.
+const settings: Setting[] = given.map((s) => ({ ...s, ...settingText(t, s) }));
 const benchHref = `${link("/bench/")}?baud=${baud}&sample=${project}`;
 ---
 
 <div class="flashbox settingsbox" data-settings-form data-settings={JSON.stringify(settings)} data-bench={benchHref}>
-  <h3 class="flat">Settings over USB</h3>
-  <p>
-    This sketch keeps its settings in the board's flash. Fill in what you want to change, keep the board on USB and
-    press Send: the page restarts the board, sends the settings and restarts it again. Fields left empty keep what is
-    already stored, or the sketch's own default. Nothing is stored by this site.
-  </p>
+  <h3 class="flat">{t("settingsTitle")}</h3>
+  <p>{t("settingsIntro")}</p>
   <form class="setupform" data-form novalidate>
     {
       settings.map((s) => (
         <label for={`setting-${s.key}`} class={s.kind === "url" ? "wide" : undefined}>
           {s.label}
-          {s.required ? "" : <span class="opt">optional</span>}
+          {s.required ? "" : <span class="opt">{t("optional")}</span>}
           <input
             id={`setting-${s.key}`}
             name={s.key}
@@ -45,13 +46,13 @@ const benchHref = `${link("/bench/")}?baud=${baud}&sample=${project}`;
       ))
     }
     <div class="wide row">
-      <button class="btn go" type="submit" data-send>Send settings to the board</button>
+      <button class="btn go" type="submit" data-send>{t("sendSettings")}</button>
       <span class="setupstatus" data-status role="status" aria-live="polite"></span>
     </div>
   </form>
   <pre class="code" data-log hidden></pre>
   <p class="row" data-after hidden>
-    <a class="btn" data-bench-link href={benchHref}>Open the bench to watch it start</a>
+    <a class="btn" data-bench-link href={benchHref}>{t("openBenchWatch")}</a>
   </p>
 </div>
 

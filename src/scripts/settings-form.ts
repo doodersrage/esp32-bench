@@ -10,6 +10,10 @@ import {
   planSends,
   type BoardLine,
 } from "../lib/settings-protocol";
+import { FIRMWARE, fromLib } from "../i18n/strings/firmware";
+import { pageLocale, translator } from "../i18n/t";
+
+const t = translator(FIRMWARE, pageLocale());
 
 const BAUD = 115200;
 const BOOT_WAIT_MS = 10_000;
@@ -27,8 +31,8 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-settings-form]"
   if (!getSerial()) {
     button.disabled = true;
     status.textContent = window.isSecureContext
-      ? "This browser has no Web Serial. Use Chrome or Edge on a desktop."
-      : "Sending settings needs a secure page. Open this site over https or from http://localhost.";
+      ? t("noWebSerial")
+      : t("sendNeedsSecure");
     continue;
   }
 
@@ -44,7 +48,7 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-settings-form]"
       const hint = root.querySelector<HTMLElement>(`[data-hint="${s.key}"]`);
       if (!hint || !(s.key in stored)) continue;
       hint.classList.toggle("stored", stored[s.key]);
-      hint.textContent = stored[s.key] ? `Stored on the board. ${s.hint ?? ""}`.trim() : s.hint ?? "";
+      hint.textContent = stored[s.key] ? (s.hint ? t("storedHint", { hint: s.hint }) : t("storedOnly")) : s.hint ?? "";
     }
   };
 
@@ -55,7 +59,7 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-settings-form]"
     const plan = planSends(settings, values);
     const bad = plan.find((p) => !p.ok);
     if (bad && !bad.ok) {
-      say(bad.error);
+      say(fromLib(t, bad.error));
       return;
     }
 
@@ -78,7 +82,7 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-settings-form]"
         waiter?.(parsed);
       },
       onClose(lost) {
-        if (lost) say("The board went away. Check the cable and try again.");
+        if (lost) say(t("boardGone"));
       },
     });
     const waitFor = (wanted: (l: BoardLine) => boolean, ms: number) =>
@@ -96,23 +100,23 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-settings-form]"
       });
 
     try {
-      say("Pick the board's port in the browser prompt.");
+      say(t("pickPort"));
       const opened = await session.open(BAUD);
       if (opened === "cancelled") {
-        say("No port was picked.");
+        say(t("noPort"));
         return;
       }
       if (opened !== "ok") {
-        say(opened);
+        say(fromLib(t, opened));
         return;
       }
 
-      say("Restarting the board.");
+      say(t("restarting"));
       const resetProblem = await session.reset();
-      if (resetProblem) note(`Reset: ${resetProblem}. Press the board's EN button now.`);
+      if (resetProblem) note(t("resetFailed", { problem: fromLib(t, resetProblem) }));
       const ready = await waitFor((l) => l.type === "waiting" || l.type === "settings", BOOT_WAIT_MS);
       if (!ready) {
-        say("The board did not answer. Is it running this project's sketch, and is no other serial monitor using the port?");
+        say(t("boardNoAnswer"));
         return;
       }
 
@@ -123,11 +127,11 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-settings-form]"
       const report = await reportWait;
       if (report?.type === "settings") {
         const unknown = settings.filter((s) => !(s.key in report.stored)).map((s) => s.key);
-        if (unknown.length) note(`The board does not know: ${unknown.join(", ")}. Flash the current sketch first.`);
+        if (unknown.length) note(t("unknownKeys", { keys: unknown.join(", ") }));
       }
       const missing = missingRequired(settings, values, stored);
       if (missing.length) {
-        say(`Still needed: ${missing.map((s) => s.label).join(", ")}.`);
+        say(t("stillNeeded", { list: missing.map((s) => s.label).join(", ") }));
         return;
       }
 
@@ -135,19 +139,19 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-settings-form]"
       for (const item of plan) {
         if (!item.ok) continue;
         const key = item.line.split("\t")[1];
-        say(`Sending ${settings.find((s) => s.key === key)?.label ?? key}.`);
+        say(t("sendingOne", { name: settings.find((s) => s.key === key)?.label ?? key }));
         const replyWait = waitFor((l) => (l.type === "ok" && l.key === key) || l.type === "err", REPLY_WAIT_MS);
         await session.write(item.line);
         const reply = await replyWait;
         if (!reply) {
-          say(`No answer when sending ${key}. Try again.`);
+          say(t("noAnswerSending", { key }));
           return;
         }
         if (reply.type === "err") {
-          say(`The board refused ${key}: ${reply.message}.`);
+          say(t("refused", { key, message: reply.message }));
           return;
         }
-        note(`${key}: saved on the board`);
+        note(t("savedLog", { key }));
         sent++;
       }
 
@@ -155,14 +159,14 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-settings-form]"
       await session.write(SAVE_LINE);
       const saved = await savedWait;
       if (!saved) {
-        say(sent ? "The settings were stored, but the board did not confirm the restart. Press EN to restart it." : "The board did not answer the save.");
+        say(sent ? t("noConfirm") : t("noSaveAnswer"));
         return;
       }
-      say(sent ? `${sent} ${sent === 1 ? "setting" : "settings"} sent. The board is restarting with them.` : "Nothing to send: all fields were empty. The board restarted.");
+      say(sent ? (sent === 1 ? t("sentOne") : t("sentMany", { n: sent })) : t("nothingSent"));
       for (const s of settings) if (s.kind === "password") (form.elements.namedItem(s.key) as HTMLInputElement | null)?.form?.reset();
       after.hidden = false;
     } catch (error) {
-      say(`Could not talk to the board: ${error instanceof Error ? error.message : String(error)}.`);
+      say(t("cannotTalk", { error: error instanceof Error ? error.message : String(error) }));
     } finally {
       await session.close();
       button.disabled = false;

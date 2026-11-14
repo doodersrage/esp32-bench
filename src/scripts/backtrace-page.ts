@@ -5,6 +5,13 @@ import { explainLog } from "../lib/crash";
 import { errorSlugForKey } from "../data/errors";
 import { link } from "../lib/paths";
 import { elfShaIn, fetchLibraryElf, findLibraryElf } from "../lib/library-elf";
+import { pageLocale, translator } from "../i18n/t";
+import { HTML_LANG } from "../i18n/locales";
+import { TOOLS_UI } from "../i18n/strings/tools";
+import { crashHint } from "../i18n/strings/bench";
+
+const locale = pageLocale();
+const t = translator(TOOLS_UI, locale);
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 const fileInput = $<HTMLInputElement>("#bt-elf");
@@ -34,12 +41,12 @@ async function loadLibraryElf(log: string): Promise<"loaded" | "unknown" | "none
   if (firmware && librarySha.startsWith(printed.slice(0, 32))) return "loaded";
   const found = await findLibraryElf(fwBase, printed);
   if (!found) return "unknown";
-  elfStatus.textContent = `This crash is from ESP32 Bench firmware: ${found.project} on ${found.board}. Downloading its .elf...`;
+  elfStatus.textContent = t("btLibFound", { project: found.project, board: found.board });
   try {
     firmware = loadFirmware(await fetchLibraryElf(fwBase, found.sha));
     librarySha = found.sha;
-    firmwareName = `the library's ${found.project} firmware for the ${found.board}`;
-    elfStatus.textContent = `Using the firmware library's .elf for ${found.project} on ${found.board}, built ${found.builtAt.slice(0, 10)} with core ${found.core}. Choose a file to use your own instead.`;
+    firmwareName = t("btLibName", { project: found.project, board: found.board });
+    elfStatus.textContent = t("btLibUsing", { project: found.project, board: found.board, date: found.builtAt.slice(0, 10), core: found.core });
     drop.classList.add("loaded");
     return "loaded";
   } catch (err) {
@@ -53,10 +60,10 @@ const SOURCE_LABEL: Record<Frame["source"], string> = {
   backtrace: "Backtrace",
   mepc: "MEPC",
   ra: "RA",
-  stack: "Stack",
-  address: "Address",
+  stack: t("btSrcStack"),
+  address: t("btSrcAddress"),
 };
-const ORIGIN_LABEL: Record<Frame["origin"], string> = { sketch: "Your sketch", library: "Library", core: "Core", unknown: "" };
+const ORIGIN_LABEL: Record<Frame["origin"], string> = { sketch: t("btOriginSketch"), library: t("btOriginLibrary"), core: t("btOriginCore"), unknown: "" };
 
 const hex = (n: number) => `0x${n.toString(16).padStart(8, "0")}`;
 
@@ -72,7 +79,7 @@ function shortPath(file: string): string {
 }
 
 async function loadFile(file: File) {
-  elfStatus.textContent = `Reading ${file.name}...`;
+  elfStatus.textContent = t("btReading", { file: file.name });
   drop.classList.remove("loaded");
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -81,14 +88,14 @@ async function loadFile(file: File) {
     firmwareName = file.name;
     librarySha = "";
     const ms = Math.round(performance.now() - started);
-    const arch = firmware.elf.arch === "xtensa" ? "Xtensa (ESP32, S2 or S3)" : firmware.elf.arch === "riscv" ? "RISC-V (C3, C6 or H2)" : "an unknown CPU";
-    const lineNote = firmware.lines.sequences.length === 0 ? "no line information, so function names only" : `line information for ${firmware.lines.units} source files`;
-    elfStatus.textContent = `${file.name}: ${arch}, ${firmware.elf.functions.length.toLocaleString("en")} functions, ${lineNote}. Read in ${ms} ms.`;
+    const arch = firmware.elf.arch === "xtensa" ? t("btArchXtensa") : firmware.elf.arch === "riscv" ? t("btArchRiscv") : t("btArchUnknown");
+    const lineNote = firmware.lines.sequences.length === 0 ? t("btNoLineInfo") : t("btLineInfo", { n: firmware.lines.units });
+    elfStatus.textContent = t("btLoaded", { file: file.name, arch, n: firmware.elf.functions.length.toLocaleString(HTML_LANG[locale]), lines: lineNote, ms });
     drop.classList.add("loaded");
     if (logBox.value.trim()) void decode();
   } catch (err) {
     firmware = null;
-    elfStatus.textContent = (err as Error).message || "Could not read that file.";
+    elfStatus.textContent = (err as Error).message || t("btReadFail");
   }
 }
 
@@ -121,12 +128,12 @@ function showHints(log: string) {
   for (const h of explainLog(log)) {
     if (h.key === "backtrace") continue;
     const li = document.createElement("li");
-    li.textContent = h.text + " ";
+    li.textContent = crashHint(h, locale) + " ";
     const slug = errorSlugForKey(h.key);
     if (slug) {
       const a = document.createElement("a");
       a.href = link(`/errors/${slug}/`);
-      a.textContent = "More about this error";
+      a.textContent = t("moreError");
       li.append(a);
     }
     hints.append(li);
@@ -140,17 +147,16 @@ async function decode() {
   if (!firmware || librarySha) {
     const library = await loadLibraryElf(log);
     if (library === "unknown" && !firmware) {
-      status.textContent =
-        "This crash names its firmware's .elf, but it is not an ESP32 Bench library build from the last 90 days. Choose the .elf from the build that crashed.";
+      status.textContent = t("btNotLibrary");
       return;
     }
   }
   if (!firmware) {
-    status.textContent = "Choose the .elf file first.";
+    status.textContent = t("btChooseElf");
     return;
   }
   if (!log.trim()) {
-    status.textContent = "Paste the crash output first.";
+    status.textContent = t("btPasteFirst");
     return;
   }
   const frames = decodeLog(firmware, log);
@@ -158,7 +164,7 @@ async function decode() {
   showHints(log);
   if (frames.length === 0) {
     result.hidden = true;
-    status.textContent = "No code addresses from this firmware found in the log. Check the log has a Backtrace or MEPC line.";
+    status.textContent = t("btNoAddresses");
     return;
   }
   let unknown = 0;
@@ -168,7 +174,7 @@ async function decode() {
     cell(row, String(i + 1), "q");
     cell(row, SOURCE_LABEL[f.source], "m");
     cell(row, hex(f.address), "m");
-    const fn = cell(row, f.function ?? "??", "fn", f.aliases?.length ? `Also known as ${f.aliases.join(", ")}` : undefined);
+    const fn = cell(row, f.function ?? "??", "fn", f.aliases?.length ? t("btAlias", { names: f.aliases.join(", ") }) : undefined);
     if (f.function && f.offset !== undefined) {
       const off = document.createElement("span");
       off.className = "dim";
@@ -184,20 +190,23 @@ async function decode() {
         t.textContent = tag;
         src.append(" ", t);
       }
-    } else cell(row, f.function ? "no line information" : "not in this firmware", "src dim");
+    } else cell(row, f.function ? t("btNoLine") : t("btNotIn"), "src dim");
     if (!f.function) unknown++;
   });
   result.hidden = false;
   const archMismatch =
     firmware.elf.arch === "xtensa" && frames.some((f) => f.source === "mepc")
-      ? " The log is from a RISC-V chip but the .elf is Xtensa: pick the .elf for the right board."
+      ? t("btMismatchXtensa")
       : firmware.elf.arch === "riscv" && frames.some((f) => f.source === "backtrace")
-        ? " The log has an Xtensa backtrace but the .elf is RISC-V: pick the .elf for the right board."
+        ? t("btMismatchRiscv")
         : "";
-  status.textContent =
-    `${frames.length} address${frames.length === 1 ? "" : "es"} decoded with ${firmwareName}.` +
-    (unknown ? ` ${unknown} not found in it: the .elf may be from a different build.` : "") +
-    archMismatch;
+  status.textContent = [
+    frames.length === 1 ? t("btDecodedOne", { name: firmwareName }) : t("btDecodedMany", { n: frames.length, name: firmwareName }),
+    unknown ? t("btUnknownFrames", { n: unknown }) : "",
+    archMismatch,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 go.addEventListener("click", () => void decode());

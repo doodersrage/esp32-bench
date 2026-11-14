@@ -1,6 +1,13 @@
 // Library page: search and filters, built marks, the bench log with badges,
 // and the "what can I build tonight" picker.
 import { BADGES, currentStreak, loadBuilt, loadFlashed, loadSeen, loadShop, type ProjectMeta } from "./progress";
+import { pageLocale, translator } from "../i18n/t";
+import { HOME } from "../i18n/strings/home";
+import { PROJECT } from "../i18n/strings/project";
+import { HTML_LANG } from "../i18n/locales";
+
+const t = translator(HOME, pageLocale());
+const tp = translator(PROJECT, pageLocale());
 
 const q = document.getElementById("q") as HTMLInputElement;
 const empty = document.getElementById("empty") as HTMLElement;
@@ -79,7 +86,7 @@ function applyFilters() {
   for (const card of grid.querySelectorAll<HTMLElement>(".card")) {
     if (card.hidden) continue;
     const no = card.querySelector("[data-no]");
-    if (no) no.textContent = `No. ${String(++n).padStart(2, "0")}`;
+    if (no) no.textContent = tp("cardNo", { n: String(++n).padStart(2, "0") });
   }
   for (const chip of chips) chip.setAttribute("aria-pressed", String(chip.dataset.tag === activeTag));
   for (const chip of levelChips) chip.setAttribute("aria-pressed", String(chip.dataset.level === activeLevel));
@@ -136,7 +143,9 @@ async function loadLab() {
     }
     if (passed === 0) return;
     labChip.hidden = false;
-    labChip.title = `${passed} projects passed the hardware lab run of ${data.run.finished_at.slice(0, 10)}`;
+    const day = new Date(`${data.run.finished_at.slice(0, 10)}T12:00:00`);
+    const date = Number.isNaN(day.getTime()) ? data.run.finished_at.slice(0, 10) : day.toLocaleDateString(HTML_LANG[pageLocale()], { dateStyle: "medium" });
+    labChip.title = t("labChipTitle", { n: passed, date });
     labChip.addEventListener("click", () => {
       labOnly = !labOnly;
       labChip.setAttribute("aria-pressed", String(labOnly));
@@ -163,7 +172,7 @@ function showPaths(built: Record<string, unknown>) {
     const bar = path.querySelector<HTMLElement>("[data-path-bar]");
     if (bar) bar.style.width = `${Math.round((done / steps.length) * 100)}%`;
     const count = path.querySelector("[data-path-count]");
-    if (count) count.textContent = done === 0 ? `${steps.length} steps` : done === steps.length ? `All ${steps.length} steps built` : `${done} of ${steps.length} built`;
+    if (count) count.textContent = done === 0 ? t("steps", { n: steps.length }) : done === steps.length ? t("stepsAll", { n: steps.length }) : t("stepsSome", { done, n: steps.length });
   }
 }
 
@@ -171,7 +180,7 @@ function showPaths(built: Record<string, unknown>) {
 const shopCount = document.getElementById("shop-count");
 const shopList = loadShop();
 if (shopCount && shopList.length > 0) {
-  shopCount.textContent = `Shopping list (${shopList.length})`;
+  shopCount.textContent = t("shopLinkCount", { n: shopList.length });
   shopCount.hidden = false;
 }
 
@@ -199,7 +208,7 @@ for (const badge of BADGES) {
   if (has) earned++;
   el.classList.toggle("earned", has);
   const state = el.querySelector("[data-badge-state]");
-  if (state) state.textContent = has ? "Earned" : "Locked";
+  if (state) state.textContent = has ? t("earned") : t("locked");
 }
 
 const streak = currentStreak(built);
@@ -207,9 +216,9 @@ const summary = document.getElementById("log-summary");
 if (summary) {
   summary.textContent =
     builtCount === 0
-      ? "Nothing built yet. Open a project and mark it as built when it works."
-      : `${builtCount} of ${projects.length} built. ${earned} of ${BADGES.length} badges. ` +
-        (streak > 0 ? `Current streak: ${streak} ${streak === 1 ? "day" : "days"}.` : "No streak running. Build something today to start one.");
+      ? t("summaryNone")
+      : `${t("summary", { built: builtCount, total: projects.length, earned, badges: BADGES.length })} ` +
+        (streak > 1 ? t("streakMany", { n: streak }) : streak === 1 ? t("streakOne") : t("streakNone"));
 }
 
 /* ---------- What can I build tonight ---------- */
@@ -261,7 +270,7 @@ function showUnlock() {
   unlock.textContent =
     gains.length === 0
       ? ""
-      : "Next to buy: " + gains.map((g) => `${g.name} opens up ${g.count} more ${g.count === 1 ? "project" : "projects"}`).join("; ") + ".";
+      : t("nextToBuy", { list: gains.map((g) => t(g.count === 1 ? "unlockOne" : "unlockMany", { part: g.name, n: g.count })).join(t("listSep")) });
 }
 
 showUnlock();
@@ -278,19 +287,18 @@ pickButton?.addEventListener("click", () => {
   if (pool.length > 1) pool = pool.filter((c) => c.dataset.id !== lastPick);
   const pick = pool[Math.floor(Math.random() * pool.length)];
   if (!pick) {
-    pickResult.textContent = "Nothing matches. Every project needs at least a board.";
+    pickResult.textContent = t("pickNone");
     return;
   }
   lastPick = pick.dataset.id ?? "";
-  const name = pick.querySelector(".name")?.textContent ?? "this one";
+  const name = pick.querySelector(".name")?.textContent ?? t("thisOne");
   const link = document.createElement("a");
   link.href = (pick as HTMLAnchorElement).href;
   link.textContent = name;
-  pickResult.replaceChildren(
-    `Tonight: `,
-    link,
-    `. ${candidates.length} of ${cards.filter(onBoard).length} projects fit your drawer` + (fresh.length === 0 ? ", and you have built them all." : "."),
-  );
+  // The sentence comes whole from the strings; the project link goes where {project} is.
+  const sentence = t(fresh.length === 0 ? "pickResultAll" : "pickResult", { n: candidates.length, total: cards.filter(onBoard).length });
+  const [before, after = ""] = sentence.split("{project}");
+  pickResult.replaceChildren(before, link, after);
   // Make sure the picked card is visible, then point at it.
   if (pick.hidden) {
     activeTag = "all";

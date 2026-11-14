@@ -5,29 +5,39 @@ import { localePaths } from "../../i18n/locales";
 import Base from "../../layouts/Base.astro";
 import { PROJECTS } from "../../data/projects";
 import { kitFor } from "../../lib/kit";
-import { AFFILIATE_DISCLOSURE, buyFor } from "../../lib/shop";
+import { affiliateDisclosure, buyFor } from "../../lib/shop";
 import { localLink } from "../../lib/paths";
+import { translator } from "../../i18n/t";
+import { contentTranslator } from "../../i18n/content";
+import { SHOP } from "../../i18n/strings/home";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(SHOP, Astro.currentLocale);
+const tc = contentTranslator(Astro.currentLocale);
 
 const data = PROJECTS.map((p) => {
   const kit = kitFor(p.parts);
   return {
     id: p.id,
-    name: p.name,
+    name: tc(p.name),
     url: link(`/projects/${p.id}/`),
-    items: p.parts.map(([qty, text], i) => ({
-      key: kit[i].label.toLowerCase(),
-      label: kit[i].label,
-      qty,
-      text,
-      optional: kit[i].optional,
-      alternative: kit[i].alternative,
-      href: buyFor(p.parts[i])?.href ?? "",
-      rel: buyFor(p.parts[i])?.rel ?? "",
-      buy: buyFor(p.parts[i])?.text ?? "",
-      amazonQ: buyFor(p.parts[i])?.amazonQ ?? "",
-    })),
+    items: p.parts.map(([qty, text], i) => {
+      const buy = buyFor(p.parts[i], Astro.currentLocale);
+      return {
+        // Parts merge by their English name; `label` is what the page shows.
+        key: kit[i].label.toLowerCase(),
+        label: tc(kit[i].label),
+        qty,
+        text: tc(text),
+        optional: kit[i].optional,
+        alternative: kit[i].alternative,
+        href: buy?.href ?? "",
+        rel: buy?.rel ?? "",
+        buy: buy?.text ?? "",
+        search: buy?.search ?? false,
+        amazonQ: buy?.amazonQ ?? "",
+      };
+    }),
   };
 });
 
@@ -35,58 +45,55 @@ export const getStaticPaths = localePaths;
 ---
 
 <Base
-  title="Shopping list"
+  title={t("title")}
   current="library"
-  description="Pick ESP32 projects and get one parts list for all of them, with duplicates merged and buy links."
+  description={t("description")}
 >
   <section class="view">
-    <a class="back" href={link("/")}>← All projects</a>
+    <a class="back" href={link("/")}>{t("back")}</a>
     <div class="stack tight">
-      <h1 class="h2">Shopping list</h1>
-      <p class="lede">
-        The parts for every project on your list, merged into one. Add projects from their pages, or here. The list is kept in
-        this browser only.
-      </p>
+      <h1 class="h2">{t("title")}</h1>
+      <p class="lede">{t("lede")}</p>
     </div>
 
     <div class="row">
       <label class="pick">
-        <span class="sr">Add a project</span>
+        <span class="sr">{t("addLabel")}</span>
         <select id="shop-add">
-          <option value="">Add a project…</option>
-          {PROJECTS.map((p) => <option value={p.id}>{p.name}</option>)}
+          <option value="">{t("addOption")}</option>
+          {PROJECTS.map((p) => <option value={p.id}>{tc(p.name)}</option>)}
         </select>
       </label>
-      <button class="btn sm" type="button" id="shop-clear">Clear the list</button>
+      <button class="btn sm" type="button" id="shop-clear">{t("clear")}</button>
     </div>
 
     <ul id="shop-projects"></ul>
-    <p class="lede" id="shop-empty">Nothing on the list yet. Open a project and press Add to shopping list, or add one above.</p>
+    <p class="lede" id="shop-empty">{t("empty")}</p>
 
     <div class="stack tight" id="shop-parts" hidden>
       <div class="codehead">
-        <h2 class="h3">Parts</h2>
+        <h2 class="h3">{t("partsHead")}</h2>
         <div class="row">
-          <button class="btn sm" type="button" id="shop-copy">Copy the list</button>
-          <button class="btn sm" type="button" id="shop-print">Print</button>
-          <a class="btn sm" href={link("/#sync")} id="shop-phone">Take this list to your phone</a>
+          <button class="btn sm" type="button" id="shop-copy">{t("copy")}</button>
+          <button class="btn sm" type="button" id="shop-print">{t("print")}</button>
+          <a class="btn sm" href={link("/#sync")} id="shop-phone">{t("phone")}</a>
         </div>
       </div>
       <fieldset class="shopmode">
-        <legend class="sr">Quantities</legend>
-        <label><input type="radio" name="shop-mode" value="reuse" checked /> One at a time: reuse parts between builds</label>
-        <label><input type="radio" name="shop-mode" value="all" /> All at once: enough for every build together</label>
+        <legend class="sr">{t("quantities")}</legend>
+        <label><input type="radio" name="shop-mode" value="reuse" checked /> {t("modeReuse")}</label>
+        <label><input type="radio" name="shop-mode" value="all" /> {t("modeAll")}</label>
       </fieldset>
       <div class="tablebox">
         <table>
           <thead>
-            <tr><th>Qty</th><th>Part</th><th>For</th><th><span class="sr">Where to buy</span></th></tr>
+            <tr><th>{t("thQty")}</th><th>{t("thPart")}</th><th>{t("thFor")}</th><th><span class="sr">{t("thBuy")}</span></th></tr>
           </thead>
           <tbody id="shop-rows"></tbody>
         </table>
       </div>
-      <p class="cap left">Optional parts are marked. Where a project offers a choice of parts, only its first choice is listed.</p>
-      <p class="cap left">{AFFILIATE_DISCLOSURE}</p>
+      <p class="cap left">{t("note")}</p>
+      <p class="cap left">{affiliateDisclosure(Astro.currentLocale)}</p>
     </div>
   </section>
 </Base>

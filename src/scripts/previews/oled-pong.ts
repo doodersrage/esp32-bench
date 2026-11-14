@@ -4,10 +4,14 @@
 import { PONG, pongServe, pongStep, type PongState } from "../../lib/preview/logic";
 import { el, createLoop, oledCanvas, playPause, type Mount } from "../../lib/preview/runtime";
 import { Framebuffer } from "../../lib/preview/oled";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
+
+const t = translator(PREVIEWS, pageLocale());
 
 export const mount: Mount = ({ host, say }) => {
   const { W, H, PADDLE_H, PADDLE_W, WIN } = PONG;
-  const screen = oledCanvas("OLED Pong. Move the pointer over the screen or use the up and down arrow keys to steer the left paddle.");
+  const screen = oledCanvas(t("pongAria"));
   const { fb, canvas } = screen;
   canvas.tabIndex = 0;
   const rand = Math.random;
@@ -48,11 +52,11 @@ export const mount: Mount = ({ host, say }) => {
     banner = "";
     const point = pongStep(s, rand);
     if (point) {
-      say(`Point to ${point === "left" ? "you" : "the computer"}: ${s.scoreLeft} to ${s.scoreRight}.`);
+      say(t(point === "left" ? "pongPointYou" : "pongPointComputer", { l: s.scoreLeft, r: s.scoreRight }));
       pauseUntil = now + 500;
       if (s.scoreLeft === WIN || s.scoreRight === WIN) {
         banner = s.scoreLeft > s.scoreRight ? "LEFT WINS" : "RIGHT WINS";
-        say(`${s.scoreLeft > s.scoreRight ? "You win" : "The computer wins"} ${s.scoreLeft} to ${s.scoreRight}.`);
+        say(t(s.scoreLeft > s.scoreRight ? "pongYouWin" : "pongComputerWins", { l: s.scoreLeft, r: s.scoreRight }));
         s.scoreLeft = s.scoreRight = 0;
         pauseUntil = now + 3000;
       }
@@ -82,9 +86,9 @@ export const mount: Mount = ({ host, say }) => {
   canvas.addEventListener("keyup", (e) => keys.delete(e.key));
   canvas.addEventListener("blur", () => keys.clear());
 
-  const toggle = playPause(loop, ["Play", "Pause"]);
-  toggle.addEventListener("click", () => say(loop.running ? "Playing. First to 7 wins." : "Paused."));
-  host.append(canvas, el("div", { class: "tryrow" }, toggle, el("span", { class: "readout", text: "First to 7. You are the left paddle." })));
+  const toggle = playPause(loop, [t("play"), t("pause")]);
+  toggle.addEventListener("click", () => say(loop.running ? t("pongPlaying") : t("paused")));
+  host.append(canvas, el("div", { class: "tryrow" }, toggle, el("span", { class: "readout", text: t("pongHelp") })));
   render();
   return () => loop.dispose();
 };

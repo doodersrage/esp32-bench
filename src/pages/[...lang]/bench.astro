@@ -2,6 +2,12 @@
 import { localePaths } from "../../i18n/locales";
 import Base from "../../layouts/Base.astro";
 import { PROJECTS } from "../../data/projects";
+import { translator } from "../../i18n/t";
+import { contentTranslator } from "../../i18n/content";
+import { BENCH } from "../../i18n/strings/bench";
+
+const t = translator(BENCH, Astro.currentLocale);
+const tc = contentTranslator(Astro.currentLocale);
 
 const bauds = [9600, 57600, 74880, 115200, 230400, 460800, 921600];
 
@@ -9,81 +15,79 @@ export const getStaticPaths = localePaths;
 ---
 
 <Base
-  title="ESP32 serial monitor in your browser"
+  title={t("title")}
   current="bench"
-  description="A Web Serial monitor for ESP32 boards: connect, send lines, reset, plot numbers live, map Wi-Fi networks and get crashes explained in plain language. No install."
+  description={t("description")}
 >
   <section class="view">
     <div class="benchhead">
-      <h1 class="h2">Serial bench</h1>
-      <span class="status" id="status"><span class="dot"></span><span id="status-text">No board</span></span>
+      <h1 class="h2">{t("heading")}</h1>
+      <span class="status" id="status"><span class="dot"></span><span id="status-text">{t("noBoard")}</span></span>
     </div>
 
-    <div class="notice" id="support" hidden>
-      <strong>This browser has no Web Serial.</strong> Open this page in Chrome or Edge on a desktop to connect a board. Sample output, Plot a saved log and the crash translator work in any browser.
-    </div>
+    <div class="notice" id="support" hidden set:html={t("support")} />
 
     <div class="controls">
       <label for="baud">
-        Baud
+        {t("baud")}
         <select id="baud">
           {bauds.map((b) => <option value={b} selected={b === 115200}>{b}</option>)}
         </select>
       </label>
-      <button class="btn go" id="connect" type="button">Connect board</button>
-      <button class="btn" id="reset" type="button" disabled>Reset board</button>
+      <button class="btn go" id="connect" type="button">{t("connect")}</button>
+      <button class="btn" id="reset" type="button" disabled>{t("reset")}</button>
       <span class="sp"></span>
-      <label for="stamps"><input type="checkbox" id="stamps" /> Timestamps</label>
-      <label for="follow"><input type="checkbox" id="follow" checked /> Follow</label>
-      <label for="sound"><input type="checkbox" id="sound" /> Sound</label>
-      <button class="btn sm" id="copylog" type="button">Copy log</button>
-      <button class="btn sm" id="sharelog" type="button">Share log</button>
-      <button class="btn sm" id="clear" type="button">Clear</button>
+      <label for="stamps"><input type="checkbox" id="stamps" /> {t("stamps")}</label>
+      <label for="follow"><input type="checkbox" id="follow" checked /> {t("follow")}</label>
+      <label for="sound"><input type="checkbox" id="sound" /> {t("sound")}</label>
+      <button class="btn sm" id="copylog" type="button">{t("copyLog")}</button>
+      <button class="btn sm" id="sharelog" type="button">{t("shareLog")}</button>
+      <button class="btn sm" id="clear" type="button">{t("clear")}</button>
     </div>
     <div class="shareout" id="share-term" hidden></div>
 
     <div class="samplebar">
-      <span>No board handy?</span>
-      <select id="samplepick" aria-label="Project for sample output">
-        {PROJECTS.map((p) => <option value={p.id}>{p.name}</option>)}
+      <span>{t("noBoardHandy")}</span>
+      <select id="samplepick" aria-label={t("sampleAria")}>
+        {PROJECTS.map((p) => <option value={p.id}>{tc(p.name)}</option>)}
       </select>
-      <button class="btn sm" id="sample" type="button">Play sample output</button>
+      <button class="btn sm" id="sample" type="button">{t("playSample")}</button>
       <span class="sp"></span>
-      <button class="btn sm" id="second-toggle" type="button" aria-expanded="false" aria-controls="second">Add a second board</button>
+      <button class="btn sm" id="second-toggle" type="button" aria-expanded="false" aria-controls="second">{t("addSecond")}</button>
     </div>
 
     <div class="terms" id="terms">
       <div class="stack tight pane">
-        <div class="term" id="term" role="log" aria-label="Serial output" tabindex="0"></div>
+        <div class="term" id="term" role="log" aria-label={t("termAria")} tabindex="0"></div>
 
         <form class="send" id="sendform">
-          <input type="text" id="tx" placeholder="Type a line to send" aria-label="Line to send" autocomplete="off" disabled />
-          <select id="eol" aria-label="Line ending">
+          <input type="text" id="tx" placeholder={t("txPlaceholder")} aria-label={t("txAria")} autocomplete="off" disabled />
+          <select id="eol" aria-label={t("eolAria")}>
             <option value="lf">LF</option>
             <option value="crlf">CR LF</option>
             <option value="cr">CR</option>
-            <option value="none">None</option>
+            <option value="none">{t("eolNone")}</option>
           </select>
-          <button class="btn" id="sendbtn" type="submit" disabled>Send</button>
+          <button class="btn" id="sendbtn" type="submit" disabled>{t("send")}</button>
         </form>
       </div>
       <div class="stack tight pane" id="second" hidden>
         <div class="controls">
           <label for="baud2">
-            Baud
+            {t("baud")}
             <select id="baud2">
               {bauds.map((b) => <option value={b} selected={b === 115200}>{b}</option>)}
             </select>
           </label>
-          <button class="btn go" id="connect2" type="button">Connect second board</button>
-          <button class="btn" id="reset2" type="button" disabled>Reset board</button>
+          <button class="btn go" id="connect2" type="button">{t("connectSecond")}</button>
+          <button class="btn" id="reset2" type="button" disabled>{t("reset")}</button>
           <span class="sp"></span>
-          <button class="btn sm" id="clear2" type="button">Clear</button>
+          <button class="btn sm" id="clear2" type="button">{t("clear")}</button>
         </div>
-        <div class="term" id="term2" role="log" aria-label="Serial output from the second board" tabindex="0"></div>
+        <div class="term" id="term2" role="log" aria-label={t("term2Aria")} tabindex="0"></div>
         <form class="send" id="sendform2">
-          <input type="text" id="tx2" placeholder="Type a line to send" aria-label="Line to send to the second board" autocomplete="off" disabled />
-          <button class="btn" id="sendbtn2" type="submit" disabled>Send</button>
+          <input type="text" id="tx2" placeholder={t("txPlaceholder")} aria-label={t("tx2Aria")} autocomplete="off" disabled />
+          <button class="btn" id="sendbtn2" type="submit" disabled>{t("send")}</button>
         </form>
       </div>
     </div>
@@ -91,20 +95,20 @@ export const getStaticPaths = localePaths;
 
     <div class="stack tight">
       <div class="codehead">
-        <h2 class="h3">Plotter</h2>
-        <button class="btn sm" type="button" id="plots-csv" hidden>Download CSV</button>
+        <h2 class="h3">{t("plotter")}</h2>
+        <button class="btn sm" type="button" id="plots-csv" hidden>{t("downloadCsv")}</button>
       </div>
-      <p class="lede" id="plots-empty">Numbers that keep appearing in the output are charted here, one chart per value. Play the DHT22 or HC-SR04 sample to see it.</p>
+      <p class="lede" id="plots-empty">{t("plotsEmpty")}</p>
       <div class="plots" id="plots"></div>
       <details class="translator" id="plotlog">
-        <summary>Plot a saved log</summary>
+        <summary>{t("plotSaved")}</summary>
         <div class="stack tight">
-          <label for="plotlog-text">Paste serial output captured elsewhere, or open a log file. Works in any browser, no board needed.</label>
+          <label for="plotlog-text">{t("plotSavedLabel")}</label>
           <textarea id="plotlog-text" rows="5" spellcheck="false" placeholder="temp_c = 21.4, humidity = 48%"></textarea>
           <div class="row">
-            <button class="btn" id="plotlog-go" type="button">Plot it</button>
+            <button class="btn" id="plotlog-go" type="button">{t("plotIt")}</button>
             <label class="btn sm">
-              Open a log file <input type="file" id="plotlog-file" accept=".txt,.log,.csv,text/plain" hidden />
+              {t("openLogFile")} <input type="file" id="plotlog-file" accept=".txt,.log,.csv,text/plain" hidden />
             </label>
             <span class="pickresult" id="plotlog-note" role="status"></span>
           </div>
@@ -113,19 +117,19 @@ export const getStaticPaths = localePaths;
     </div>
 
     <div class="stack tight" id="radar" hidden>
-      <h2 class="h3">Wi-Fi radar</h2>
-      <canvas class="radar" role="img" aria-label="Nearby Wi-Fi networks by channel and signal strength"></canvas>
+      <h2 class="h3">{t("radarTitle")}</h2>
+      <canvas class="radar" role="img" aria-label={t("radarAria")}></canvas>
       <p class="cap left" data-radar-note></p>
     </div>
 
     <details class="translator" id="translator">
-      <summary>Crash translator</summary>
+      <summary>{t("translator")}</summary>
       <div class="stack tight">
-        <label for="crashlog">Paste a boot log or crash output</label>
+        <label for="crashlog">{t("crashLabel")}</label>
         <textarea id="crashlog" rows="5" spellcheck="false" placeholder="Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled."></textarea>
         <div class="row">
-          <button class="btn" id="crashgo" type="button">Explain it</button>
-          <button class="btn" id="crashshare" type="button">Share as a link</button>
+          <button class="btn" id="crashgo" type="button">{t("explain")}</button>
+          <button class="btn" id="crashshare" type="button">{t("shareLink")}</button>
         </div>
         <div class="shareout" id="share-paste" hidden></div>
         <ul class="notes" id="crashout"></ul>

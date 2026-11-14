@@ -8,6 +8,8 @@
 // jumper wires and HC-SR04s come from many sellers, and a search never points
 // at a listing that has gone or changed.
 import { kitItem, type IconId } from "./kit";
+import { translator } from "../i18n/t";
+import { BUY } from "../i18n/strings/home";
 
 const tag = (import.meta.env?.PUBLIC_AMAZON_ASSOCIATE_TAG ?? "").trim();
 
@@ -35,8 +37,11 @@ export const shopVendor = (url: string): string => (isAmazon(url) ? "Amazon" : "
 
 const isAmazonSearch = (url: string) => isAmazon(url) && new URL(url).pathname === "/s";
 
-/** Link text for a buy link: a search is "Find on Amazon", a product is "Buy at …". */
-export const shopText = (url: string): string => (isAmazonSearch(url) ? "Find on Amazon" : `Buy at ${shopVendor(url)}`);
+/** Link text for a buy link in a language (default English): a search is "Find on Amazon", a product is "Buy at …". */
+export function shopText(url: string, locale?: string): string {
+  const t = translator(BUY, locale);
+  return isAmazonSearch(url) ? t("find") : t("buyAt", { vendor: shopVendor(url) });
+}
 
 export const amazonSearch = (query: string) => affiliateHref(`https://www.amazon.com/s?k=${encodeURIComponent(query).replace(/%20/g, "+")}`);
 
@@ -97,18 +102,20 @@ export interface BuyLink {
   href: string;
   rel: string;
   text: string;
+  /** An Amazon search rather than a product link (a product link wins when merging lists) */
+  search: boolean;
   /** For Amazon links: what to search for on another country's store (src/scripts/amazon-region.ts) */
   amazonQ?: string;
 }
 
-/** Where to buy one parts line: its own link, or else an Amazon search for its kind of part. */
-export function buyFor(part: readonly [number, string, string?]): BuyLink | null {
+/** Where to buy one parts line: its own link, or else an Amazon search for its kind of part. `locale` sets the link text's language. */
+export function buyFor(part: readonly [number, string, string?], locale?: string): BuyLink | null {
   const item = kitItem(part);
   const q = AMAZON_SEARCH[item.icon];
   const query = (typeof q === "function" ? q(part[1]) : q) ?? undefined;
   const href = part[2] ?? (query ? amazonSearch(query) : undefined);
   if (!href) return null;
-  return { href, rel: shopRel(href), text: shopText(href), amazonQ: isAmazon(href) ? (query ?? item.label) : undefined };
+  return { href, rel: shopRel(href), text: shopText(href, locale), search: isAmazonSearch(href), amazonQ: isAmazon(href) ? (query ?? item.label) : undefined };
 }
 
 /** Attributes for a buy link, with the search to use on another country's Amazon. */
@@ -140,9 +147,11 @@ export function amazonTags(): string {
   }
 }
 
-/** On-page disclosure for pages that carry Amazon buy links. */
-export const AFFILIATE_DISCLOSURE =
-  "Amazon buy links may include an Associates tag, and this site may earn a commission from qualifying Amazon purchases at no extra cost to you. Adafruit links are direct.";
+/** On-page disclosure for pages that carry Amazon buy links, in a language (default English). */
+export const affiliateDisclosure = (locale?: string): string => translator(BUY, locale)("disclosure");
+
+/** The English disclosure; use affiliateDisclosure(Astro.currentLocale) on translated pages. */
+export const AFFILIATE_DISCLOSURE = affiliateDisclosure();
 
 const amazonDp = (asin: string) => affiliateHref(`https://www.amazon.com/dp/${asin}`);
 

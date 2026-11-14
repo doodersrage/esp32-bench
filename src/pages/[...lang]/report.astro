@@ -5,113 +5,108 @@ import { PROJECTS } from "../../data/projects";
 import { BOARDS } from "../../data/boards";
 import { SITE } from "../../lib/site";
 import { localLink } from "../../lib/paths";
+import { REPORT } from "../../i18n/strings/pages";
+import { translator } from "../../i18n/t";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(REPORT, Astro.currentLocale);
 
 const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
 
 export const getStaticPaths = localePaths;
 ---
 
-<Base
-  title="Send a report"
-  current="report"
-  description="Send a build report, a correction or a message to ESP32 Bench. Reports are emailed to the site owner and never published."
->
+<Base title={t("title")} current="report" description={t("description")}>
   <section class="view">
     <div class="stack tight">
-      <h1 class="h2">Send a report</h1>
-      <p class="lede">
-        Built a project, spotted a wrong pin, or want to say something? This goes by email to the person who runs
-        ESP32 Bench. Nothing you send here is published, and your email address is only used to reply.
-      </p>
+      <h1 class="h2">{t("h1")}</h1>
+      <p class="lede">{t("lede")}</p>
     </div>
 
     <form class="reportform" id="report" data-api={SITE.reportApi} data-sitekey={SITE.turnstileSitekey} novalidate>
       <fieldset class="kinds">
-        <legend>What is it?</legend>
-        <label><input type="radio" name="kind" value="build" checked /> Build report</label>
-        <label><input type="radio" name="kind" value="correction" /> Correction</label>
-        <label><input type="radio" name="kind" value="message" /> Message</label>
+        <legend>{t("kindLegend")}</legend>
+        <label><input type="radio" name="kind" value="build" checked /> {t("kindBuild")}</label>
+        <label><input type="radio" name="kind" value="correction" /> {t("kindCorrection")}</label>
+        <label><input type="radio" name="kind" value="message" /> {t("kindMessage")}</label>
       </fieldset>
 
       <div class="grid2" data-for="build">
         <label>
-          Project
+          {t("project")}
           <select name="project" required>
-            <option value="">Choose a project</option>
+            <option value="">{t("chooseProject")}</option>
             {projects.map((p) => <option value={p.id}>{p.name}</option>)}
           </select>
         </label>
         <label>
-          Board
+          {t("board")}
           <select name="board" required>
-            <option value="">Choose a board</option>
+            <option value="">{t("chooseBoard")}</option>
             {BOARDS.map((b) => <option value={b.name}>{b.name}</option>)}
-            <option value="Another board">Another board (say which below)</option>
+            <option value="Another board">{t("anotherBoard")}</option>
           </select>
         </label>
         <label>
-          Board details <span class="opt">optional</span>
-          <input name="boardDetail" maxlength="60" placeholder="e.g. N8R2 module, 30-pin clone" />
+          {t("boardDetail")} <span class="opt">{t("optional")}</span>
+          <input name="boardDetail" maxlength="60" placeholder={t("boardDetailPh")} />
         </label>
         <label>
-          Arduino-ESP32 core version <span class="opt">optional</span>
-          <input name="core" maxlength="40" placeholder="e.g. 3.3.12" />
+          {t("core")} <span class="opt">{t("optional")}</span>
+          <input name="core" maxlength="40" placeholder={t("corePh")} />
         </label>
         <label class="wide">
-          Did it work?
+          {t("result")}
           <select name="result" required>
-            <option value="">Choose one</option>
-            <option>Yes, as described</option>
-            <option>Yes, after a change (described below)</option>
-            <option>No</option>
+            <option value="">{t("chooseOne")}</option>
+            <option value="Yes, as described">{t("resultYes")}</option>
+            <option value="Yes, after a change (described below)">{t("resultChanged")}</option>
+            <option value="No">{t("resultNo")}</option>
           </select>
         </label>
         <label class="wide">
-          Serial output <span class="opt">optional, a few lines are enough</span>
+          {t("output")} <span class="opt">{t("outputOpt")}</span>
           <textarea name="output" rows="6" maxlength="6000" spellcheck="false"></textarea>
         </label>
       </div>
 
       <fieldset class="publish" data-for="build">
-        <legend>Publish it?</legend>
+        <legend>{t("publishLegend")}</legend>
         <label class="check">
           <input type="checkbox" name="publish" />
-          Show this build report on the project page, so others know it works on this board
+          {t("publishCheck")}
         </label>
         <label>
-          Name to show <span class="opt">optional, leave empty to appear as Anonymous</span>
+          {t("publicName")} <span class="opt">{t("publicNameOpt")}</span>
           <input name="publicName" maxlength="40" autocomplete="nickname" />
         </label>
-        <p class="opt">Published reports show the board, core version, result, notes and serial output, after a check by the
-        person who runs the site. Your email address is never shown.</p>
+        <p class="opt">{t("publishNote")}</p>
       </fieldset>
 
       <label class="wide" data-for="correction">
-        Page
+        {t("page")}
         <input name="page" maxlength="300" placeholder="https://esp32bench.dev/..." />
       </label>
 
       <label class="wide">
-        <span data-label="build">Changes and notes <span class="opt">optional</span></span>
-        <span data-label="correction" hidden>What is wrong, and what should it say?</span>
-        <span data-label="message" hidden>Message</span>
+        <span data-label="build">{t("notesBuild")} <span class="opt">{t("optional")}</span></span>
+        <span data-label="correction" hidden>{t("notesCorrection")}</span>
+        <span data-label="message" hidden>{t("notesMessage")}</span>
         <textarea name="notes" rows="6" maxlength="4000"></textarea>
       </label>
 
       <div class="grid2">
         <label>
-          Your name <span class="opt">optional</span>
+          {t("name")} <span class="opt">{t("optional")}</span>
           <input name="name" maxlength="80" autocomplete="name" />
         </label>
         <label>
-          Your email <span class="opt">optional, only to reply</span>
+          {t("email")} <span class="opt">{t("emailOpt")}</span>
           <input name="email" type="email" maxlength="120" autocomplete="email" />
         </label>
       </div>
 
-      <!-- Left empty by people; bots fill it in. -->
+      <!-- Left empty by people; bots fill it in. Hidden from people, so not translated. -->
       <div class="hp" aria-hidden="true">
         <label>Website <input name="website" tabindex="-1" autocomplete="off" /></label>
       </div>
@@ -119,14 +114,14 @@ export const getStaticPaths = localePaths;
       <div id="human" class="human"></div>
 
       <div class="row">
-        <button class="btn go" type="submit" id="send">Send</button>
+        <button class="btn go" type="submit" id="send">{t("send")}</button>
         <span class="status-msg" id="report-status" role="status" aria-live="polite"></span>
       </div>
     </form>
 
     <div class="thanks" id="thanks" hidden tabindex="-1">
-      <h2>Thank you</h2>
-      <p>Your report is on its way. <a href={link("/")}>Back to the library</a> or <a href="" id="again">send another</a>.</p>
+      <h2>{t("thanksH")}</h2>
+      <p set:html={t("thanks", { home: link("/") })} />
     </div>
   </section>
 </Base>

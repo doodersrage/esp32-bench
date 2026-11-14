@@ -1,6 +1,11 @@
 // Wi-Fi radar. Reads the output of the Wi-Fi scanner project and draws each
 // network as an arch over its channel, the way a spectrum view would.
 
+import { pageLocale, translator } from "../i18n/t";
+import { BENCH } from "../i18n/strings/bench";
+
+const t = translator(BENCH, pageLocale());
+
 interface Network {
   ssid: string;
   rssi: number;
@@ -41,7 +46,7 @@ export function feedRadar(line: string) {
   }
   const m = NETWORK.exec(line);
   if (!m) return;
-  pending.push({ ssid: m[1] || "(hidden)", rssi: Number(m[2]), channel: Number(m[3]), open: m[4] === "open" });
+  pending.push({ ssid: m[1] || t("hiddenSsid"), rssi: Number(m[2]), channel: Number(m[3]), open: m[4] === "open" });
   current = pending.slice();
   if (panel) panel.hidden = false;
   draw();
@@ -127,8 +132,7 @@ function draw() {
   if (note) {
     const strongest = [...current].sort((a, b) => b.rssi - a.rssi)[0];
     const quiet = [1, 6, 11].sort((a, b) => congestion(a) - congestion(b))[0];
-    note.textContent =
-      `${current.length} ${current.length === 1 ? "network" : "networks"}. Strongest: ${strongest.ssid} at ${strongest.rssi} dBm on channel ${strongest.channel}. ` +
-      `Of channels 1, 6 and 11, channel ${quiet} looks quietest from here. Dashed arches are open networks.`;
+    const vars = { n: current.length, ssid: strongest.ssid, rssi: strongest.rssi, channel: strongest.channel, quiet };
+    note.textContent = t(current.length === 1 ? "radarNoteOne" : "radarNoteMany", vars);
   }
 }

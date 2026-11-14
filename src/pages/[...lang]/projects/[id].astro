@@ -1,5 +1,8 @@
 ---
 import { withLocales } from "../../../i18n/locales";
+import { translator } from "../../../i18n/t";
+import { contentTranslator } from "../../../i18n/content";
+import { PROJECT } from "../../../i18n/strings/project";
 import Base from "../../../layouts/Base.astro";
 import Comments from "../../../components/Comments.astro";
 import Preview from "../../../components/Preview.astro";
@@ -13,15 +16,18 @@ import SettingsForm from "../../../components/SettingsForm.astro";
 import SketchBuilder from "../../../components/SketchBuilder.astro";
 import COMPILE from "../../../data/compile-libs.json";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../../data/projects";
-import { BOARDS, boardById, buildChoices, buildTarget } from "../../../data/boards";
+import { BOARDS, boardById, buildChoices, buildTarget, type BoardId } from "../../../data/boards";
 import { localLink } from "../../../lib/paths";
-import { PROBEHARBOR, SITE, reportUrl } from "../../../lib/site";
-import { AFFILIATE_DISCLOSURE, buyFor } from "../../../lib/shop";
+import { PROBEHARBOR, SITE, absolute, reportUrl } from "../../../lib/site";
+import { buyFor, shopVendor } from "../../../lib/shop";
 import { kitFor } from "../../../lib/kit";
 import { PATHS } from "../../../data/paths";
 import { PAGE_PALETTE, kitIconSvg } from "../../../lib/kit-icons";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(PROJECT, Astro.currentLocale);
+// Project prose in this page's language; the logic below keeps working on the English data.
+const tc = contentTranslator(Astro.currentLocale);
 
 export function getStaticPaths() {
   return withLocales(PROJECTS.map((p) => ({ params: { id: p.id }, props: { p } })));
@@ -32,20 +38,48 @@ interface Props {
 }
 
 const { p } = Astro.props;
+const name = tc(p.name);
+const sum = tc(p.sum);
+// A board's %VAR% values, as forBoard() fills them (a variant board borrows its parent's).
+const varsOf = (board: BoardId): Record<string, string> => {
+  const own = p.vars?.[board];
+  if (own) return own;
+  const parent = BOARDS.find((b) => b.id === board)?.variantOf;
+  return (parent && p.vars?.[parent]) ?? {};
+};
+// Translate the template and each value before filling, so phrases match the English source.
+const fillT = (text: string, vars: Record<string, string>) =>
+  tc(text).replace(/%([A-Z]+)%/g, (whole, key: string) => (vars[key] !== undefined ? tc(vars[key]) : whole));
 const boards = boardsOf(p).map(boardById);
-const panels = boards.map((board) => ({
-  board,
-  ...forBoard(p, board.id),
-  verified: (p.verified ?? []).filter((v) => v.board === board.id),
-}));
+const panels = boards.map((board) => {
+  const vars = varsOf(board.id);
+  return {
+    board,
+    ...forBoard(p, board.id),
+    shownWiring: p.wiring.map((row) => row.map((cell) => fillT(cell, vars))),
+    verified: (p.verified ?? []).filter((v) => v.board === board.id),
+  };
+});
 const needsLibraries = p.libs.some((l) => !/built in/.test(l));
 const buy = p.parts.map((x) => buyFor(x));
+const buyText = (href: string) => {
+  const vendor = shopVendor(href);
+  return vendor === "Amazon" && new URL(href).pathname === "/s" ? t("buyFind") : t("buyAt", { vendor });
+};
+const libText = (lib: string) => lib.replace("(built into the ESP32 core)", `(${t("builtInCore")})`).replace("(built in)", `(${t("builtIn")})`);
 const hasBuyLinks = buy.some(Boolean);
 // "What you'll need": the kit card image and an icon per parts row.
 const kit = kitFor(p.parts);
-const kitAlt = `Parts for ${p.name}: ${kit
-  .map((k) => `${k.alternative ? "or " : `${k.qty} `}${k.label}${k.optional ? " (optional)" : ""}`)
-  .join(", ")}.`;
+const kitAlt = t("kitAlt", {
+  name,
+  list: kit
+    .map((k) => {
+      const label = tc(k.label);
+      const item = k.alternative ? t("kitAltOr", { label }) : t("kitAltQty", { qty: k.qty, label });
+      return k.optional ? t("kitAltOptional", { item }) : item;
+    })
+    .join(", "),
+});
 const kitSrc = link(`/og/kits/${p.id}.png`);
 const buildReportUrl = reportUrl("build", { project: p.id });
 // Starter paths this project is a step of, with the step after it.
@@ -53,58 +87,71 @@ const onPaths = PATHS.flatMap((path) => {
   const at = path.steps.findIndex((s) => s.project === p.id);
   if (at < 0) return [];
   const next = path.steps[at + 1];
-  return [{ name: path.name, step: at + 1, of: path.steps.length, next: next && PROJECTS.find((x) => x.id === next.project) }];
+  return [{ name: t(`path.${path.id}` as "path.first-week"), step: at + 1, of: path.steps.length, next: next && PROJECTS.find((x) => x.id === next.project) }];
 });
+const escapeHtml = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const anyVerified = (p.verified ?? []).length > 0;
 // Long sketches show this many lines until "Show the whole sketch".
 const CLIP_LINES = 26;
 const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
 const boardNames = boards.map((b) => b.name).join(", ");
-const summary = p.sum.length > 150 ? `${p.sum.slice(0, p.sum.lastIndexOf(" ", 147))}...` : p.sum;
-const description = `${summary} Pinout, wiring and parts for the ${boardNames}.`;
+const summary = sum.length > 150 ? `${sum.slice(0, sum.lastIndexOf(" ", 147))}...` : sum;
+const description = t("description", { summary, boards: boardNames });
 // "What it prints": only projects that need nothing attached can have a QEMU preview (scripts/emulate-firmware.mjs).
+// Structured data: the project as a how-to (parts, time, steps), on the first
+// board it supports, so search engines and answer engines can quote it.
+const first = panels[0];
+const howTo = {
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  name,
+  description: sum,
+  inLanguage: Astro.currentLocale === "pt-br" ? "pt-BR" : (Astro.currentLocale ?? "en"),
+  totalTime: `PT${p.mins}M`,
+  image: absolute(`/og/projects/${p.id}.png`, Astro.site),
+  supply: p.parts.map(([qty, what]) => ({ "@type": "HowToSupply", name: tc(what), requiredQuantity: qty })),
+  step: [
+    ...first.shownWiring.map(([from, to, note]) => ({
+      "@type": "HowToStep",
+      text: `${t("howtoWire", { from, to })}${note ? ` ${note}` : ""}`,
+    })),
+    { "@type": "HowToStep", text: t("howtoFlash") },
+    { "@type": "HowToStep", text: t("howtoCheck", { baud: p.baud, sample: first.sample.slice(0, 3).join(" / ") }) },
+  ],
+};
+
 const labExpect = LAB_EXPECT[p.id];
 const previewable = Boolean(labExpect && labExpect.needs === "none" && !(labExpect.settings ?? []).length);
 const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" || b.id === "esp32s3" || b.id === "esp32c3").map((b) => [b.id, b.name]));
 ---
 
-<Base title={`${p.name}: ESP32 project`} description={description} current="library" image={`/og/projects/${p.id}.png`}>
+<Base title={t("pageTitle", { name })} description={description} current="library" image={`/og/projects/${p.id}.png`} jsonLd={howTo}>
   <section class="view">
-    <a class="back" href={link("/")}>← All projects</a>
+    <a class="back" href={link("/")}>{t("back")}</a>
 
     <div class="stack tight">
-      <h1 class="h2">{p.name}</h1>
-      <p class="lede">{p.sum}</p>
+      <h1 class="h2">{name}</h1>
+      <p class="lede">{sum}</p>
       <div class="meta">
-        <span class="tag lvl">{p.level}</span>
-        <span class="tag">{p.mins} min</span>
-        <span class="tag">{p.baud} baud</span>
-        <span class="tag ok" data-lab-tag hidden title="The latest hardware lab run passed on at least one board">Lab tested</span>
-        <button class="btn sm printbtn" type="button" data-print>Print build sheet</button>
+        <span class="tag lvl">{t(`level.${p.level}`)}</span>
+        <span class="tag">{t("mins", { n: p.mins })}</span>
+        <span class="tag">{t("baud", { n: p.baud })}</span>
+        <span class="tag ok" data-lab-tag hidden title={t("labTagTitle")}>{t("labTested")}</span>
+        <button class="btn sm printbtn" type="button" data-print>{t("print")}</button>
       </div>
       {
         p.tags.includes("probeharbor") && (
           <p class="phcredit">
-            {p.probeharbor ? "For" : "From"} <a href={PROBEHARBOR.url}>ProbeHarbor</a>, {PROBEHARBOR.blurb}.{" "}
-            {
-              p.probeharbor === "reads" ? (
-                <>
-                  This board shows readings from your ProbeHarbor sensors through a read-only share link, made under
-                  Dashboard, Share at <a href={PROBEHARBOR.url}>probeharbor.dev</a>.
-                </>
-              ) : p.probeharbor === "sends" ? (
-                <>
-                  This board sends its readings to a ProbeHarbor device; create one at{" "}
-                  <a href={PROBEHARBOR.url}>probeharbor.dev</a>.
-                </>
-              ) : (
-                <>
-                  This board sends its readings to a ProbeHarbor device; create one at{" "}
-                  <a href={PROBEHARBOR.url}>probeharbor.dev</a>. The source is in the{" "}
-                  <a href={PROBEHARBOR.repo}>ProbeHarbor repository</a>.
-                </>
-              )
-            }
+            <Fragment set:html={t(p.probeharbor ? "phFor" : "phFrom", { ph: `<a href="${PROBEHARBOR.url}">ProbeHarbor</a>`, blurb: t("phBlurb") })} />{" "}
+            <Fragment
+              set:html={
+                p.probeharbor === "reads"
+                  ? t("phReads", { link: `<a href="${PROBEHARBOR.url}">probeharbor.dev</a>` })
+                  : p.probeharbor === "sends"
+                    ? t("phSends", { link: `<a href="${PROBEHARBOR.url}">probeharbor.dev</a>` })
+                    : `${t("phSends", { link: `<a href="${PROBEHARBOR.url}">probeharbor.dev</a>` })} ${t("phRepo", { repo: `<a href="${PROBEHARBOR.repo}">${t("phRepoName")}</a>` })}`
+              }
+            />
           </p>
         )
       }
@@ -114,14 +161,14 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
 
     <div class="stack tight">
       <div class="codehead">
-        <h2 class="h3">Parts</h2>
+        <h2 class="h3">{t("parts")}</h2>
         <div class="row">
-          <button class="btn sm" type="button" id="shop-toggle" data-project={p.id} aria-pressed="false">Add to shopping list</button>
-          <a class="shoplink" href={link("/shop/")} id="shop-link" hidden>Shopping list</a>
+          <button class="btn sm" type="button" id="shop-toggle" data-project={p.id} aria-pressed="false" data-on={t("onShop")} data-off={t("addShop")} data-count={t("shopListCount")}>{t("addShop")}</button>
+          <a class="shoplink" href={link("/shop/")} id="shop-link" hidden>{t("shopList")}</a>
         </div>
       </div>
       <div class="cols even">
-        <a class="kitcard" href={kitSrc} title="Open the parts card at full size">
+        <a class="kitcard" href={kitSrc} title={t("kitOpen")}>
           <img src={kitSrc} width="1200" height="630" loading="lazy" decoding="async" alt={kitAlt} />
         </a>
         <div class="stack tight">
@@ -129,22 +176,22 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
             <table>
               <thead class="sr">
                 <tr>
-                  <th>Quantity</th>
-                  <th>Part</th>
-                  <th>Where to buy</th>
+                  <th>{t("thQty")}</th>
+                  <th>{t("thPart")}</th>
+                  <th>{t("thBuy")}</th>
                 </tr>
               </thead>
               <tbody>
-                {p.parts.map(([qty, what, href], i) => (
+                {p.parts.map(([qty, what], i) => (
                   <tr>
                     <td class="q">{qty}×</td>
                     <td>
                       <div class="partname">
                         <span class="kicon" set:html={kitIconSvg(kit[i], PAGE_PALETTE, 28)} />
-                        <span>{what}</span>
+                        <span>{tc(what)}</span>
                       </div>
                     </td>
-                    <td class="m">{buy[i] && <a href={buy[i].href} rel={buy[i].rel} data-amazon-q={buy[i].amazonQ} target="_blank">{buy[i].text}</a>}</td>
+                    <td class="m">{buy[i] && <a href={buy[i].href} rel={buy[i].rel} data-amazon-q={buy[i].amazonQ} target="_blank">{buyText(buy[i].href)}</a>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -153,19 +200,19 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
           {
             p.code !== undefined && (
               <p class="libs">
-                <span class="swlabel">Libraries</span> {p.libs.length > 0 ? p.libs.join(", ") : "None beyond the ESP32 Arduino core."}
+                <span class="swlabel">{t("libraries")}</span> {p.libs.length > 0 ? p.libs.map(libText).join(", ") : t("libsNone")}
               </p>
             )
           }
-          {hasBuyLinks && <p class="cap left">{AFFILIATE_DISCLOSURE}</p>}
+          {hasBuyLinks && <p class="cap left">{t("affiliate")}</p>}
         </div>
       </div>
     </div>
 
     {
       boards.length > 1 && (
-        <div class="row" id="boardswitch" role="group" aria-label="Board">
-          <span class="swlabel">Board</span>
+        <div class="row" id="boardswitch" role="group" aria-label={t("board")}>
+          <span class="swlabel">{t("board")}</span>
           {boards.map((b, i) => (
             <button class="chip" type="button" data-board={b.id} aria-pressed={i === 0 ? "true" : "false"} title={b.name}>
               <span class="bname full">{b.name}</span>
@@ -180,22 +227,22 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
       panels.map((panel, i) => (
         <div class="stack" data-panel={panel.board.id} hidden={i !== 0}>
           <div class="cols">
-            <Pinout board={panel.board} pins={panel.pins} caption={`Fig. 1. Pins this project uses on the ${panel.board.name}. USB connector at the bottom.`} />
+            <Pinout board={panel.board} pins={panel.pins} caption={t("pinCaption", { board: panel.board.name })} />
             <div class="stack">
               <div>
-                <h2 class="h3 mb">Wiring</h2>
+                <h2 class="h3 mb">{t("wiring")}</h2>
                 {panel.wiring.length > 0 ? (
                   <div class="tablebox">
                     <table id={`wiring-${panel.board.id}`}>
                       <thead>
                         <tr>
-                          <th>From</th>
-                          <th>To board</th>
-                          <th>Note</th>
+                          <th>{t("thFrom")}</th>
+                          <th>{t("thTo")}</th>
+                          <th>{t("thNote")}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {panel.wiring.map(([from, to, note]) => (
+                        {panel.shownWiring.map(([from, to, note]) => (
                           <tr>
                             <td>{from}</td>
                             <td class="m">{to}</td>
@@ -206,26 +253,27 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
                     </table>
                   </div>
                 ) : (
-                  <p class="lede">Nothing to wire. This one runs on the bare board.</p>
+                  <p class="lede">{t("nothingToWire")}</p>
                 )}
               </div>
               <WiringDiagram
                 rows={panel.wiring}
+                shownRows={panel.shownWiring}
                 board={panel.board}
                 projectId={p.id}
-                projectName={p.name}
+                projectName={name}
                 tableId={`wiring-${panel.board.id}`}
                 benchHref={benchHref}
                 baud={p.baud}
               />
               {panel.verified.length > 0 ? (
                 <div>
-                  <h2 class="h3 mb">Tested on this board</h2>
+                  <h2 class="h3 mb">{t("testedHere")}</h2>
                   <ul class="checks">
                     {panel.verified.map((v) => (
                       <li>
-                        <span class="tag ok">Tested</span>
-                        <span>{v.what}{v.when && <span class="when">{` (${v.when})`}</span>}</span>
+                        <span class="tag ok">{t("tested")}</span>
+                        <span>{tc(v.what)}{v.when && <span class="when">{` (${v.when})`}</span>}</span>
                       </li>
                     ))}
                   </ul>
@@ -234,8 +282,8 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
                 // Untested everywhere is said once, under "Not tested yet"; this covers a board the others were tested on.
                 (anyVerified || !p.open) && (
                   <div>
-                    <h2 class="h3 mb">Tested on this board</h2>
-                    <p class="lede">Not run on this board yet. Treat the wiring and code as a first draft.</p>
+                    <h2 class="h3 mb">{t("testedHere")}</h2>
+                    <p class="lede">{t("notRunHere")}</p>
                   </div>
                 )
               )}
@@ -249,14 +297,14 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
     {
       p.flash ? (
         <div class="stack tight">
-          <h2 class="h3">Flash it</h2>
+          <h2 class="h3">{t("flashIt")}</h2>
           <Flasher manifest={p.flash.manifest} version={p.flash.version} project={p.id} />
           <ol class="steps">
-            {p.flash.after.map((step) => <li>{step}</li>)}
+            {p.flash.after.map((step) => <li>{tc(step)}</li>)}
           </ol>
           {p.setup === "probeharbor" && <ProbeSetup />}
           {p.settings && <SettingsForm settings={p.settings} project={p.id} baud={p.baud} />}
-          {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Firmware source on GitHub</a></p>}
+          {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">{t("fwSource")}</a></p>}
         </div>
       ) : (
         p.code !== undefined && (
@@ -270,13 +318,13 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
               return (
                 <div class="stack tight" data-panel={panel.board.id} hidden={i !== 0}>
                   <div class="codehead">
-                    <h2 class="h3">The sketch, for {panel.board.arduinoBoard}</h2>
-                    <button class="btn sm" type="button" data-copy>Copy firmware</button>
+                    <h2 class="h3">{t("sketchFor", { board: panel.board.arduinoBoard })}</h2>
+                    <button class="btn sm" type="button" data-copy data-copied={t("copied")} data-blocked={t("copyBlocked")}>{t("copyFirmware")}</button>
                   </div>
                   <pre class:list={["code", { clip }]} style={clip ? `--clip-lines: ${CLIP_LINES}` : undefined}><code>{panel.code}</code></pre>
                   {clip && (
                     <button class="btn sm unclip" type="button" data-unclip>
-                      Show the whole sketch ({lines} lines)
+                      {t("showWhole", { n: lines })}
                     </button>
                   )}
                   <SketchBuilder
@@ -294,8 +342,8 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
             {p.extraCode && (
               <div class="stack tight" data-code>
                 <div class="codehead">
-                  <h2 class="h3">{p.extraCode.title}</h2>
-                  <button class="btn sm" type="button" data-copy>Copy sketch</button>
+                  <h2 class="h3">{tc(p.extraCode.title)}</h2>
+                  <button class="btn sm" type="button" data-copy data-copied={t("copied")} data-blocked={t("copyBlocked")}>{t("copySketch")}</button>
                 </div>
                 {(() => {
                   const lines = p.extraCode.code.split("\n").length;
@@ -305,7 +353,7 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
                       <pre class:list={["code", { clip }]} style={clip ? `--clip-lines: ${CLIP_LINES}` : undefined}><code>{p.extraCode.code}</code></pre>
                       {clip && (
                         <button class="btn sm unclip" type="button" data-unclip>
-                          Show the whole sketch ({lines} lines)
+                          {t("showWhole", { n: lines })}
                         </button>
                       )}
                     </>
@@ -314,14 +362,14 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
               </div>
             )}
             <details class="ide">
-              <summary>Or upload it with the Arduino IDE</summary>
+              <summary>{t("ideSummary")}</summary>
               <ol class="steps">
-                <li>In the Arduino IDE, install the esp32 board package and pick the board named above the sketch.</li>
-                {needsLibraries && <li>Install the libraries listed under Parts from the Library Manager.</li>}
-                <li>Paste the sketch, choose the board's port and upload. Hold BOOT if the upload stalls at Connecting.</li>
-                <li>Close the IDE's serial monitor, then open the bench here to watch the output.</li>
+                <li>{t("ide1")}</li>
+                {needsLibraries && <li>{t("ide2")}</li>}
+                <li>{t("ide3")}</li>
+                <li>{t("ide4")}</li>
               </ol>
-              {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">Sketch source on GitHub</a></p>}
+              {p.sourceUrl && <p><a href={p.sourceUrl} rel="noopener noreferrer" target="_blank">{t("sketchSource")}</a></p>}
             </details>
           </div>
         )
@@ -329,23 +377,37 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
     }
 
     <div class="stack tight nextsteps">
-      <h2 class="h3">Then watch it run</h2>
+      <h2 class="h3">{t("watch")}</h2>
       <div class="row">
-        <a class="btn go" href={benchHref}>Open the bench at {p.baud} baud</a>
-        <button class="btn" type="button" id="built" data-project={p.id} data-board={boards[0].id} aria-pressed="false">Mark as built</button>
+        <a class="btn go" href={benchHref}>{t("openBench", { baud: p.baud })}</a>
+        <button
+          class="btn"
+          type="button"
+          id="built"
+          data-project={p.id}
+          data-board={boards[0].id}
+          aria-pressed="false"
+          data-mark={t("markBuilt")}
+          data-undo={t("builtUndo")}
+          data-logged={t("loggedOn")}
+          data-sync={t("syncIt")}
+          data-sync-href={`${link("/")}#sync`}
+        >
+          {t("markBuilt")}
+        </button>
         <span class="pickresult" id="built-note" role="status"></span>
       </div>
       {
         previewable && (
           <div class="preview stack tight" id="preview" data-src={`${SITE.fwBase}/${p.id}/preview.json`} data-names={JSON.stringify(previewBoards)} hidden>
             <div class="codehead">
-              <h3 class="h4">What it prints</h3>
+              <h3 class="h4">{t("whatPrints")}</h3>
               <div class="row">
-                <select id="preview-board" aria-label="Board" hidden />
-                <button class="btn sm" type="button" id="preview-replay">Replay</button>
+                <select id="preview-board" aria-label={t("board")} hidden />
+                <button class="btn sm" type="button" id="preview-replay">{t("replay")}</button>
               </div>
             </div>
-            <div class="term previewterm" id="preview-term" role="log" aria-label="Serial output, recorded" />
+            <div class="term previewterm" id="preview-term" role="log" aria-label={t("serialRecorded")} />
             <p class="cap left" id="preview-note" />
           </div>
         )
@@ -353,13 +415,14 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
       {
         onPaths.map((path) => (
           <p class="pathnote">
-            Step {path.step} of {path.of} in the <a href={`${link("/")}#paths`}>{path.name}</a> starter path.
+            <Fragment set:html={t("pathStep", { step: path.step, of: path.of, path: `<a href="${link("/")}#paths">${path.name}</a>` })} />
             {path.next ? (
               <>
-                {" "}Next: <a href={link(`/projects/${path.next.id}/`)}>{path.next.name}</a>.
+                {" "}
+                <Fragment set:html={t("pathNext", { next: `<a href="${link(`/projects/${path.next.id}/`)}">${escapeHtml(tc(path.next.name))}</a>` })} />
               </>
             ) : (
-              " The last step."
+              ` ${t("pathLast")}`
             )}
           </p>
         ))
@@ -369,9 +432,9 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
     {
       p.notes && (
         <div>
-          <h2 class="h3 mb">Field notes</h2>
+          <h2 class="h3 mb">{t("fieldNotes")}</h2>
           <ul class="notes">
-            {p.notes.map((n) => <li>{n}</li>)}
+            {p.notes.map((n) => <li>{tc(n)}</li>)}
           </ul>
         </div>
       )
@@ -380,19 +443,19 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
     {
       p.open && (
         <div>
-          <h2 class="h3 mb">Not tested yet</h2>
+          <h2 class="h3 mb">{t("notTested")}</h2>
           <ul class="notes">
-            {p.open.map((n) => <li>{n}</li>)}
+            {p.open.map((n) => <li>{tc(n)}</li>)}
           </ul>
         </div>
       )
     }
 
     <div class="stack tight band" id="community" data-builds={SITE.buildsApi} data-project={p.id}>
-      <h2>Community builds</h2>
+      <h2>{t("community")}</h2>
       <p class="lede" data-community-status>
-        Loading build reports from people who made this.
-        {buildReportUrl && <>Built it? <a href={buildReportUrl}>Send a build report</a>.</>}
+        {t("communityLoading")}{" "}
+        {buildReportUrl && <Fragment set:html={t("builtItLink", { link: `<a href="${escapeHtml(buildReportUrl)}">${t("sendReport")}</a>` })} />}
       </p>
       <div class="labrun" data-lab hidden></div>
       <ul class="builds" data-community-list hidden></ul>
@@ -477,12 +540,12 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
   function showBuilt() {
     const mark = loadBuilt()[projectId];
     builtBtn.setAttribute("aria-pressed", String(Boolean(mark)));
-    builtBtn.textContent = mark ? "Built. Undo" : "Mark as built";
-    builtNote.textContent = mark ? `Logged on ${new Date(mark.at).toLocaleDateString()}. See your badges on the library page.` : "";
+    builtBtn.textContent = (mark ? builtBtn.dataset.undo : builtBtn.dataset.mark) ?? "";
+    builtNote.textContent = mark ? (builtBtn.dataset.logged ?? "").replace("{date}", new Date(mark.at).toLocaleDateString(document.documentElement.lang || undefined)) : "";
     if (mark && !loadSyncState()) {
       const a = document.createElement("a");
-      a.href = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/#sync`;
-      a.textContent = "Sync it to your other devices.";
+      a.href = builtBtn.dataset.syncHref ?? "/#sync";
+      a.textContent = builtBtn.dataset.sync ?? "";
       builtNote.append(" ", a);
     }
   }
@@ -503,10 +566,10 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
     const list = loadShop();
     const on = list.includes(shopBtn.dataset.project ?? "");
     shopBtn.setAttribute("aria-pressed", String(on));
-    shopBtn.textContent = on ? "On your shopping list. Remove" : "Add to shopping list";
+    shopBtn.textContent = (on ? shopBtn.dataset.on : shopBtn.dataset.off) ?? "";
     if (shopLink) {
       shopLink.hidden = list.length === 0;
-      shopLink.textContent = `Shopping list (${list.length})`;
+      shopLink.textContent = (shopBtn.dataset.count ?? "").replace("{n}", String(list.length));
     }
   }
   shopBtn?.addEventListener("click", () => {
@@ -543,9 +606,9 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
       const code = btn.closest("[data-code], [data-panel]")?.querySelector("pre.code code")?.textContent ?? "";
       try {
         await navigator.clipboard.writeText(code);
-        btn.textContent = "Copied";
+        btn.textContent = btn.dataset.copied ?? "";
       } catch {
-        btn.textContent = "Copy blocked, select the text";
+        btn.textContent = btn.dataset.blocked ?? "";
       }
       setTimeout(() => {
         btn.textContent = label;

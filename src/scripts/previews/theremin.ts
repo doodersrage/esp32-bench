@@ -3,17 +3,20 @@
 // like the sketch's readings, optionally snapped to semitones.
 import { THEREMIN, thereminHz } from "../../lib/preview/logic";
 import { el, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
 
+const t = translator(PREVIEWS, pageLocale());
 const W = 420, H = 180, SENSOR_X = 40, CM_PX = (W - SENSOR_X - 20) / 70; // 70 cm across
 
 export const mount: Mount = ({ host, say, sound }) => {
-  const canvas = el("canvas", { class: "stage", tabindex: "0", role: "slider", "aria-label": "Hand distance from the sensor", "aria-valuemin": "0", "aria-valuemax": "70" });
+  const canvas = el("canvas", { class: "stage", tabindex: "0", role: "slider", "aria-label": t("thereminAria"), "aria-valuemin": "0", "aria-valuemax": "70" });
   canvas.width = W;
   canvas.height = H;
   const g = canvas.getContext("2d")!;
   const readout = el("output", { class: "readout", text: "distance_cm=0.0, freq=0" });
   const snapBox = el("input", { type: "checkbox", checked: "" });
-  const snapLabel = el("label", {}, snapBox, "Snap to notes");
+  const snapLabel = el("label", {}, snapBox, t("thereminSnap"));
   let cm = 30;
   let playing = false;
   let lastUpdate = 0;
@@ -56,7 +59,7 @@ export const mount: Mount = ({ host, say, sound }) => {
     hz = thereminHz(cm, snapBox.checked);
     readout.textContent = `distance_cm=${cm.toFixed(1)}, freq=${hz}`;
     canvas.setAttribute("aria-valuenow", cm.toFixed(0));
-    canvas.setAttribute("aria-valuetext", hz ? `${cm.toFixed(0)} cm, ${hz} hertz` : `${cm.toFixed(0)} cm, silent`);
+    canvas.setAttribute("aria-valuetext", hz ? t("thereminHz", { cm: cm.toFixed(0), hz }) : t("thereminSilent", { cm: cm.toFixed(0) }));
     if (playing && hz) sound.start(hz, 0.04);
     else sound.stop();
     draw();

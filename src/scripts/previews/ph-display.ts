@@ -2,6 +2,8 @@
 // change every 5 s (PAGE_SECONDS) or on the BOOT button; a temperature at or below
 // FREEZE_F (35 °F) inverts the screen every other second, as the sketch does.
 import { button, createLoop, el, oledCanvas, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
 
 interface Demo {
   device: string;
@@ -24,11 +26,13 @@ const READINGS: Demo[] = [
 const FREEZE_F = 35;
 const PAGE_MS = 5000;
 
+const t = translator(PREVIEWS, pageLocale());
+
 const word = (r: Demo) => (r.kind === "door" ? (r.flag ? "OPEN" : "CLOSED") : r.flag ? "WET" : "DRY");
 const alarming = (r: Demo) => (r.kind === "temperature" ? (r.num ?? 99) <= FREEZE_F : r.kind === "flood" && !!r.flag);
 
 export const mount: Mount = ({ host, say, reduced }) => {
-  const screen = oledCanvas("ProbeHarbor readout");
+  const screen = oledCanvas(t("phAria"));
   const { fb, canvas } = screen;
   let page = 0;
   let pageAt = performance.now();
@@ -63,18 +67,19 @@ export const mount: Mount = ({ host, say, reduced }) => {
     if (alarm && !reduced && Math.floor(now / 1000) % 2 === 1) fb.invert();
     screen.draw();
     const value = r.num !== undefined ? `${r.num} ${r.unit}` : word(r);
-    canvas.setAttribute("aria-label", `ProbeHarbor readout: ${r.device}, ${r.label}: ${value}${alarm ? ", freeze warning" : ""}`);
+    canvas.setAttribute("aria-label", t(alarm ? "phAriaFreeze" : "phAriaValue", { device: r.device, label: r.label, value }));
   };
 
   const loop = createLoop(host, (_dt, now) => draw(now), 4);
-  const next = button("BOOT: next sensor", () => {
+  const next = button(t("phNext"), () => {
     page = (page + 1) % READINGS.length;
     pageAt = performance.now();
     draw(pageAt);
     const r = READINGS[page];
-    say(`${r.device}, ${r.label}: ${r.num !== undefined ? `${r.num} ${r.unit}` : word(r)}${alarming(r) ? ", freezing" : ""}.`);
+    const value = r.num !== undefined ? `${r.num} ${r.unit}` : word(r);
+    say(t(alarming(r) ? "phSayFreezing" : "phSay", { device: r.device, label: r.label, value }));
   });
-  host.append(canvas, el("div", { class: "tryrow" }, next, el("span", { class: "readout", text: "Demo readings, not your sensors" })));
+  host.append(canvas, el("div", { class: "tryrow" }, next, el("span", { class: "readout", text: t("phDemo") })));
   draw(performance.now());
   loop.start();
   return () => loop.dispose();

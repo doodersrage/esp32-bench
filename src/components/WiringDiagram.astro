@@ -4,9 +4,17 @@
 // SVG is described by it. "Build it step by step" loads a small script on demand.
 import type { Board } from "../data/boards";
 import { layout, parseWiring, type Pad, type WiringRow } from "../lib/wiring-diagram";
+import { HTML_LANG, localeOf } from "../i18n/locales";
+import { FIRMWARE } from "../i18n/strings/firmware";
+import { translator } from "../i18n/t";
+
+const t = translator(FIRMWARE, Astro.currentLocale);
+const list = (items: string[]) => new Intl.ListFormat(HTML_LANG[localeOf(Astro.currentLocale)], { type: "conjunction" }).format(items);
 
 interface Props {
   rows: readonly WiringRow[];
+  /** The same rows as the page shows them (translated); `rows` stays English for the pin logic */
+  shownRows?: readonly (readonly string[])[];
   board: Board;
   projectId: string;
   projectName: string;
@@ -16,7 +24,8 @@ interface Props {
   baud: number;
 }
 
-const { rows, board, projectId, projectName, tableId, benchHref, baud } = Astro.props;
+const { rows, shownRows, board, projectId, projectName, tableId, benchHref, baud } = Astro.props;
+const shown = shownRows ?? rows;
 const hasHeader = board.left.length > 0;
 const model = hasHeader && rows.length ? parseWiring(rows, board) : null;
 const lay = model && model.wires.length ? layout(model) : null;
@@ -24,12 +33,13 @@ const lay = model && model.wires.length ? layout(model) : null;
 const stepOf = new Map(model?.steps.map((s, i) => [s.row, i + 1]) ?? []);
 const titleId = `wd-title-${board.id}`;
 const padText = (p: Pad) => (p.alias && p.kind === "gpio" ? `${p.label} (${p.alias})` : p.label);
-const where = (p: Pad) => `${p.side === "left" ? "L" : "R"}${p.position}`;
-const steps = model?.steps ?? [];
+const where = (p: Pad) => `${p.side === "left" ? t("sideL") : t("sideR")}${p.position}`;
+// The step sentence is written here, in the page's language, from the table row.
+const steps = (model?.steps ?? []).map((s) => ({ ...s, text: t("connect", { from: shown[s.row][0], to: shown[s.row][1] }) }));
 const listedOther = model?.listed.filter((l) => l.why === "other-board") ?? [];
 const listedOnBoard = model?.listed.filter((l) => l.why === "on-board") ?? [];
 const listedNot = model?.listed.filter((l) => l.why === "not-wired" || l.why === "no-pad") ?? [];
-const rowText = (i: number) => `${rows[i][0]} → ${rows[i][1]}`;
+const rowText = (i: number) => `${shown[i][0]} → ${shown[i][1]}`;
 const pinText = (label: string) => (label === "pin" ? "" : label);
 // Optional wires first, so a required wire sharing a rail draws its line solid on top.
 const wiresBack = lay ? [...lay.wires].sort((a, b) => Number(!!b.wire.optional) - Number(!!a.wire.optional)) : [];
@@ -55,7 +65,7 @@ const wiresBack = lay ? [...lay.wires].sort((a, b) => Number(!!b.wire.optional) 
           aria-labelledby={titleId}
           aria-describedby={tableId}
         >
-          <title id={titleId}>{`Wiring diagram for ${projectName} on the ${board.name}`}</title>
+          <title id={titleId}>{t("svgTitle", { project: projectName, board: board.name })}</title>
 
           <g class="board">
             <rect x={lay.board.x} y={lay.board.y} width={lay.board.w} height={lay.board.h} rx="6" />
@@ -136,14 +146,26 @@ const wiresBack = lay ? [...lay.wires].sort((a, b) => Number(!!b.wire.optional) 
         </svg>
       </div>
       <figcaption class="cap left">
-        {`Fig. 2. Wiring on the ${board.name}, from the table above. Red is 3V3, orange is 5V and grey is GND; each signal has its own colour.${lay.rails.length ? ` ${lay.rails.join(" and ")} ${lay.rails.length > 1 ? "each have" : "has"} a shared rail; a dot marks each connection to it.` : ""} L and R give each pad's side and position on the header, counted from the top. Numbers match the build steps.`}
+        {[
+          t("capMain", { board: board.name }),
+          lay.rails.length ? t(lay.rails.length > 1 ? "railMany" : "railOne", { rails: list(lay.rails) }) : "",
+          t("capEnd", { l: t("sideL"), r: t("sideR") }),
+        ]
+          .filter(Boolean)
+          .join(" ")}
       </figcaption>
       {(listedOnBoard.length > 0 || listedOther.length > 0 || listedNot.length > 0) && (
         <ul class="wd-also">
           {listedOnBoard.map((l) => (
-            <li>{`Already on the board, nothing to wire: ${rowText(l.row)}.`}</li>
+            <li>{t("onBoard", { row: rowText(l.row) })}</li>
           ))}
-          {listedOther.length > 0 && <li>{`On the ${model.otherBoard ?? "other board"}, not drawn here: ${listedOther.map((l) => rowText(l.row)).join("; ")}.`}</li>}
+          {listedOther.length > 0 && (
+            <li>
+              {model.otherBoard
+                ? t("onOther", { board: model.otherBoard, rows: listedOther.map((l) => rowText(l.row)).join("; ") })
+                : t("onOtherUnnamed", { rows: listedOther.map((l) => rowText(l.row)).join("; ") })}
+            </li>
+          )}
           {listedNot.map((l) => (
             <li>{`${rowText(l.row)}.`}</li>
           ))}
@@ -151,9 +173,9 @@ const wiresBack = lay ? [...lay.wires].sort((a, b) => Number(!!b.wire.optional) 
       )}
       <div class="row wd-tools">
         <button class="btn sm" type="button" data-wd-start>
-          Build it step by step
+          {t("stepByStep")}
         </button>
-        <span class="cap left">{`${steps.length} steps, power and ground first.`}</span>
+        <span class="cap left">{steps.length === 1 ? t("stepsOne") : t("stepsMany", { n: steps.length })}</span>
       </div>
       <div class="wd-build" data-wd-build hidden></div>
     </figure>

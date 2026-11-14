@@ -2,8 +2,11 @@
 // Browser install button, the same ESP Web Tools setup ProbeHarbor uses on /flash.
 // The manifest picks the right image for the connected chip family.
 import { localLink } from "../lib/paths";
+import { FIRMWARE } from "../i18n/strings/firmware";
+import { translator } from "../i18n/t";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(FIRMWARE, Astro.currentLocale);
 
 interface Props {
   manifest: string;
@@ -14,18 +17,18 @@ interface Props {
   project?: string;
 }
 
-const { manifest, version, families = "ESP32, ESP32-S3 and ESP32-C3", project } = Astro.props;
+const { manifest, version, families = t("familiesDefault"), project } = Astro.props;
 // A site path gets the base prefix; an absolute URL (the firmware library) is used as is.
 const manifestUrl = /^https?:\/\//.test(manifest) ? manifest : link(manifest);
 ---
 
 <div class="flashbox" data-project={project}>
   <esp-web-install-button manifest={manifestUrl}>
-    <button slot="activate" class="btn go" type="button">Flash to your board</button>
-    <p slot="unsupported" class="notice"><strong>This browser cannot flash.</strong> Use Chrome or Edge on a desktop.</p>
-    <p slot="not-allowed" class="notice"><strong>Flashing needs a secure page.</strong> Open this site over https or from http://localhost.</p>
+    <button slot="activate" class="btn go" type="button">{t("flashButton")}</button>
+    <p slot="unsupported" class="notice" set:html={t("noFlashBrowser")} />
+    <p slot="not-allowed" class="notice" set:html={t("needSecurePage")} />
   </esp-web-install-button>
-  <p class="cap left">{version && `Firmware ${version}. `}One image per chip family: {families}. The installer detects which one is connected.</p>
+  <p class="cap left">{version && `${t("firmwareVersion", { version })} `}{t("oneImage", { families })}</p>
 </div>
 
 <script>

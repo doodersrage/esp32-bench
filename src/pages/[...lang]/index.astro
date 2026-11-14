@@ -8,8 +8,20 @@ import { PATHS } from "../../data/paths";
 import { BADGES } from "../../scripts/progress";
 import { SITE } from "../../lib/site";
 import { localLink } from "../../lib/paths";
+import { translator } from "../../i18n/t";
+import { contentTranslator } from "../../i18n/content";
+import { SHELL } from "../../i18n/strings/shell";
+import { BADGE_TEXT, DRAWER_NAMES, GROUP_NAMES, HOME, LEVEL_NAMES, PATH_TEXT, TAG_NAMES, dataLabel } from "../../i18n/strings/home";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(HOME, Astro.currentLocale);
+const tc = contentTranslator(Astro.currentLocale);
+const drawerName = dataLabel(DRAWER_NAMES, Astro.currentLocale);
+const groupName = dataLabel(GROUP_NAMES, Astro.currentLocale) as (id: string, english: string) => string;
+const tagName = dataLabel(TAG_NAMES, Astro.currentLocale);
+const levelName = dataLabel(LEVEL_NAMES, Astro.currentLocale);
+const badgeText = dataLabel(BADGE_TEXT, Astro.currentLocale);
+const pathText = dataLabel(PATH_TEXT, Astro.currentLocale);
 
 // Build-time checks so the picker and the "No extra parts" filter cannot drift
 // from the data as projects are added.
@@ -26,7 +38,7 @@ if (tagMismatch.length) {
 const bareCount = PROJECTS.filter(bareBoard).length;
 const missingSteps = PATHS.flatMap((path) => path.steps.filter((s) => !PROJECTS.some((p) => p.id === s.project)).map((s) => `${path.id}: ${s.project}`));
 if (missingSteps.length) throw new Error(`Starter paths name projects that do not exist: ${missingSteps.join(", ")}`);
-const projectName = (id: string) => PROJECTS.find((p) => p.id === id)?.name ?? id;
+const projectName = (id: string) => tc(PROJECTS.find((p) => p.id === id)?.name ?? id);
 
 // "Suggested" order: runs on a bare board, Starter level and hardware tested
 // float up; ProbeHarbor's own sketches (useful mostly to ProbeHarbor users)
@@ -47,68 +59,65 @@ export const getStaticPaths = localePaths;
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: SITE.name,
-    description: SITE.description,
+    description: translator(SHELL, Astro.currentLocale)("description"),
     url: Astro.site?.href,
     author: { "@type": "Person", name: SITE.author.name, url: SITE.author.url },
   }}
 >
   <section class="view">
-    <h1 class="sr">Project library</h1>
-    <p class="lede">
-      {PROJECTS.length} projects, each with a pin map, a parts list and firmware you can flash from the browser or paste
-      into the Arduino IDE. Pick one, wire it, then watch it talk on the bench.
-    </p>
+    <h1 class="sr">{t("h1")}</h1>
+    <p class="lede">{t("lede", { n: PROJECTS.length })}</p>
     <div class="filters">
-      <input type="search" id="q" placeholder="Search projects, parts or boards" aria-label="Search projects" />
+      <input type="search" id="q" placeholder={t("searchPlaceholder")} aria-label={t("searchLabel")} />
       <div class="row scrollrow" id="chips">
         {
           TAGS.map(([id, label]) => (
             <button class="chip" type="button" data-tag={id} aria-pressed={id === "all" ? "true" : "false"}>
-              {label}
+              {tagName(id, label)}
             </button>
           ))
         }
       </div>
-      <div class="row" id="levels" role="group" aria-label="Level">
+      <div class="row" id="levels" role="group" aria-label={t("level")}>
         {
           LEVELS.map(([id, label]) => (
             <button class="chip sm" type="button" data-level={id} aria-pressed={id === "all" ? "true" : "false"}>
-              {label}
+              {levelName(id, label)}
             </button>
           ))
         }
         <label class="pick">
-          <span class="sr">Board</span>
+          <span class="sr">{t("board")}</span>
           <select id="board-filter">
-            <option value="all">Any board</option>
+            <option value="all">{t("anyBoard")}</option>
             {boardOptions.map((b) => <option value={b.id}>{b.name} ({b.count})</option>)}
           </select>
         </label>
         <label class="pick">
-          <span class="sr">Order</span>
+          <span class="sr">{t("order")}</span>
           <select id="sort">
-            <option value="suggested">Suggested order</option>
-            <option value="newest">Newest first</option>
-            <option value="quickest">Quickest build first</option>
+            <option value="suggested">{t("sortSuggested")}</option>
+            <option value="newest">{t("sortNewest")}</option>
+            <option value="quickest">{t("sortQuickest")}</option>
           </select>
         </label>
-        <button class="chip sm" type="button" id="lab-only" aria-pressed="false" hidden title="Projects that passed the latest hardware lab run">Lab tested</button>
-        <a class="loglink" href="#log" id="loglink">Your bench log</a>
-        <a class="loglink2" href={link("/shop/")} id="shop-count" hidden>Shopping list</a>
+        <button class="chip sm" type="button" id="lab-only" aria-pressed="false" hidden title={t("labTitle")}>{t("labTested")}</button>
+        <a class="loglink" href="#log" id="loglink">{t("logLink")}</a>
+        <a class="loglink2" href={link("/shop/")} id="shop-count" hidden>{t("shopLink")}</a>
       </div>
     </div>
 
     <details class="drawer" id="drawer">
-      <summary>What can I build tonight?</summary>
-      <p class="lede">Tick what is in your parts drawer. A bare board is enough for {bareCount} of the projects.</p>
+      <summary>{t("drawerSummary")}</summary>
+      <p class="lede">{t("drawerLede", { n: bareCount })}</p>
       {
         DRAWER_GROUPS.map(([label, ids]) => (
           <div class="partgroup">
-            <h3 class="partlabel">{label}</h3>
+            <h3 class="partlabel">{groupName(label, label)}</h3>
             <div class="row">
               {ids.map((id) => (
                 <button class="chip" type="button" data-part={id} aria-pressed="false">
-                  {DRAWER[id]}
+                  {drawerName(id, DRAWER[id])}
                 </button>
               ))}
             </div>
@@ -117,7 +126,7 @@ export const getStaticPaths = localePaths;
       }
       <p class="unlock" id="unlock" role="status"></p>
       <div class="row">
-        <button class="btn go" type="button" id="pick">Pick a project</button>
+        <button class="btn go" type="button" id="pick">{t("pick")}</button>
         <span class="pickresult" id="pick-result" role="status"></span>
       </div>
     </details>
@@ -130,24 +139,24 @@ export const getStaticPaths = localePaths;
         })
       }
     </div>
-    <div class="empty" id="empty" hidden>No project matches. Clear the search or pick another filter.</div>
+    <div class="empty" id="empty" hidden>{t("empty")}</div>
 
     <div class="stack tight band" id="paths">
-      <h2>Starter paths</h2>
-      <p class="lede">Not sure what to build next? Follow a path. Each step teaches something the next one uses, and your bench log ticks them off.</p>
+      <h2>{t("pathsHead")}</h2>
+      <p class="lede">{t("pathsLede")}</p>
       <div class="paths">
         {
           PATHS.map((path) => (
             <div class="path" data-path={path.id}>
-              <h3 class="pathname">{path.name}</h3>
-              <p class="pathblurb">{path.blurb}</p>
+              <h3 class="pathname">{pathText(`${path.id}.name`, path.name)}</h3>
+              <p class="pathblurb">{pathText(`${path.id}.blurb`, path.blurb)}</p>
               <div class="pathbar" aria-hidden="true"><span data-path-bar></span></div>
-              <p class="pathcount" data-path-count>{`${path.steps.length} steps`}</p>
+              <p class="pathcount" data-path-count>{t("steps", { n: path.steps.length })}</p>
               <ol class="pathsteps">
                 {path.steps.map((s) => (
                   <li data-step={s.project}>
                     <a href={link(`/projects/${s.project}/`)}>{projectName(s.project)}</a>
-                    <span>{s.learn}</span>
+                    <span>{pathText(`${path.id}.${s.project}`, s.learn)}</span>
                   </li>
                 ))}
               </ol>
@@ -158,36 +167,33 @@ export const getStaticPaths = localePaths;
     </div>
 
     <div class="stack tight band" id="log">
-      <h2>Bench log</h2>
-      <p class="lede" id="log-summary">Mark projects as built to fill this in. The log is kept in this browser unless you sync it.</p>
+      <h2>{t("logHead")}</h2>
+      <p class="lede" id="log-summary">{t("logLede")}</p>
       <div class="sync" id="sync" data-sitekey={SITE.turnstileSitekey}>
-        <h3 class="synchead">On your phone too</h3>
+        <h3 class="synchead">{t("syncHead")}</h3>
         <div class="stack tight" id="sync-off">
-          <p>
-            A sync code keeps this log, your shopping list and your parts drawer the same on every device. No account or email: the code
-            is the only key, so keep it to yourself.
-          </p>
+          <p>{t("syncIntro")}</p>
           <div class="syncrow">
-            <button class="btn go" type="button" id="sync-make">Make a sync code</button>
+            <button class="btn go" type="button" id="sync-make">{t("syncMake")}</button>
             <div id="sync-human"></div>
           </div>
           <form class="syncrow" id="sync-link">
-            <label for="sync-code">Have a code?</label>
+            <label for="sync-code">{t("syncHave")}</label>
             <input id="sync-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="7KQ4-M2XD-9PQA-R3TW" />
-            <button class="btn" type="submit">Link this browser</button>
+            <button class="btn" type="submit">{t("syncLinkBtn")}</button>
           </form>
         </div>
         <div class="stack tight" id="sync-on" hidden>
-          <p>This browser syncs with code <code class="synccode" id="sync-shown"></code></p>
+          <p set:html={t("syncShown", { code: '<code class="synccode" id="sync-shown"></code>' })} />
           <div class="syncrow">
-            <button class="btn sm" type="button" id="sync-copy">Copy code</button>
-            <button class="btn sm" type="button" id="sync-copylink">Copy a link for another device</button>
-            <button class="btn sm" type="button" id="sync-save">Save the code as a file</button>
-            <button class="btn sm" type="button" id="sync-unlink">Stop syncing in this browser</button>
-            <button class="btn sm" type="button" id="sync-delete">Delete the cloud copy</button>
+            <button class="btn sm" type="button" id="sync-copy">{t("syncCopy")}</button>
+            <button class="btn sm" type="button" id="sync-copylink">{t("syncCopyLink")}</button>
+            <button class="btn sm" type="button" id="sync-save">{t("syncSave")}</button>
+            <button class="btn sm" type="button" id="sync-unlink">{t("syncUnlink")}</button>
+            <button class="btn sm" type="button" id="sync-delete">{t("syncDelete")}</button>
           </div>
           <p class="cap left" id="sync-when"></p>
-          <p class="cap left">There is no way to recover a lost code, so keep a copy somewhere safe, such as a password manager or the saved file.</p>
+          <p class="cap left">{t("syncLost")}</p>
         </div>
         <p class="cap left" id="sync-status" role="status"></p>
       </div>
@@ -195,9 +201,9 @@ export const getStaticPaths = localePaths;
         {
           BADGES.map((b) => (
             <li class="badge" data-badge={b.id}>
-              <span class="badgename">{b.name}</span>
-              <span class="badgehow">{b.how}</span>
-              <span class="badgestate" data-badge-state>Locked</span>
+              <span class="badgename">{badgeText(`${b.id}.name`, b.name)}</span>
+              <span class="badgehow">{badgeText(`${b.id}.how`, b.how)}</span>
+              <span class="badgestate" data-badge-state>{t("locked")}</span>
             </li>
           ))
         }

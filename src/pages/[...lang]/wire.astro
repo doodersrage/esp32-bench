@@ -4,6 +4,14 @@ import Base from "../../layouts/Base.astro";
 import { HEADER_BOARDS } from "../../data/boards";
 import { PARTS } from "../../data/parts";
 import { DRAWER_GROUPS, PROJECTS } from "../../data/projects";
+import { translator } from "../../i18n/t";
+import { contentTranslator } from "../../i18n/content";
+import { PART_GROUPS, PART_NAMES, WIRE, byEnglish } from "../../i18n/strings/bench";
+
+const t = translator(WIRE, Astro.currentLocale);
+const tc = contentTranslator(Astro.currentLocale);
+const partNames = translator(PART_NAMES, Astro.currentLocale);
+const partName = (p: { id: string; name: string }) => (p.id in PART_NAMES.en ? partNames(p.id as keyof typeof PART_NAMES.en) : p.name);
 
 const remixable = PROJECTS.filter((p) => p.needs.length > 0);
 // The pad's parts in the same groups as the library's parts drawer (the ids are shared).
@@ -16,19 +24,16 @@ export const getStaticPaths = localePaths;
 ---
 
 <Base
-  title="ESP32 wiring checker"
+  title={t("title")}
   current="wire"
-  description="Wire sensors and displays to an ESP32 on screen. Every wire is checked for boot pins, input-only pins, 5 V signals and clashes, and two projects can be remixed onto one board."
+  description={t("description")}
 >
   <section class="view">
-    <h1 class="h2">Wiring pad</h1>
-    <p class="lede">
-      Choose a board and parts, then tap a part pin and a board pad to join them. Each wire is checked for boot pins,
-      input-only pins, 5 V signals and pads used twice.
-    </p>
+    <h1 class="h2">{t("heading")}</h1>
+    <p class="lede">{t("lede")}</p>
 
-    <div class="row" id="w-boards" role="group" aria-label="Board">
-      <span class="swlabel">Board</span>
+    <div class="row" id="w-boards" role="group" aria-label={t("board")}>
+      <span class="swlabel">{t("board")}</span>
       {
         HEADER_BOARDS.map((b) => (
           <button class="chip" type="button" data-board={b.id} aria-pressed={b.id === "esp32" ? "true" : "false"} title={b.name}>
@@ -40,16 +45,16 @@ export const getStaticPaths = localePaths;
     </div>
 
     <details class="drawer" id="w-partsbox" open>
-      <summary>Parts<span class="partsum" id="w-partsum"></span></summary>
-      <div id="w-parts" role="group" aria-label="Parts">
+      <summary>{t("parts")}<span class="partsum" id="w-partsum"></span></summary>
+      <div id="w-parts" role="group" aria-label={t("parts")}>
         {
           partGroups.map(([label, parts]) => (
             <div class="partgroup">
-              <h2 class="partlabel">{label}</h2>
+              <h2 class="partlabel">{byEnglish(PART_GROUPS, label, Astro.currentLocale)}</h2>
               <div class="row">
                 {parts.map((p) => (
                   <button class="chip" type="button" data-part={p.id} aria-pressed="false">
-                    {p.name}
+                    {partName(p)}
                   </button>
                 ))}
               </div>
@@ -62,20 +67,20 @@ export const getStaticPaths = localePaths;
     <div class="cols">
       <figure class="fig">
         <div id="w-board"></div>
-        <figcaption>Tap a pad to connect the selected pin. Pads with a dashed ring need care.</figcaption>
+        <figcaption>{t("figcaption")}</figcaption>
       </figure>
       <div class="stack">
         <div class="stack tight">
-          <h2 class="h3">Part pins</h2>
+          <h2 class="h3">{t("partPins")}</h2>
           <div class="stack tight" id="w-pins"></div>
           <p class="pickresult" id="w-status" role="status"></p>
           <div class="row">
-            <button class="btn go" type="button" id="w-auto">Wire it for me</button>
-            <button class="btn" type="button" id="w-clear">Clear wires</button>
+            <button class="btn go" type="button" id="w-auto">{t("wireForMe")}</button>
+            <button class="btn" type="button" id="w-clear">{t("clearWires")}</button>
           </div>
         </div>
         <div class="stack tight">
-          <h2 class="h3">Checks</h2>
+          <h2 class="h3">{t("checks")}</h2>
           <ul class="findings" id="w-findings"></ul>
         </div>
       </div>
@@ -83,13 +88,13 @@ export const getStaticPaths = localePaths;
 
     <div class="cols even">
       <div class="stack tight">
-        <h2 class="h3">Wiring</h2>
+        <h2 class="h3">{t("wiring")}</h2>
         <div class="tablebox">
           <table>
             <thead>
               <tr>
-                <th>From</th>
-                <th>To board</th>
+                <th>{t("from")}</th>
+                <th>{t("toBoard")}</th>
               </tr>
             </thead>
             <tbody id="w-table"></tbody>
@@ -98,25 +103,25 @@ export const getStaticPaths = localePaths;
       </div>
       <div class="stack tight">
         <div class="codehead">
-          <h2 class="h3">Pin constants</h2>
-          <button class="btn sm" type="button" id="w-copy">Copy wiring</button>
+          <h2 class="h3">{t("pinConstants")}</h2>
+          <button class="btn sm" type="button" id="w-copy">{t("copyWiring")}</button>
         </div>
         <pre class="code" id="w-code"></pre>
       </div>
     </div>
 
     <div class="stack tight band">
-      <h2>Remix two projects</h2>
-      <p class="lede">Pick two projects to load their parts onto one board, wired so nothing shares a pin it should not.</p>
+      <h2>{t("remixTitle")}</h2>
+      <p class="lede">{t("remixLede")}</p>
       <div class="row">
-        <select id="remix-a" aria-label="First project">
-          {remixable.map((p) => <option value={p.id} data-needs={needsAttr(p.needs)} selected={p.id === "dht22"}>{p.name}</option>)}
+        <select id="remix-a" aria-label={t("firstProject")}>
+          {remixable.map((p) => <option value={p.id} data-needs={needsAttr(p.needs)} selected={p.id === "dht22"}>{tc(p.name)}</option>)}
         </select>
-        <span class="swlabel">plus</span>
-        <select id="remix-b" aria-label="Second project">
-          {remixable.map((p) => <option value={p.id} data-needs={needsAttr(p.needs)} selected={p.id === "oled"}>{p.name}</option>)}
+        <span class="swlabel">{t("plus")}</span>
+        <select id="remix-b" aria-label={t("secondProject")}>
+          {remixable.map((p) => <option value={p.id} data-needs={needsAttr(p.needs)} selected={p.id === "oled"}>{tc(p.name)}</option>)}
         </select>
-        <button class="btn" type="button" id="remix-go">Remix</button>
+        <button class="btn" type="button" id="remix-go">{t("remix")}</button>
       </div>
       <p class="pickresult" id="remix-note" role="status"></p>
     </div>
@@ -125,6 +130,10 @@ export const getStaticPaths = localePaths;
 
 <script>
   import "../../scripts/wire.ts";
+  import { pageLocale, translator } from "../../i18n/t";
+  import { WIRE } from "../../i18n/strings/bench";
+
+  const t = translator(WIRE, pageLocale());
 
   // The parts list is long: on phones it starts folded, and its summary names what is on the pad.
   const box = document.getElementById("w-partsbox") as HTMLDetailsElement | null;
@@ -132,7 +141,7 @@ export const getStaticPaths = localePaths;
   const chips = [...document.querySelectorAll<HTMLButtonElement>("#w-parts [data-part]")];
   const describe = () => {
     const picked = chips.filter((c) => c.getAttribute("aria-pressed") === "true").map((c) => c.textContent?.trim() ?? "");
-    if (sum) sum.textContent = picked.length ? `: ${picked.join(", ")}` : ": none yet";
+    if (sum) sum.textContent = picked.length ? t("partsumList", { list: picked.join(", ") }) : t("partsumNone");
   };
   if (box && window.matchMedia("(max-width: 720px)").matches) box.open = false;
   describe();

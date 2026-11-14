@@ -3,9 +3,12 @@
 // switches to tilt mode (the MPU-6050 option): the stick then stands in for hand
 // tilt, and the servos go to 90 + tilt x 1.5 directly.
 import { button, createLoop, el, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
 
 const W = 420, H = 210, DEADZONE = 0.08, MAX_SPEED = 120, MIN_A = 10, MAX_A = 170, TILT_GAIN = 1.5;
 const STICK = { x: 90, y: 105, r: 70 };
+const t = translator(PREVIEWS, pageLocale());
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 /** The sketch's axis(): dead zone, then rescaled to the full -1..1. */
@@ -15,7 +18,7 @@ function axis(v: number): number {
 }
 
 export const mount: Mount = ({ host, say }) => {
-  const canvas = el("canvas", { class: "stage", tabindex: "0", role: "img", "aria-label": "Joystick and turret" });
+  const canvas = el("canvas", { class: "stage", tabindex: "0", role: "img", "aria-label": t("joyAria") });
   canvas.width = W;
   canvas.height = H;
   const g = canvas.getContext("2d")!;
@@ -46,7 +49,7 @@ export const mount: Mount = ({ host, say }) => {
     g.fill();
     g.fillStyle = muted;
     g.font = "12px monospace";
-    g.fillText(tiltMode ? "tilt mode" : "stick mode", 30, 200);
+    g.fillText(tiltMode ? t("joyTiltMode") : t("joyStickMode"), 30, 200);
     // Turret from above: pan
     const tx = 300, ty = 120, rad = ((180 - pan) * Math.PI) / 180;
     g.strokeStyle = line;
@@ -124,17 +127,17 @@ export const mount: Mount = ({ host, say }) => {
   canvas.addEventListener("keyup", (e) => keys.delete(e.key));
   canvas.addEventListener("blur", () => keys.clear());
 
-  const click = button("Click the stick (tilt mode)", () => {
+  const click = button(t("joyClick"), () => {
     tiltMode = !tiltMode;
     click.setAttribute("aria-pressed", String(tiltMode));
-    say(tiltMode ? "Tilt mode: steer by tilting the MPU-6050 (here, the stick stands in for tilt)." : "Stick mode");
+    say(tiltMode ? t("joyTiltSay") : t("joyStickSay"));
   });
   click.setAttribute("aria-pressed", "false");
-  const centre = button("Centre", () => {
+  const centre = button(t("joyCentre"), () => {
     pan = tilt = 90;
-    say("Centred at 90 degrees.");
+    say(t("joyCentred"));
   });
-  host.append(canvas, el("div", { class: "tryrow" }, readout, click, centre), el("p", { class: "readout", text: "Drag the stick, or hold the arrow keys on the drawing." }));
+  host.append(canvas, el("div", { class: "tryrow" }, readout, click, centre), el("p", { class: "readout", text: t("joyHelp") }));
   draw();
   loop.start();
   return () => loop.dispose();

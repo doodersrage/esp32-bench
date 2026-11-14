@@ -1,6 +1,10 @@
 // Report form: switches fields by report type, fills in from the address,
 // and posts JSON to the report API, which emails the site owner.
 import { PROJECTS } from "../data/projects";
+import { REPORT } from "../i18n/strings/pages";
+import { pageLocale, translator } from "../i18n/t";
+
+const t = translator(REPORT, pageLocale());
 
 type Kind = "build" | "correction" | "message";
 
@@ -33,7 +37,7 @@ if (form && status && thanks && send) {
     if (widgetId !== null || !human) return;
     if (!window.turnstile) {
       if (tries < 50) setTimeout(() => renderHuman(tries + 1), 200);
-      else human.textContent = "The human check could not load. Check your connection or turn off blockers for this page.";
+      else human.textContent = t("humanFail");
       return;
     }
     widgetId = window.turnstile.render(human, { sitekey, action: "report", theme: "auto" });
@@ -89,23 +93,23 @@ if (form && status && thanks && send) {
       (el) => !el.disabled && !el.value.trim(),
     );
     if (missing) {
-      fail("Please fill in the highlighted field.");
+      fail(t("fillIn"));
       missing.focus();
       return;
     }
     const email = field("email")!;
     if (email.value && !email.checkValidity()) {
-      fail("That email address does not look right.");
+      fail(t("badEmail"));
       email.focus();
       return;
     }
     const token = widgetId !== null ? window.turnstile?.getResponse(widgetId) ?? "" : "";
     if (!token) {
-      fail("Please complete the human check above the Send button.");
+      fail(t("needHuman"));
       return;
     }
     if (!navigator.onLine) {
-      fail("You are offline. Connect again and press Send.");
+      fail(t("offline"));
       return;
     }
 
@@ -136,7 +140,7 @@ if (form && status && thanks && send) {
     };
 
     send.disabled = true;
-    status.textContent = "Sending...";
+    status.textContent = t("sending");
     try {
       const res = await fetch(api, {
         method: "POST",
@@ -150,9 +154,10 @@ if (form && status && thanks && send) {
         thanks.focus();
         return;
       }
-      fail(answer.error ?? `The report could not be sent (error ${res.status}). Please try again later.`);
+      // The API's own error messages are in English.
+      fail(answer.error ?? t("failStatus", { status: res.status }));
     } catch {
-      fail("The report could not be sent. Check your connection and try again.");
+      fail(t("failNetwork"));
     } finally {
       send.disabled = false;
       resetHuman();

@@ -3,86 +3,77 @@ import { localePaths } from "../../../i18n/locales";
 import Base from "../../../layouts/Base.astro";
 import { localLink } from "../../../lib/paths";
 import { SITE } from "../../../lib/site";
+import { translator } from "../../../i18n/t";
+import { TOOLS_UI } from "../../../i18n/strings/tools";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(TOOLS_UI, Astro.currentLocale);
 
 export const getStaticPaths = localePaths;
 ---
 
 <Base
-  title="ESP32 backtrace decoder: crash addresses to file and line"
+  title={t("btTitle")}
   current="tools"
   image="/og/tools/backtrace.png"
-  description="Decode an ESP32 Guru Meditation backtrace in your browser. Drop in the firmware .elf, paste the crash, and get function names and source lines for ESP32, S3, C3 and C6. Nothing is uploaded."
+  description={t("btDescription")}
 >
   <section class="view">
-    <a class="back" href={link("/tools/")}>← All tools</a>
+    <a class="back" href={link("/tools/")}>{t("allTools")}</a>
     <div class="stack tight">
-      <h1 class="h2">Backtrace decoder</h1>
-      <p class="lede">
-        Turns the addresses in an ESP32 crash into function names and source lines, like the exception decoder in the
-        old Arduino IDE or <code>addr2line</code>, without installing anything. Works with Xtensa chips (ESP32, S2, S3)
-        and RISC-V chips (C3, C6, H2). Your files stay in this browser.
-      </p>
+      <h1 class="h2">{t("btH1")}</h1>
+      <p class="lede" set:html={t("btLede")} />
     </div>
 
     <div class="cols even">
       <div class="stack tight">
-        <h2 class="h3">1. The firmware's .elf file</h2>
+        <h2 class="h3">{t("btStep1")}</h2>
         <label class="drop" id="bt-drop">
           <input type="file" id="bt-elf" accept=".elf,application/x-elf,application/octet-stream" />
-          <span class="dropmain">Choose or drop the .elf file</span>
-          <span class="dropsub" id="bt-elf-status">It must be from the exact build that crashed.</span>
+          <span class="dropmain">{t("btDrop")}</span>
+          <span class="dropsub" id="bt-elf-status">{t("btDropSub")}</span>
         </label>
         <details class="where">
-          <summary>Where is the .elf file?</summary>
+          <summary>{t("btWhere")}</summary>
           <ul>
-            <li><strong>Arduino IDE 2:</strong> Sketch, Export Compiled Binary. The <code>build</code> folder next to your sketch then holds <code>yoursketch.ino.elf</code>.</li>
-            <li><strong>PlatformIO:</strong> <code>.pio/build/&lt;env&gt;/firmware.elf</code> in the project.</li>
-            <li><strong>ESP-IDF:</strong> <code>build/&lt;project&gt;.elf</code>.</li>
+            <li set:html={t("btWhereArduino")} />
+            <li set:html={t("btWherePio")} />
+            <li set:html={t("btWhereIdf")} />
           </ul>
         </details>
       </div>
       <div class="stack tight">
-        <h2 class="h3">2. The crash output</h2>
-        <textarea id="bt-log" data-fw={SITE.fwBase} rows="8" spellcheck="false" placeholder="Paste from Guru Meditation Error down to the Backtrace line, or the RISC-V register dump with MEPC, RA and Stack memory."></textarea>
+        <h2 class="h3">{t("btStep2")}</h2>
+        <textarea id="bt-log" data-fw={SITE.fwBase} rows="8" spellcheck="false" placeholder={t("btPlaceholder")}></textarea>
         <div class="row">
-          <button class="btn go" type="button" id="bt-go">Decode</button>
-          <button class="btn" type="button" id="bt-clear">Clear</button>
+          <button class="btn go" type="button" id="bt-go">{t("btDecode")}</button>
+          <button class="btn" type="button" id="bt-clear">{t("btClear")}</button>
           <span class="cap left" id="bt-status" role="status"></span>
         </div>
       </div>
     </div>
 
     <div class="stack tight" id="bt-result" hidden>
-      <h2 class="h3">Decoded frames</h2>
+      <h2 class="h3">{t("btFrames")}</h2>
       <ul class="notes" id="bt-hints"></ul>
       <div class="tablebox">
         <table class="bt">
           <thead>
             <tr>
               <th>#</th>
-              <th>From</th>
-              <th>Address</th>
-              <th>Function</th>
-              <th>Source</th>
+              <th>{t("btThFrom")}</th>
+              <th>{t("btThAddress")}</th>
+              <th>{t("btThFunction")}</th>
+              <th>{t("btThSource")}</th>
             </tr>
           </thead>
           <tbody id="bt-rows"></tbody>
         </table>
       </div>
-      <p class="cap left">
-        <span class="tag sk">Your sketch</span> rows are code you wrote; start reading there.
-        <span class="tag">Library</span> and <span class="tag">Core</span> rows are code it called. The first row is
-        where the chip was when it crashed. Stack rows on RISC-V are values on the stack that point into code: likely
-        return addresses, but not guaranteed.
-      </p>
+      <p class="cap left" set:html={t("btLegend")} />
     </div>
 
-    <p class="cap left">
-      Need the meaning of the crash rather than the line? See the <a href={link("/errors/")}>error reference</a>. For a
-      live board, the <a href={link("/bench/")}>bench</a> explains crashes as they print.
-    </p>
+    <p class="cap left" set:html={t("btFoot", { errors: link("/errors/"), bench: link("/bench/") })} />
   </section>
 </Base>
 
@@ -103,8 +94,8 @@ export const getStaticPaths = localePaths;
   table.bt td.src { font-family: var(--mono); font-size: 0.8rem; overflow-wrap: anywhere; }
   table.bt .dim { color: var(--muted); }
   table.bt tr.sketch td { background: var(--pad-soft); }
-  .tag.sk { border-color: var(--pad); color: var(--pad); background: var(--pad-soft); }
-  .lede a, .cap a { color: var(--accent); }
+  .tag.sk, .cap :global(.tag.sk) { border-color: var(--pad); color: var(--pad); background: var(--pad-soft); }
+  .lede :global(a), .cap :global(a) { color: var(--accent); }
 </style>
 
 <script>

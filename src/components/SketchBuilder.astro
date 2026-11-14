@@ -6,8 +6,11 @@
 import { SITE } from "../lib/site";
 import { localLink } from "../lib/paths";
 import COMPILE from "../data/compile-libs.json";
+import { FIRMWARE } from "../i18n/strings/firmware";
+import { translator } from "../i18n/t";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(FIRMWARE, Astro.currentLocale);
 
 interface Props {
   mode: "project" | "tool";
@@ -43,8 +46,10 @@ const tool = mode === "tool";
   {
     !tool && (
       <div class="row">
-        <button class="btn sm" type="button" data-sb-open aria-expanded="false">Edit and build</button>
-        <span class="cap left sb-hint">Change the sketch here, compile it online and flash it, no Arduino IDE needed.</span>
+        <button class="btn sm" type="button" data-sb-open aria-expanded="false" data-label-open={t("editBuild")} data-label-close={t("showOriginal")}>
+          {t("editBuild")}
+        </button>
+        <span class="cap left sb-hint">{t("sbHint")}</span>
       </div>
     )
   }
@@ -53,7 +58,7 @@ const tool = mode === "tool";
       tool && (
         <div class="sb-choices">
           <label>
-            Board
+            {t("board")}
             <select data-sb-board>
               {boards.map((b) => (
                 <option value={b.id}>{b.name}</option>
@@ -61,18 +66,18 @@ const tool = mode === "tool";
             </select>
           </label>
           <fieldset class="sb-libs">
-            <legend>Libraries</legend>
+            <legend>{t("libraries")}</legend>
             {libNames.map((name) => (
               <label class="sb-lib">
                 <input type="checkbox" value={name} data-sb-lib />
                 {name}
               </label>
             ))}
-            <p class="cap left">Libraries built into the ESP32 core (WiFi, Wire, Preferences, BLE, WebServer and the rest) are always there.</p>
+            <p class="cap left">{t("builtinLibs")}</p>
           </fieldset>
           <label class="sb-check">
             <input type="checkbox" data-sb-huge />
-            Big app partition (huge_app): for sketches that use Bluetooth and Wi-Fi together
+            {t("hugeApp")}
           </label>
           <textarea data-sb-starter hidden>{starter}</textarea>
         </div>
@@ -80,16 +85,13 @@ const tool = mode === "tool";
     }
     <div class="sb-editor" data-sb-editor></div>
     <div class="row sb-tools">
-      <button class="btn go" type="button" data-sb-build>Build</button>
-      <button class="btn sm" type="button" data-sb-reset disabled>Reset to the original</button>
-      <span class="sb-edited cap" data-sb-edited hidden>Edited, saved in this browser</span>
+      <button class="btn go" type="button" data-sb-build>{t("build")}</button>
+      <button class="btn sm" type="button" data-sb-reset disabled>{t("resetOriginal")}</button>
+      <span class="sb-edited cap" data-sb-edited hidden>{t("edited")}</span>
       <span class="sb-status" data-sb-status role="status" aria-live="polite"></span>
     </div>
     <div class="sb-result stack tight" data-sb-result hidden></div>
-    <p class="cap left">
-      Building sends the sketch to the ESP32 Bench compile service, which compiles it with the Arduino-ESP32 core and
-      sends the firmware back. Your code is not stored. Up to 4 builds a minute and 40 a day per visitor.
-    </p>
+    <p class="cap left">{t("compileNote")}</p>
   </div>
 </div>
 
@@ -142,7 +144,7 @@ const tool = mode === "tool";
       work.hidden = !opening;
       if (original) original.hidden = opening;
       btn.setAttribute("aria-expanded", String(opening));
-      btn.textContent = opening ? "Show the original sketch" : "Edit and build";
+      btn.textContent = (opening ? btn.dataset.labelClose : btn.dataset.labelOpen) ?? "";
       if (opening) {
         btn.disabled = true;
         try {

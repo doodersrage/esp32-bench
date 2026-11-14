@@ -3,12 +3,16 @@
 // best score kept (in this browser, as the board keeps it in flash).
 import { SIMON_TONES, SimonGame, simonSpeed } from "../../lib/preview/logic";
 import { el, sleep, store, stored, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
+
+const t = translator(PREVIEWS, pageLocale());
 
 const COLORS = [
-  { name: "green", on: "#3ddc6e", off: "#14532a" },
-  { name: "red", on: "#ff5a4a", off: "#5c1a14" },
-  { name: "yellow", on: "#ffd84a", off: "#5c4a12" },
-  { name: "blue", on: "#4aa8ff", off: "#123a5c" },
+  { name: t("simonGreen"), on: "#3ddc6e", off: "#14532a" },
+  { name: t("simonRed"), on: "#ff5a4a", off: "#5c1a14" },
+  { name: t("simonYellow"), on: "#ffd84a", off: "#5c4a12" },
+  { name: t("simonBlue"), on: "#4aa8ff", off: "#123a5c" },
 ];
 
 export const mount: Mount = ({ host, say, sound }) => {
@@ -17,7 +21,7 @@ export const mount: Mount = ({ host, say, sound }) => {
   let timer = 0;
 
   const pads = COLORS.map((c, i) => {
-    const b = el("button", { type: "button", class: "simonpad", "aria-label": `${c.name} (key ${i + 1})` });
+    const b = el("button", { type: "button", class: "simonpad", "aria-label": t("simonPadAria", { colour: c.name, n: i + 1 }) });
     b.style.background = c.off;
     b.addEventListener("pointerdown", (e) => {
       e.preventDefault();
@@ -31,8 +35,8 @@ export const mount: Mount = ({ host, say, sound }) => {
     });
     return b;
   });
-  const board = el("div", { class: "simonboard", role: "group", "aria-label": "Simon buttons" }, ...pads);
-  const scoreText = el("span", { class: "readout", text: `Best: ${game.best}` });
+  const board = el("div", { class: "simonboard", role: "group", "aria-label": t("simonGroup") }, ...pads);
+  const scoreText = el("span", { class: "readout", text: t("simonBest", { best: game.best }) });
 
   const light = async (i: number, ms: number) => {
     pads[i].style.background = COLORS[i].on;
@@ -56,27 +60,27 @@ export const mount: Mount = ({ host, say, sound }) => {
     }
     const score = game.end();
     store("simonBest", game.best);
-    scoreText.textContent = `Score: ${score}. Best: ${game.best}`;
-    say(`${why} Game over: score ${score}, best ${game.best}. Press any button to start again.`);
+    scoreText.textContent = t("simonScore", { score, best: game.best });
+    say(t("simonOver", { why, score, best: game.best }));
     state = "idle";
   };
 
   const armTimeout = () => {
     window.clearTimeout(timer);
-    timer = window.setTimeout(() => void gameOver("Too slow!"), 4000);
+    timer = window.setTimeout(() => void gameOver(t("simonTooSlow")), 4000);
   };
 
   const round = async () => {
     state = "showing";
     const seq = game.nextRound();
-    say(`Round ${seq.length}. Watch.`);
+    say(t("simonWatch", { n: seq.length }));
     const speed = simonSpeed(seq.length);
     for (const step of seq) {
       await light(step, speed);
       await sleep(speed / 2);
     }
     state = "input";
-    say(`Round ${seq.length}. Your turn.`);
+    say(t("simonYourTurn", { n: seq.length }));
     armTimeout();
   };
 
@@ -91,10 +95,10 @@ export const mount: Mount = ({ host, say, sound }) => {
     window.clearTimeout(timer);
     const result = game.press(i);
     void light(i, 180);
-    if (result === "wrong") return gameOver("Wrong button!");
+    if (result === "wrong") return gameOver(t("simonWrong"));
     if (result === "round") {
       state = "showing";
-      scoreText.textContent = `Score: ${game.sequence.length}. Best: ${game.best}`;
+      scoreText.textContent = t("simonScore", { score: game.sequence.length, best: game.best });
       await sleep(700);
       return round();
     }
@@ -109,6 +113,6 @@ export const mount: Mount = ({ host, say, sound }) => {
     }
   });
   host.append(board, el("div", { class: "tryrow" }, scoreText));
-  say("Press any coloured button to start.");
+  say(t("simonStart"));
   return () => window.clearTimeout(timer);
 };

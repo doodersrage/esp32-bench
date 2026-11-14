@@ -8,6 +8,10 @@ import { cpp } from "@codemirror/lang-cpp";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { tags as t } from "@lezer/highlight";
 import { errorRange, type CompileError } from "../../lib/compile-client";
+import { FIRMWARE } from "../../i18n/strings/firmware";
+import { pageLocale, translator } from "../../i18n/t";
+
+const tr = translator(FIRMWARE, pageLocale());
 
 export interface SketchEditor {
   getCode(): string;
@@ -89,7 +93,7 @@ export function mountEditor(parent: HTMLElement, code: string, onChange: (code: 
       const text = view.state.doc.toString();
       const diagnostics: Diagnostic[] = errors.map((e) => {
         const r = errorRange(text, e.line, e.col);
-        return { from: r.from, to: r.to, severity: "error", message: e.message, source: `line ${e.line}` };
+        return { from: r.from, to: r.to, severity: "error", message: e.message, source: tr("cmLine", { line: e.line }) };
       });
       view.dispatch(setDiagnostics(view.state, diagnostics));
     },

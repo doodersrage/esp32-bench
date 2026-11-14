@@ -4,9 +4,13 @@
 // little noise. Drag the obstacles (or use the arrow keys) to change the scene.
 import { IR } from "../../lib/preview/logic";
 import { createLoop, el, playPause, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
 
 const W = 420, H = 240, OX = W / 2, OY = H - 18, PX = (H - 36) / IR.MAX_CM; // px per cm
 const STEP_MS = 76;
+
+const t = translator(PREVIEWS, pageLocale());
 
 interface Obstacle {
   x: number; // cm, right of the sensor
@@ -22,14 +26,14 @@ function cast(deg: number, obstacles: Obstacle[]): number {
     const along = o.x * dx + o.y * dy;
     const off2 = o.x * o.x + o.y * o.y - along * along;
     if (along <= 0 || off2 > o.r * o.r) continue;
-    const t = along - Math.sqrt(o.r * o.r - off2);
-    if (t > 0 && t < best) best = t;
+    const hit = along - Math.sqrt(o.r * o.r - off2);
+    if (hit > 0 && hit < best) best = hit;
   }
   return best;
 }
 
 export const mount: Mount = ({ host, say, reduced }) => {
-  const canvas = el("canvas", { class: "stage", tabindex: "0", role: "img", "aria-label": "Top-down map of the IR sweep" });
+  const canvas = el("canvas", { class: "stage", tabindex: "0", role: "img", "aria-label": t("irAria") });
   canvas.width = W;
   canvas.height = H;
   const g = canvas.getContext("2d")!;
@@ -99,7 +103,7 @@ export const mount: Mount = ({ host, say, reduced }) => {
     if ((forward && angle === 180) || (!forward && angle === 0)) {
       let nearest = Infinity, at = -1;
       for (const [deg, d] of seen) if (d < nearest) [nearest, at] = [d, deg];
-      if (nearest <= IR.MAX_CM) say(`Sweep done: nearest ${nearest.toFixed(1)} cm at ${at} degrees.`);
+      if (nearest <= IR.MAX_CM) say(t("irDone", { cm: nearest.toFixed(1), deg: at }));
       forward = !forward;
     } else {
       angle += forward ? IR.STEP_DEG : -IR.STEP_DEG;
@@ -151,19 +155,19 @@ export const mount: Mount = ({ host, say, reduced }) => {
     draw();
   });
 
-  const toggle = playPause(loop);
+  const toggle = playPause(loop, [t("play"), t("pause")]);
   host.append(
     canvas,
     el("div", { class: "tryrow" }, toggle, readout),
-    el("p", { class: "readout", text: "Keys: arrows move an obstacle, N picks the next one." }),
+    el("p", { class: "readout", text: t("irKeys") }),
   );
   draw();
   if (!reduced) {
     loop.start();
-    toggle.textContent = "Pause";
+    toggle.textContent = t("pause");
     toggle.setAttribute("aria-pressed", "true");
   } else {
-    say("Animation paused because your system asks for reduced motion. Press Play to run it.");
+    say(t("reducedMotion"));
   }
   return () => loop.dispose();
 };

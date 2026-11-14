@@ -6,7 +6,7 @@ import {
   SUBTYPES,
   autoOffsets,
   check,
-  humanSize,
+  humanSize as englishSize,
   maxApp,
   parseCsv,
   parseSize,
@@ -15,6 +15,17 @@ import {
   type Partition,
   type PartType,
 } from "../lib/partitions";
+import { pageLocale, translator } from "../i18n/t";
+import { HTML_LANG } from "../i18n/locales";
+import { PARTITION_PATTERNS, TOOLS_UI, byPattern } from "../i18n/strings/tools";
+
+const locale = pageLocale();
+const t = translator(TOOLS_UI, locale);
+/** humanSize with "bytes" in the page's language (KB and MB stay as they are). */
+const humanSize = (n: number) => englishSize(n).replace(/^(\d+) bytes$/, (_, b: string) => t("bytes", { n: b }));
+/** A problem from check() or parseCsv(), in the page's language. */
+const problemText = (text: string) =>
+  byPattern(text, PARTITION_PATTERNS, t).replace(/^Row (\d+)/, (_, n: string) => t("ptRow", { n }));
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 const presetSel = $<HTMLSelectElement>("#pt-preset");
@@ -45,13 +56,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEl
 function rowEditor(r: Partition, i: number, bad: boolean): HTMLTableRowElement {
   const tr = el("tr");
   if (bad) tr.className = "bad";
-  const name = el("input", { value: r.name, maxLength: 16, ariaLabel: `Name of partition ${i + 1}` });
+  const name = el("input", { value: r.name, maxLength: 16, ariaLabel: t("ptNameOf", { n: i + 1 }) });
   name.addEventListener("change", () => {
     rows[i].name = name.value.trim();
     render();
   });
 
-  const type = el("select", { ariaLabel: `Type of ${r.name}` });
+  const type = el("select", { ariaLabel: t("ptTypeOf", { name: r.name }) });
   for (const t of ["app", "data"] as PartType[]) type.append(el("option", { value: t, textContent: t, selected: t === r.type }));
   type.addEventListener("change", () => {
     rows[i].type = type.value as PartType;
@@ -59,7 +70,7 @@ function rowEditor(r: Partition, i: number, bad: boolean): HTMLTableRowElement {
     render();
   });
 
-  const sub = el("select", { ariaLabel: `Subtype of ${r.name}` });
+  const sub = el("select", { ariaLabel: t("ptSubtypeOf", { name: r.name }) });
   const options = SUBTYPES[r.type].includes(r.subtype) ? SUBTYPES[r.type] : [r.subtype, ...SUBTYPES[r.type]];
   for (const s of options) sub.append(el("option", { value: s, textContent: s, selected: s === r.subtype }));
   sub.addEventListener("change", () => {
@@ -70,7 +81,7 @@ function rowEditor(r: Partition, i: number, bad: boolean): HTMLTableRowElement {
   const offset = el("input", {
     value: Number.isFinite(r.offset) ? toHex(r.offset) : "",
     disabled: autoBox.checked,
-    ariaLabel: `Offset of ${r.name}`,
+    ariaLabel: t("ptOffsetOf", { name: r.name }),
     inputMode: "text",
   });
   offset.addEventListener("change", () => {
@@ -78,7 +89,7 @@ function rowEditor(r: Partition, i: number, bad: boolean): HTMLTableRowElement {
     render();
   });
 
-  const size = el("input", { value: Number.isFinite(r.size) ? toHex(r.size) : "", ariaLabel: `Size of ${r.name}`, title: Number.isFinite(r.size) ? humanSize(r.size) : "" });
+  const size = el("input", { value: Number.isFinite(r.size) ? toHex(r.size) : "", ariaLabel: t("ptSizeOf", { name: r.name }), title: Number.isFinite(r.size) ? humanSize(r.size) : "" });
   size.addEventListener("change", () => {
     rows[i].size = parseSize(size.value);
     render();
@@ -90,9 +101,9 @@ function rowEditor(r: Partition, i: number, bad: boolean): HTMLTableRowElement {
     b.addEventListener("click", fn);
     acts.append(b, " ");
   };
-  btn("↑", `Move ${r.name} up`, () => swap(i, i - 1), i === 0);
-  btn("↓", `Move ${r.name} down`, () => swap(i, i + 1), i === rows.length - 1);
-  btn("✕", `Remove ${r.name}`, () => {
+  btn("↑", t("ptMoveUp", { name: r.name }), () => swap(i, i - 1), i === 0);
+  btn("↓", t("ptMoveDown", { name: r.name }), () => swap(i, i + 1), i === rows.length - 1);
+  btn("✕", t("remove", { name: r.name }), () => {
     rows.splice(i, 1);
     render();
   });
@@ -116,7 +127,7 @@ function drawBar(problemRows: Set<number>) {
   bar.replaceChildren();
   const total = flashBytes();
   const segs: { from: number; to: number; cls: string; label: string; title: string }[] = [
-    { from: 0, to: FIRST_OFFSET, cls: "boot", label: "boot", title: "Bootloader and partition table, 0x0 to 0x9000" },
+    { from: 0, to: FIRST_OFFSET, cls: "boot", label: "boot", title: t("ptBootTitle") },
   ];
   const sorted = rows
     .map((r, i) => ({ ...r, i }))
@@ -124,17 +135,17 @@ function drawBar(problemRows: Set<number>) {
     .sort((a, b) => a.offset - b.offset);
   let at = FIRST_OFFSET;
   for (const r of sorted) {
-    if (r.offset > at) segs.push({ from: at, to: r.offset, cls: "free", label: "", title: `Free: ${humanSize(r.offset - at)}` });
+    if (r.offset > at) segs.push({ from: at, to: r.offset, cls: "free", label: "", title: t("ptFreeTitle", { size: humanSize(r.offset - at) }) });
     segs.push({
       from: r.offset,
       to: Math.min(r.offset + r.size, total),
       cls: `${r.type}${problemRows.has(r.i) ? " bad" : ""}`,
       label: r.name,
-      title: `${r.name}: ${r.type}/${r.subtype}, ${humanSize(r.size)} at ${toHex(r.offset)}`,
+      title: t("ptSegTitle", { name: r.name, type: r.type, subtype: r.subtype, size: humanSize(r.size), offset: toHex(r.offset) }),
     });
     at = Math.max(at, r.offset + r.size);
   }
-  if (at < total) segs.push({ from: at, to: total, cls: "free", label: "free", title: `Free: ${humanSize(total - at)}` });
+  if (at < total) segs.push({ from: at, to: total, cls: "free", label: t("ptFreeLabel"), title: t("ptFreeTitle", { size: humanSize(total - at) }) });
   for (const s of segs) {
     if (s.to <= s.from) continue;
     const d = el("div", { className: `seg ${s.cls}`, title: s.title, textContent: (s.to - s.from) / total > 0.06 ? s.label : "" });
@@ -154,17 +165,20 @@ function render() {
   const used = rows.reduce((end, r) => (Number.isFinite(r.offset + r.size) ? Math.max(end, r.offset + r.size) : end), FIRST_OFFSET);
   const free = flashBytes() - used;
   const app = maxApp(rows);
-  summary.textContent = `Largest firmware that fits: ${humanSize(app)} (${app.toLocaleString("en")} bytes). ` + (free >= 0 ? `Unused flash at the end: ${humanSize(free)}.` : `Over the flash size by ${humanSize(-free)}.`);
+  summary.textContent =
+    t("ptFits", { size: humanSize(app), bytes: app.toLocaleString(HTML_LANG[locale]) }) +
+    " " +
+    (free >= 0 ? t("ptUnused", { size: humanSize(free) }) : t("ptOver", { size: humanSize(-free) }));
 
   problemsList.replaceChildren();
   if (problems.length === 0) {
     const li = el("li", { className: "finding" });
-    li.append(el("span", { className: "tag ok", textContent: "OK" }), el("span", { textContent: "No problems found. The table is valid for the chosen flash size." }));
+    li.append(el("span", { className: "tag ok", textContent: t("tagOk") }), el("span", { textContent: t("ptNoProblems") }));
     problemsList.append(li);
   }
   for (const p of problems) {
     const li = el("li", { className: "finding" });
-    li.append(el("span", { className: p.level === "error" ? "tag bad" : "tag warnt", textContent: p.level === "error" ? "Error" : "Check" }), el("span", { textContent: p.text }));
+    li.append(el("span", { className: p.level === "error" ? "tag bad" : "tag warnt", textContent: p.level === "error" ? t("tagError") : t("tagCheck") }), el("span", { textContent: problemText(p.text) }));
     problemsList.append(li);
   }
   csvOut.textContent = toCsv(rows);
@@ -195,11 +209,11 @@ $<HTMLButtonElement>("#pt-copy").addEventListener("click", async (e) => {
   const b = e.currentTarget as HTMLButtonElement;
   try {
     await navigator.clipboard.writeText(csvOut.textContent ?? "");
-    b.textContent = "Copied";
+    b.textContent = t("copied");
   } catch {
-    b.textContent = "Select and copy";
+    b.textContent = t("selectCopy");
   }
-  setTimeout(() => (b.textContent = "Copy"), 1500);
+  setTimeout(() => (b.textContent = t("copy")), 1500);
 });
 
 $<HTMLButtonElement>("#pt-download").addEventListener("click", () => {
@@ -215,16 +229,16 @@ $<HTMLButtonElement>("#pt-import-go").addEventListener("click", () => {
   const status = $<HTMLSpanElement>("#pt-import-status");
   try {
     const parsed = parseCsv($<HTMLTextAreaElement>("#pt-import").value);
-    if (parsed.rows.length === 0) throw new Error("No partitions found in that text.");
+    if (parsed.rows.length === 0) throw new Error(t("ptNoneFound"));
     rows = parsed.rows;
     autoBox.checked = parsed.blankOffsets;
     const end = rows.reduce((m, r) => Math.max(m, (r.offset || 0) + (r.size || 0)), 0);
     const fit = [2, 4, 8, 16, 32].find((n) => n * MB >= end) ?? 32;
     flashSel.value = String(fit);
-    status.textContent = `Loaded ${rows.length} partitions.`;
+    status.textContent = rows.length === 1 ? t("ptLoadedOne") : t("ptLoadedMany", { n: rows.length });
     render();
   } catch (err) {
-    status.textContent = (err as Error).message;
+    status.textContent = problemText((err as Error).message);
   }
 });
 

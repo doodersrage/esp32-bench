@@ -1,5 +1,7 @@
 ---
 import type { Board } from "../data/boards";
+import { translator } from "../i18n/t";
+import { PROJECT } from "../i18n/strings/project";
 
 interface Props {
   board: Board;
@@ -9,6 +11,9 @@ interface Props {
 }
 
 const { board, pins = [], caption } = Astro.props;
+const t = translator(PROJECT, Astro.currentLocale);
+const noHeaderKey = `noHeader.${board.id}` as "noHeader.esp32-cam";
+const noHeader = noHeaderKey in PROJECT.en ? t(noHeaderKey) : (board.noHeader ?? t("noHeaderDefault"));
 const used = new Set(pins);
 
 // Boards repeat power and ground pads. Light up only the first of each label
@@ -32,16 +37,14 @@ const rows = board.left.map((left, i) => ({
 const silk = (label: string) => board.silk?.[label];
 // Short boards such as the XIAO get a smaller shield so the figure stays in proportion.
 const compact = rows.length < 12;
-const label = pins.length
-  ? `${board.name} pinout with pins used by this project highlighted: ${pins.join(", ")}`
-  : `${board.name} pinout`;
+const label = pins.length ? t("pinoutUsed", { board: board.name, pins: pins.join(", ") }) : t("pinout", { board: board.name });
 ---
 
 {
   rows.length === 0 ? (
     <figure class="fig nohead">
-      <p class="cap left">{board.noHeader ?? "No header layout on file for this board."}</p>
-      {pins.length > 0 && <p class="cap left">GPIOs this project uses: {pins.filter((p) => /^\d+$/.test(p)).join(", ") || "none"}.</p>}
+      <p class="cap left">{noHeader}</p>
+      {pins.length > 0 && <p class="cap left">{t("gpiosUsed", { pins: pins.filter((p) => /^\d+$/.test(p)).join(", ") || t("gpiosNone") })}</p>}
     </figure>
   ) : (
     <figure class="fig">
@@ -71,8 +74,7 @@ const label = pins.length
         ))}
       </div>
       <figcaption>
-        {caption ??
-          `${board.name}. USB connector at the bottom.${board.silk ? " Small labels are the silkscreen names; the numbers are GPIOs." : ""}`}
+        {caption ?? t(board.silk ? "pinCaptionSilk" : "pinCaptionDefault", { board: board.name })}
       </figcaption>
     </figure>
   )

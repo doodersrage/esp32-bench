@@ -2,24 +2,30 @@
 // Comments through GitHub Discussions (giscus). Loads only when scrolled near,
 // follows the site's theme, and renders nothing until SITE.giscus.enabled is true.
 import { SITE } from "../lib/site";
+import { translator } from "../i18n/t";
+import { localeOf } from "../i18n/locales";
+import { PROJECT } from "../i18n/strings/project";
 
 const g = SITE.giscus;
+const t = translator(PROJECT, Astro.currentLocale);
+// giscus's own language codes
+const GISCUS_LANG = { en: "en", es: "es", de: "de", fr: "fr", "pt-br": "pt" } as const;
+const lang = GISCUS_LANG[localeOf(Astro.currentLocale)];
+const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 ---
 
 {
   g.enabled && g.categoryId && (
     <section class="stack tight band" id="discuss">
-      <h2>Discussion</h2>
-      <p class="lede">
-        Questions, tips and variations. Sign in with GitHub to comment; comments live in the public{" "}
-        <a href={`https://github.com/${g.repo}/discussions`}>{g.repo}</a> discussions.
-      </p>
+      <h2>{t("discussion")}</h2>
+      <p class="lede" set:html={t("discussionLede", { repo: `<a href="https://github.com/${esc(g.repo)}/discussions">${esc(g.repo)}</a>` })} />
       <div
         class="giscus-host"
         data-repo={g.repo}
         data-repo-id={g.repoId}
         data-category={g.category}
         data-category-id={g.categoryId}
+        data-lang={lang}
       >
       </div>
     </section>
@@ -56,7 +62,7 @@ const g = SITE.giscus;
       "data-emit-metadata": "0",
       "data-input-position": "top",
       "data-theme": theme(),
-      "data-lang": "en",
+      "data-lang": el.dataset.lang ?? "en",
       "data-loading": "lazy",
     };
     for (const [k, v] of Object.entries(attrs)) s.setAttribute(k, v);

@@ -31,9 +31,21 @@ const TOOL_LINKS: Record<string, [string, string]> = {
 };
 const tool = TOOL_LINKS[e.slug];
 const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.title : e.match}" means on an ESP32, and how to fix it.`;
+// Questions and answers, the way people ask about an error (and the way
+// answer engines quote a page).
+const subject = e.match.length > 70 ? e.title : e.match;
+const faqLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    [`What does "${subject}" mean on an ESP32?`, e.means],
+    [`What causes "${subject}"?`, e.causes.join(" ")],
+    [`How do I fix "${subject}"?`, e.fixes.join(" ")],
+  ].map(([name, text]) => ({ "@type": "Question", name, acceptedAnswer: { "@type": "Answer", text } })),
+};
 ---
 
-<Base title={e.title} description={description} current="errors" image={`/og/errors/${e.slug}.png`}>
+<Base title={e.title} description={description} current="errors" image={`/og/errors/${e.slug}.png`} jsonLd={faqLd}>
   <section class="view">
     <a class="back" href={link("/errors/")}>← All errors</a>
 

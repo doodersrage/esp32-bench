@@ -3,6 +3,8 @@
 // the whole count one digit at a time with the dot on the last, as the sketch does.
 import { REARM_MS, SEGMENTS } from "../../lib/preview/logic";
 import { button, el, sleep, store, stored, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
 
 const NS = "http://www.w3.org/2000/svg";
 // Segment shapes a..g and the dot, on a 60 x 100 digit.
@@ -15,6 +17,7 @@ const SHAPES = [
   "M10 8 L16 14 L16 42 L10 46 Z", // f
   "M12 50 L18 46 L42 46 L48 50 L42 54 L18 54 Z", // g
 ];
+const t = translator(PREVIEWS, pageLocale());
 const PIR_HIGH_MS = 1200; // how long the simulated PIR output stays high after a wave
 
 export const mount: Mount = ({ host, say, sound }) => {
@@ -43,11 +46,11 @@ export const mount: Mount = ({ host, say, sound }) => {
   };
   const showDigit = (d: number, dot = false) => {
     showSegments(SEGMENTS[d] | (dot ? 0x80 : 0));
-    svg.setAttribute("aria-label", `7-segment digit showing ${d}`);
+    svg.setAttribute("aria-label", t("segAria", { d }));
     svg.dataset.digit = String(d);
   };
 
-  const pir = el("span", { class: "readout", text: "PIR: quiet" });
+  const pir = el("span", { class: "readout", text: t("pirQuiet") });
   const total = el("span", { class: "readout", text: `count = ${count}` });
 
   const spell = async () => {
@@ -68,7 +71,7 @@ export const mount: Mount = ({ host, say, sound }) => {
     const now = performance.now();
     if (high) return; // the PIR output is still high: same visit
     high = true;
-    pir.textContent = "PIR: motion";
+    pir.textContent = t("pirMotion");
     if (now - lastLow >= REARM_MS && !spelling) {
       count++;
       store("visitors", count);
@@ -78,16 +81,16 @@ export const mount: Mount = ({ host, say, sound }) => {
       setTimeout(() => sound.beep(2400, 50), 70);
       void spell();
     } else {
-      say("Ignored: less than 2 seconds since the last visit, so it is the same person.");
+      say(t("visitorIgnored"));
     }
     await sleep(PIR_HIGH_MS);
     high = false;
     lastLow = performance.now();
-    pir.textContent = "PIR: quiet";
+    pir.textContent = t("pirQuiet");
   };
 
-  const waveButton = button("Wave at the sensor", () => void wave(), "btn go");
-  const reset = button("Reset (hold BOOT 3 s)", () => {
+  const waveButton = button(t("visitorWave"), () => void wave(), "btn go");
+  const reset = button(t("visitorReset"), () => {
     count = 0;
     store("visitors", 0);
     total.textContent = "count = 0";
@@ -97,7 +100,7 @@ export const mount: Mount = ({ host, say, sound }) => {
   host.append(
     el("div", { class: "segstage" }, svg),
     el("div", { class: "tryrow" }, waveButton, pir, total, reset),
-    el("p", { class: "readout", text: "The real PIR needs 30 s to warm up after power-on; the simulation skips that." }),
+    el("p", { class: "readout", text: t("visitorWarmup") }),
   );
   showDigit(count % 10);
   return () => {};

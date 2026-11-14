@@ -3,124 +3,67 @@ import { localePaths } from "../../i18n/locales";
 import Base from "../../layouts/Base.astro";
 import { localLink } from "../../lib/paths";
 import { PROBEHARBOR, SITE } from "../../lib/site";
-import { AFFILIATE_DISCLOSURE } from "../../lib/shop";
+import { ABOUT } from "../../i18n/strings/pages";
+import { SHELL } from "../../i18n/strings/shell";
+import { translator } from "../../i18n/t";
 import { PROJECTS } from "../../data/projects";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(ABOUT, Astro.currentLocale);
+const shell = translator(SHELL, Astro.currentLocale);
 
 const tested = PROJECTS.filter((p) => (p.verified ?? []).length > 0).length;
 
 export const getStaticPaths = localePaths;
 ---
 
-<Base
-  title="About"
-  current="about"
-  description="What ESP32 Bench is, how projects are tested, what is stored in your browser, and how buy links work."
->
+<Base title={t("title")} current="about" description={t("description")}>
   <section class="view prose">
-    <h1 class="h2">About ESP32 Bench</h1>
-    <p class="lede">
-      ESP32 Bench is a free workbench for ESP32 boards that runs in your browser. Pick a project, see exactly which pins
-      it uses on your board, copy the sketch or flash prebuilt firmware, then watch the board talk on the serial bench.
-      When something breaks, the crash translator and the error reference explain what the board is saying.
-    </p>
+    <h1 class="h2">{t("h1")}</h1>
+    <p class="lede">{t("lede")}</p>
 
-    <h2>Who's behind it</h2>
-    <p>
-      ESP32 Bench is made by <a href={SITE.author.url} rel="author">{SITE.author.name}</a>, who also makes
-      <a href={PROBEHARBOR.url}>ProbeHarbor</a>. Other projects and contact details are on
-      <a href={SITE.author.url}>robmcd.name</a>.
-    </p>
+    <h2>{t("whoH")}</h2>
+    <p set:html={t("who", { authorUrl: SITE.author.url, author: SITE.author.name, probeUrl: PROBEHARBOR.url })} />
 
-    <h2>How projects are tested</h2>
-    <p>
-      Each project page says how far it has been checked. {tested} of the {PROJECTS.length} projects {tested === 1 ? "has" : "have"} checks
-      done on real hardware, listed with the board and the firmware they were run on. The others say "Not hardware tested":
-      their sketches follow the documented Arduino-ESP32 APIs but nobody has watched them run on a bench yet. If you
-      build one, the serial output it prints is the best test there is.
-    </p>
+    <h2>{t("testedH")}</h2>
+    <p>{t(tested === 1 ? "testedOne" : "testedMany", { tested, total: PROJECTS.length })}</p>
 
-    <h2>What stays in your browser</h2>
-    <p>
-      There are no accounts. Visits are counted with Ahrefs Web Analytics and Cloudflare Web Analytics, which record
-      page views, referrers and rough location without cookies; they never see what you type or anything from your board. Your bench log, badges,
-      saved board passports, theme and serial settings are kept in this browser's local storage. If you make a sync code, your bench log,
-      shopping list, parts drawer and chosen board are also stored on our server under that code, so your other browsers can share them; the code itself is
-      stored only as a hash, nothing ties it to you, and Delete the cloud copy on the home page removes it. Serial data goes from the board to this page and
-      nowhere else. Wi-Fi details you type into a probe's settings form are sent to the
-      board over USB only.
-    </p>
+    <h2>{t("storedH")}</h2>
+    <p>{t("stored")}</p>
 
-    <h2 id="affiliate">Buy links</h2>
-    <p>{AFFILIATE_DISCLOSURE} Prices and stock are whatever the shop says on the day; the parts lists name the part, so any equivalent will do.</p>
+    <h2 id="affiliate">{t("buyH")}</h2>
+    <p>{t("disclosure")} {t("buy")}</p>
 
-    <h2>Browsers</h2>
-    <p>
-      Reading projects works everywhere. Connecting to a board, flashing and the detective use Web Serial, which Chrome,
-      Edge and Opera support on desktop computers. Firefox and Safari do not support it. The
-      <a href={link("/start/")}>getting started guide</a> covers drivers and permissions.
-    </p>
+    <h2>{t("browsersH")}</h2>
+    <p set:html={t("browsers", { start: link("/start/") })} />
 
-    <h2>Install it</h2>
-    <p>
-      In Chrome or Edge, use the Install app button in the header, or the install icon in the address bar. The
-      installed app opens in its own window, and pages you have opened work without a connection.
-    </p>
+    <h2>{t("installH")}</h2>
+    <p>{t("install", { install: shell("install") })}</p>
 
-    <h2>ProbeHarbor</h2>
-    <p>
-      The hardware-tested pins, the probe firmware, the ProbeHarbor sketches and several failures in the Hall of
-      Flames come from <a href={PROBEHARBOR.url}>ProbeHarbor</a>, {PROBEHARBOR.blurb}. Its code is on
-      <a href={PROBEHARBOR.repo}>GitHub</a>.
-    </p>
+    <h2>{t("probeH")}</h2>
+    <p set:html={t("probe", { probeUrl: PROBEHARBOR.url, probeRepo: PROBEHARBOR.repo })} />
 
-    <h2>Source and contributing</h2>
-    <p>
-      ESP32 Bench is open source: the site, the sketches, the report API, the uptime monitor and the hardware lab
-      runner are all in the <a href={SITE.repo}>esp32-bench repository</a> on GitHub. Corrections, new projects and
-      build reports are welcome as issues or pull requests; the repository's CONTRIBUTING guide explains how. Comments
-      on the site's pages live separately, in the
-      <a href={`https://github.com/${SITE.giscus.repo}/discussions`}>esp32-bench-community</a> discussions.
-    </p>
+    <h2>{t("sourceH")}</h2>
+    <p set:html={t("source", { repo: SITE.repo, discussions: `https://github.com/${SITE.giscus.repo}/discussions` })} />
 
-    <h2>License</h2>
-    <p>
-      The code, including every sketch on the site, is MIT licensed. The written content and data are licensed
-      <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>: reuse them with a credit and a link to
-      esp32bench.dev.
-    </p>
+    <h2>{t("licenseH")}</h2>
+    <p set:html={t("license")} />
 
-    <h2>Safety</h2>
-    <p>
-      Pin numbers on this site are GPIO numbers, and boards differ. Check your own board's pinout before powering
-      anything, keep mains voltage out of hobby projects unless you know exactly what you are doing, and never feed a
-      5 V signal into an ESP32 pin.
-    </p>
+    <h2>{t("safetyH")}</h2>
+    <p>{t("safety")}</p>
 
-    <h2>Contact and corrections</h2>
-    <p>
-      Found a wrong pin, a broken link or a bug? Every page has a "Report a mistake on this page" link at the bottom.
-      Built a project? Its page has a link to send a build report. Anything else, use the
-      <a href={link("/report/?kind=message")}>contact form</a>. Everything sent through these forms goes by email to
-      the person who runs the site. A build report only appears on its project page, under Community builds, if you
-      tick "Publish it" and the site owner approves it; your email address is never shown. The form uses Cloudflare
-      Turnstile to keep bots out.
-    </p>
+    <h2>{t("contactH")}</h2>
+    <p set:html={t("contact", { mistake: shell("footMistake"), form: link("/report/?kind=message") })} />
 
     {
       SITE.giscus.enabled && SITE.giscus.categoryId && (
         <>
-          <h2>Comments</h2>
-        <p>
-          Project and error pages have a discussion section powered by giscus, which stores comments as GitHub
-          Discussions in a public repository. It loads from giscus.app when you scroll to it, and you sign in with GitHub
-          to comment. Nothing else on the site needs an account.
-        </p>
+          <h2>{t("commentsH")}</h2>
+          <p>{t("comments")}</p>
         </>
       )
     }
 
-    <p class="when">See <a href={link("/changes/")}>what's new</a> for the release history.</p>
+    <p class="when" set:html={t("history", { changes: link("/changes/") })} />
   </section>
 </Base>

@@ -4,7 +4,8 @@ import { decodeItem } from "./decode-link";
 import { explainLine, explainLog } from "../lib/crash";
 import { errorSlugForKey } from "../data/errors";
 import { link, localLink } from "../lib/paths";
-import { pageLocale } from "../i18n/t";
+import { pageLocale, translator } from "../i18n/t";
+import { BENCH, SERIAL, crashHint } from "../i18n/strings/bench";
 import { decodeLog, encodeLog, logCodeFromHash, trimLog } from "../lib/share";
 import { feedPlotter, initPlotter, resetPlotter } from "./plotter";
 import { feedRadar, initRadar, resetRadar } from "./radar";
@@ -39,6 +40,8 @@ const sampleBtn = $<HTMLButtonElement>("sample");
 const samplePick = $<HTMLSelectElement>("samplepick");
 const sound = $<HTMLInputElement>("sound");
 const dot = document.querySelector<HTMLElement>("#status .dot");
+const t = translator(BENCH, pageLocale());
+const ts = translator(SERIAL, pageLocale());
 
 const MAX_LINES = 1500;
 const LINE_ENDINGS: Record<string, string> = { lf: "\n", crlf: "\r\n", cr: "\r", none: "" };
@@ -105,7 +108,7 @@ function addLine(text: string, kind: LineKind = "") {
   const hint = explainLine(text);
   if (hint && !hintsShown.has(hint.key)) {
     hintsShown.add(hint.key);
-    addLine(`Hint: ${hint.text}`, "sys");
+    addLine(t("hint", { text: crashHint(hint, pageLocale()) }), "sys");
   }
 }
 
@@ -143,14 +146,14 @@ function beat() {
 }
 
 function setConnected(on: boolean) {
-  connectBtn.textContent = on ? "Disconnect" : "Connect board";
+  connectBtn.textContent = on ? t("disconnect") : t("connect");
   connectBtn.classList.toggle("go", !on);
   resetBtn.disabled = !on;
   tx.disabled = !on;
   sendBtn.disabled = !on;
   baud.disabled = on;
   $("status").classList.toggle("live", on);
-  $("status-text").textContent = on ? `Connected, ${baud.value} baud` : "No board";
+  $("status-text").textContent = on ? t("connectedBaud", { baud: baud.value }) : t("noBoard");
 }
 
 async function readLoop() {
@@ -186,7 +189,7 @@ async function readLoop() {
         idle = setTimeout(flush, 300);
       }
     } catch (e) {
-      addLine(`Read error: ${message(e)}. Wrong baud rate or a loose cable are the usual causes.`, "sys");
+      addLine(t("readError", { error: message(e) }), "sys");
     } finally {
       try {
         reader.releaseLock();
@@ -212,8 +215,8 @@ async function connect() {
     if (name === "NotFoundError") return; // The picker was closed without a choice.
     addLine(
       name === "SecurityError"
-        ? "This page is not allowed to use serial ports. Open it from https or http://localhost."
-        : `Could not open the port picker: ${message(e)}`,
+        ? ts("notAllowed")
+        : ts("pickerFailed", { error: message(e) }),
       "sys",
     );
     return;
@@ -222,7 +225,7 @@ async function connect() {
   try {
     await picked.open({ baudRate });
   } catch (e) {
-    addLine(`Could not open the port: ${message(e)}. Close any other serial monitor that is using it.`, "sys");
+    addLine(ts("openFailed", { error: message(e) }), "sys");
     return;
   }
   port = picked;
@@ -232,7 +235,7 @@ async function connect() {
   resetPlotter();
   resetRadar();
   setConnected(true);
-  addLine(`Connected at ${baudRate} baud.`, "sys");
+  addLine(t("connectedAt", { baud: baudRate }), "sys");
   loopDone = readLoop().then(() => {
     if (keepReading) void disconnect(true);
   });
@@ -261,7 +264,7 @@ async function disconnect(lost: boolean) {
     // An unplugged board cannot be closed cleanly.
   }
   setConnected(false);
-  addLine(lost ? "Board disconnected." : "Disconnected.", "sys");
+  addLine(lost ? t("boardDisconnected") : t("disconnected"), "sys");
 }
 
 async function resetBoard() {
@@ -271,9 +274,9 @@ async function resetBoard() {
     await port.setSignals({ dataTerminalReady: false, requestToSend: true });
     await new Promise((r) => setTimeout(r, 120));
     await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-    addLine("Reset pulse sent on EN.", "sys");
+    addLine(t("resetSent"), "sys");
   } catch (e) {
-    addLine(`Reset failed: ${message(e)}. Press the EN button on the board instead.`, "sys");
+    addLine(t("resetFailed", { error: message(e) }), "sys");
   }
 }
 
@@ -284,7 +287,7 @@ async function sendLine(text: string) {
     await writer.write(new TextEncoder().encode(text + (LINE_ENDINGS[eol.value] ?? "\n")));
     addLine(`> ${text}`, "tx");
   } catch (e) {
-    addLine(`Send failed: ${message(e)}`, "sys");
+    addLine(t("sendFailed", { error: message(e) }), "sys");
   } finally {
     writer.releaseLock();
   }
@@ -294,7 +297,7 @@ function stopSample() {
   if (sampleTimer) {
     clearInterval(sampleTimer);
     sampleTimer = null;
-    sampleBtn.textContent = "Play sample output";
+    sampleBtn.textContent = t("playSample");
   }
 }
 
@@ -304,7 +307,7 @@ function playSample() {
     return;
   }
   if (port) {
-    addLine("Disconnect the board before playing sample output.", "sys");
+    addLine(t("disconnectFirst"), "sys");
     return;
   }
   const project = PROJECTS.find((p) => p.id === samplePick.value) ?? PROJECTS[0];
@@ -313,12 +316,12 @@ function playSample() {
   hintsShown.clear();
   resetPlotter();
   resetRadar();
-  addLine(`Sample output for ${project.name}. This is recorded text, not a board.`, "sys");
-  sampleBtn.textContent = "Stop sample";
+  addLine(t("sampleFor", { project: samplePick.selectedOptions[0]?.textContent ?? project.name }), "sys");
+  sampleBtn.textContent = t("stopSample");
   sampleTimer = setInterval(() => {
     if (i >= lines.length) {
       stopSample();
-      addLine("End of sample.", "sys");
+      addLine(t("endSample"), "sys");
       return;
     }
     addLine(lines[i++]);
@@ -334,7 +337,7 @@ function terminalText(): string {
 async function shareLog(raw: string, panel: HTMLElement) {
   panel.hidden = false;
   if (!raw.trim()) {
-    panel.textContent = "There is nothing to share yet.";
+    panel.textContent = t("nothingToShare");
     return;
   }
   const { text, trimmed } = trimLog(raw);
@@ -343,7 +346,7 @@ async function shareLog(raw: string, panel: HTMLElement) {
   input.type = "text";
   input.readOnly = true;
   input.value = url;
-  input.setAttribute("aria-label", "Link to this log");
+  input.setAttribute("aria-label", t("linkAria"));
   input.addEventListener("focus", () => input.select());
   let copied = false;
   try {
@@ -354,11 +357,7 @@ async function shareLog(raw: string, panel: HTMLElement) {
   }
   const note = document.createElement("p");
   note.className = "cap left";
-  note.textContent =
-    `${copied ? "Link copied. " : "Copy this link. "}` +
-    `The log travels inside the link itself and is not uploaded anywhere, but anyone with the link can read it. ` +
-    `Check it for Wi-Fi names, addresses or keys before posting it.` +
-    (trimmed ? " Only the last part of a long log fits in a link." : "");
+  note.textContent = (copied ? t("shareCopied") : t("shareCopy")) + (trimmed ? ` ${t("shareTrimmed")}` : "");
   panel.replaceChildren(input, note);
 }
 
@@ -368,10 +367,10 @@ async function openSharedLog() {
   if (!code) return;
   const text = await decodeLog(code);
   if (text === null) {
-    addLine("This shared log link is damaged or incomplete. Ask for the link again.", "sys");
+    addLine(t("sharedDamaged"), "sys");
     return;
   }
-  addLine("Showing a shared log. Nothing here came from a board connected to this computer.", "sys");
+  addLine(t("sharedShowing"), "sys");
   for (const line of text.split("\n")) addLine(line);
   $<HTMLTextAreaElement>("crashlog").value = text;
   ($("translator") as HTMLDetailsElement).open = true;
@@ -412,7 +411,7 @@ function init() {
     resetPlotter();
     const lines = text.split(/\r?\n/).filter((l) => l.trim());
     for (const line of lines) feedPlotter(line);
-    $("plotlog-note").textContent = lines.length ? `${lines.length} lines read.` : "Nothing to plot.";
+    $("plotlog-note").textContent = lines.length === 1 ? t("oneLineRead") : lines.length ? t("linesRead", { n: lines.length }) : t("nothingToPlot");
   };
   $("plotlog-go").addEventListener("click", () => plotLog($<HTMLTextAreaElement>("plotlog-text").value));
   $<HTMLInputElement>("plotlog-file").addEventListener("change", async (e) => {
@@ -427,7 +426,7 @@ function init() {
   $("crashgo").addEventListener("click", () => {
     const found = explainLog($<HTMLTextAreaElement>("crashlog").value);
     const out = $("crashout");
-    const entries = found.length > 0 ? found : [{ key: "", text: "Nothing recognised. Paste the lines around the reset or the Guru Meditation message." }];
+    const entries = found.length > 0 ? found.map((h) => ({ key: h.key, text: crashHint(h, pageLocale()) })) : [{ key: "", text: t("nothingRecognised") }];
     out.replaceChildren(
       ...entries.map(({ key, text }) => {
         const li = document.createElement("li");
@@ -437,7 +436,7 @@ function init() {
         if (slug) {
           const a = document.createElement("a");
           a.href = link(`/errors/${slug}/`);
-          a.textContent = "More about this error";
+          a.textContent = t("moreAboutError");
           li.append(" ", a);
         }
         return li;
@@ -456,9 +455,9 @@ function init() {
     const text = terminalText();
     try {
       await navigator.clipboard.writeText(text);
-      btn.textContent = "Copied";
+      btn.textContent = t("copied");
     } catch {
-      btn.textContent = "Copy blocked";
+      btn.textContent = t("copyBlocked");
     }
     setTimeout(() => {
       btn.textContent = label;
@@ -473,7 +472,7 @@ function init() {
     }
   });
 
-  addLine("Bench ready. Connect a board, or play sample output to see how a project should look.", "sys");
+  addLine(t("ready"), "sys");
 }
 
 init();

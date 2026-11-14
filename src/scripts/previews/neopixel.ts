@@ -2,8 +2,12 @@
 // and blue (60 ms per LED), 5 s of rainbow, then 4 s of orange theater chase.
 import { colorHSV } from "../../lib/preview/logic";
 import { createLoop, el, ledStrip, playPause, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
 
 const COUNT = 8;
+
+const t = translator(PREVIEWS, pageLocale());
 type RGB = [number, number, number];
 const gamma = (v: number) => Math.round(255 * (v / 255) ** 2.6);
 const WIPES: RGB[] = [[255, 0, 0], [0, 255, 0], [0, 0, 255]];
@@ -36,28 +40,28 @@ function at(t: number, held: RGB[]): { colors: RGB[]; effect: string } {
 }
 
 export const mount: Mount = ({ host, say, reduced }) => {
-  const strip = ledStrip(COUNT, "A stick of 8 LEDs");
+  const strip = ledStrip(COUNT, t("neoAria"));
   const held: RGB[] = Array.from({ length: COUNT }, () => [0, 0, 0] as RGB);
-  let t = 0;
+  let elapsed = 0;
   let effect = "";
   const loop = createLoop(host, (dt) => {
-    t += dt;
-    const frame = at(t, held);
+    elapsed += dt;
+    const frame = at(elapsed, held);
     strip.set(frame.colors);
     if (frame.effect !== effect) {
       effect = frame.effect;
       say(`effect: ${effect}`);
     }
   }, 60);
-  const toggle = playPause(loop);
+  const toggle = playPause(loop, [t("play"), t("pause")]);
   host.append(strip.canvas, el("div", { class: "tryrow" }, toggle));
   strip.set(at(WIPE_MS + 1000, held).colors); // a rainbow frame as the still picture
   if (!reduced) {
     loop.start();
-    toggle.textContent = "Pause";
+    toggle.textContent = t("pause");
     toggle.setAttribute("aria-pressed", "true");
   } else {
-    say("Animation paused because your system asks for reduced motion. Press Play to run it.");
+    say(t("reducedMotion"));
   }
   return () => loop.dispose();
 };

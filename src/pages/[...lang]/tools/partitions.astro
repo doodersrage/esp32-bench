@@ -3,41 +3,44 @@ import { localePaths } from "../../../i18n/locales";
 import Base from "../../../layouts/Base.astro";
 import { localLink } from "../../../lib/paths";
 import { PRESETS } from "../../../lib/partitions";
+import { translator } from "../../../i18n/t";
+import { TOOLS_UI } from "../../../i18n/strings/tools";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(TOOLS_UI, Astro.currentLocale);
+const presetLabel = (p: { id: string; label: string }) => {
+  const key = `preset_${p.id}`;
+  return key in TOOLS_UI.en ? t(key as keyof typeof TOOLS_UI.en) : p.label;
+};
 
 export const getStaticPaths = localePaths;
 ---
 
 <Base
-  title="ESP32 partition table builder: make partitions.csv"
+  title={t("ptTitle")}
   current="tools"
   image="/og/tools/partitions.png"
-  description="Build an ESP32 partitions.csv in the browser: start from the Arduino default, Huge APP or Minimal SPIFFS layouts, resize the app, SPIFFS or LittleFS, check alignment and overlaps, then copy or download it."
+  description={t("ptDescription")}
 >
   <section class="view">
-    <a class="back" href={link("/tools/")}>← All tools</a>
+    <a class="back" href={link("/tools/")}>{t("allTools")}</a>
     <div class="stack tight">
-      <h1 class="h2">Partition table builder</h1>
-      <p class="lede">
-        A partition table splits the flash chip into the app, its settings (nvs), over-the-air update slots and a file
-        system. Start from an Arduino layout, change sizes, and this page keeps every offset aligned and warns about
-        mistakes before the board does.
-      </p>
+      <h1 class="h2">{t("ptH1")}</h1>
+      <p class="lede">{t("ptLede")}</p>
     </div>
 
     <div class="controls">
-      <label>Start from
+      <label>{t("ptStart")}
         <select id="pt-preset">
-          {PRESETS.map((p) => <option value={p.id}>{p.label}</option>)}
+          {PRESETS.map((p) => <option value={p.id}>{presetLabel(p)}</option>)}
         </select>
       </label>
-      <label>Flash
+      <label>{t("ptFlash")}
         <select id="pt-flash">
           {[2, 4, 8, 16, 32].map((n) => <option value={n} selected={n === 4}>{n} MB</option>)}
         </select>
       </label>
-      <label><input type="checkbox" id="pt-auto" checked /> Automatic offsets</label>
+      <label><input type="checkbox" id="pt-auto" checked /> {t("ptAuto")}</label>
     </div>
 
     <div class="ptbar" id="pt-bar" aria-hidden="true"></div>
@@ -47,25 +50,22 @@ export const getStaticPaths = localePaths;
       <table class="pt">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Subtype</th>
-            <th>Offset</th>
-            <th>Size</th>
-            <th><span class="sr">Actions</span></th>
+            <th>{t("ptThName")}</th>
+            <th>{t("ptThType")}</th>
+            <th>{t("ptThSubtype")}</th>
+            <th>{t("thOffset")}</th>
+            <th>{t("thSize")}</th>
+            <th><span class="sr">{t("ptThActions")}</span></th>
           </tr>
         </thead>
         <tbody id="pt-rows"></tbody>
       </table>
     </div>
     <div class="row">
-      <button class="btn" type="button" id="pt-add">Add partition</button>
-      <button class="btn" type="button" id="pt-fill">Grow the last partition to fill the flash</button>
+      <button class="btn" type="button" id="pt-add">{t("ptAdd")}</button>
+      <button class="btn" type="button" id="pt-fill">{t("ptFill")}</button>
     </div>
-    <p class="cap left">
-      Sizes accept hex (0x140000), K or M (1280K, 1.25M) or bytes. App partitions start on 64 KB boundaries and the rest
-      on 4 KB, which automatic offsets handle for you.
-    </p>
+    <p class="cap left">{t("ptSizesCap")}</p>
 
     <ul class="findings" id="pt-problems"></ul>
 
@@ -73,41 +73,31 @@ export const getStaticPaths = localePaths;
       <div class="codehead">
         <h2 class="h3 flat">partitions.csv</h2>
         <div class="row">
-          <button class="btn sm" type="button" id="pt-copy">Copy</button>
-          <button class="btn sm go" type="button" id="pt-download">Download</button>
+          <button class="btn sm" type="button" id="pt-copy">{t("copy")}</button>
+          <button class="btn sm go" type="button" id="pt-download">{t("download")}</button>
         </div>
       </div>
       <pre class="code" id="pt-csv"></pre>
     </div>
 
     <details class="import">
-      <summary>Import an existing partitions.csv</summary>
+      <summary>{t("ptImport")}</summary>
       <textarea id="pt-import" rows="7" spellcheck="false" placeholder="# Name, Type, SubType, Offset, Size, Flags"></textarea>
       <div class="row">
-        <button class="btn sm" type="button" id="pt-import-go">Load it</button>
+        <button class="btn sm" type="button" id="pt-import-go">{t("ptLoad")}</button>
         <span class="cap left" id="pt-import-status" role="status"></span>
       </div>
     </details>
 
     <div class="stack tight band">
-      <h2>Use it</h2>
+      <h2>{t("ptUse")}</h2>
       <ul class="howto">
-        <li>
-          <strong>Arduino IDE:</strong> save the file as <code>partitions.csv</code> in the sketch folder, next to the
-          .ino. Arduino-ESP32 uses it in place of the scheme under Tools, Partition Scheme. The IDE's size check still
-          uses that menu, so if it says the sketch is too big, pick a scheme with at least as much app space.
-        </li>
-        <li><strong>PlatformIO:</strong> put it in the project folder and add <code>board_build.partitions = partitions.csv</code> to <code>platformio.ini</code>.</li>
-        <li><strong>ESP-IDF:</strong> choose Custom partition table CSV in <code>idf.py menuconfig</code>, under Partition Table.</li>
-        <li>
-          LittleFS and SPIFFS in Arduino both look for a data partition named <code>spiffs</code> by default. A
-          different table only takes effect after a full flash, and it erases what the old file system held.
-        </li>
+        <li set:html={t("ptUseArduino")} />
+        <li set:html={t("ptUsePio")} />
+        <li set:html={t("ptUseIdf")} />
+        <li set:html={t("ptUseFs")} />
       </ul>
-      <p class="cap left">
-        Hitting <a href={link("/errors/sketch-too-big/")}>Sketch too big</a>? Try Huge app, or remove the second OTA
-        slot if you never update over Wi-Fi.
-      </p>
+      <p class="cap left" set:html={t("ptTooBig", { href: link("/errors/sketch-too-big/") })} />
     </div>
   </section>
 </Base>
@@ -130,7 +120,7 @@ export const getStaticPaths = localePaths;
   .import summary { cursor: pointer; font-weight: 500; }
   .import textarea { width: 100%; margin: 10px 0 8px; padding: 8px 10px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); font: 400 0.8rem/1.5 var(--mono); }
   ul.howto { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; max-width: 75ch; font-size: 0.92rem; }
-  .cap a { color: var(--accent); }
+  .cap :global(a) { color: var(--accent); }
 </style>
 
 <script>

@@ -2,37 +2,38 @@
 // Sends Wi-Fi and the ProbeHarbor device key to a freshly flashed probe over
 // USB, then watches its status lines until the first reading. The protocol and
 // the wait logic follow ProbeHarbor's own /flash page.
+import { FIRMWARE } from "../i18n/strings/firmware";
+import { translator } from "../i18n/t";
+
+const t = translator(FIRMWARE, Astro.currentLocale);
 ---
 
 <div class="flashbox" data-probe-setup>
-  <p>
-    The probe has no settings after a flash. Fill these in with the board still on USB. They go straight to the board
-    and are not stored by this site.
-  </p>
+  <p>{t("probeIntro")}</p>
   <form class="setupform" data-setup-form>
     <label for="setup-ssid">
-      Wi-Fi network name
+      {t("set_wifi_ssid")}
       <input id="setup-ssid" name="ssid" required autocomplete="off" maxlength="32" />
-      <span class="hint">2.4 GHz only.</span>
+      <span class="hint">{t("hint_wifi_ssid")}</span>
     </label>
     <label for="setup-password">
-      Wi-Fi password
+      {t("set_wifi_pass")}
       <input id="setup-password" name="password" type="password" autocomplete="off" maxlength="64" />
     </label>
     <label for="setup-key" class="wide">
-      ProbeHarbor device key
+      {t("deviceKey")}
       <input id="setup-key" name="key" required autocomplete="off" maxlength="300" />
-      <span class="hint">From Dashboard, Devices at probeharbor.dev.</span>
+      <span class="hint">{t("deviceKeyHint")}</span>
     </label>
     <fieldset class="wide">
-      <legend>Extra inputs to read</legend>
-      <label for="setup-leak"><input id="setup-leak" type="checkbox" name="extras" value="leak" /> Leak contact</label>
-      <label for="setup-door"><input id="setup-door" type="checkbox" name="extras" value="door" /> Door switch</label>
-      <label for="setup-battery"><input id="setup-battery" type="checkbox" name="extras" value="battery" /> Battery</label>
-      <span class="hint">Only tick what is wired. An unwired pin reads as dry or open. Leak and battery are not hardware tested yet.</span>
+      <legend>{t("extrasLegend")}</legend>
+      <label for="setup-leak"><input id="setup-leak" type="checkbox" name="extras" value="leak" /> {t("extraLeak")}</label>
+      <label for="setup-door"><input id="setup-door" type="checkbox" name="extras" value="door" /> {t("extraDoor")}</label>
+      <label for="setup-battery"><input id="setup-battery" type="checkbox" name="extras" value="battery" /> {t("extraBattery")}</label>
+      <span class="hint">{t("extrasHint")}</span>
     </fieldset>
     <div class="wide row">
-      <button class="btn go" type="submit" data-setup-send>Send settings to the probe</button>
+      <button class="btn go" type="submit" data-setup-send>{t("sendProbe")}</button>
       <span class="setupstatus" data-setup-status role="status"></span>
     </div>
   </form>

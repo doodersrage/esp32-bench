@@ -1,8 +1,12 @@
 // SSD1306 status screen: "ESP32" at size 2 and the uptime, redrawn every second.
 import { button, createLoop, el, oledCanvas, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
+
+const t = translator(PREVIEWS, pageLocale());
 
 export const mount: Mount = ({ host, say }) => {
-  const screen = oledCanvas("OLED showing ESP32 and the seconds since start-up");
+  const screen = oledCanvas(t("oledAria"));
   let bootAt = performance.now();
   const { fb } = screen;
 
@@ -16,10 +20,10 @@ export const mount: Mount = ({ host, say }) => {
     screen.draw();
   };
   const loop = createLoop(host, draw, 1);
-  const reset = button("Press EN (restart)", () => {
+  const reset = button(t("oledReset"), () => {
     bootAt = performance.now();
     draw();
-    say("Restarted: the uptime counts from zero again.");
+    say(t("oledRestarted"));
   });
   host.append(screen.canvas, el("div", { class: "tryrow" }, reset));
   draw();

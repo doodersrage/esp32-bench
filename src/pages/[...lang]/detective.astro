@@ -6,75 +6,64 @@ import Flasher from "../../components/Flasher.astro";
 import { HEADER_BOARDS } from "../../data/boards";
 import { CHIPS } from "../../data/chips";
 import { DETECTIVE_CHIPS } from "../../lib/detective";
+import { translator } from "../../i18n/t";
+import { DETECTIVE } from "../../i18n/strings/bench";
+
+const t = translator(DETECTIVE, Astro.currentLocale);
 
 const link = localLink(Astro.currentLocale);
 
 const boards = HEADER_BOARDS.filter((b) => DETECTIVE_CHIPS.includes(b.chip));
 const chipList = DETECTIVE_CHIPS.map((c) => CHIPS[c].name);
-const families = `${chipList.slice(0, -1).join(", ")} and ${chipList.at(-1)}`;
+const families = `${chipList.slice(0, -1).join(", ")}${t("and")}${chipList.at(-1)}`;
 
 export const getStaticPaths = localePaths;
 ---
 
 <Base
-  title="Pin detective: find any ESP32 pad's GPIO number"
+  title={t("title")}
   current="detective"
-  description="Flash a helper firmware from the browser, touch a jumper from GND to any pad and see its GPIO number light up. Also reads the chip, flash size and MAC address."
+  description={t("description")}
 >
   <section class="view">
-    <a class="back" href={link("/tools/")}>← Tools</a>
-    <h1 class="h2">Pin detective</h1>
-    <p class="lede">
-      Find out which pad is which. Flash the helper firmware, then touch a jumper wire from GND to any header pad and
-      watch it light up here. Useful for clone boards with a wrong or missing silkscreen. Works on the {families},
-      including the Seeed XIAO ESP32C3 and ESP32S3.
-    </p>
+    <a class="back" href={link("/tools/")}>{t("back")}</a>
+    <h1 class="h2">{t("heading")}</h1>
+    <p class="lede">{t("lede", { families })}</p>
 
     <div class="stack tight">
-      <h2 class="h3">1. Flash the helper</h2>
+      <h2 class="h3">{t("step1")}</h2>
       <Flasher manifest="/firmware/pin-detective/manifest.json" version="0.1.0" families={families} />
-      <p class="cap left">
-        This replaces whatever firmware is on the board. Flash your own project again when you are done. The ESP32,
-        S3 and C3 images use the same build settings as ProbeHarbor's probe firmware, which has run on all three
-        chips. The S2 and C6 images are new and have not been run on hardware yet. On boards with two USB ports,
-        either port works.
-      </p>
+      <p class="cap left">{t("flashNote")}</p>
     </div>
 
     <div class="stack tight">
-      <h2 class="h3">2. Connect and touch pads</h2>
+      <h2 class="h3">{t("step2")}</h2>
       <div class="row">
-        <button class="btn go" type="button" id="d-connect">Connect board</button>
-        <label class="swlabel" for="d-layout">Pinout</label>
+        <button class="btn go" type="button" id="d-connect">{t("connect")}</button>
+        <label class="swlabel" for="d-layout">{t("pinout")}</label>
         <select id="d-layout">
           {boards.map((b) => <option value={b.id} data-chip={b.chip}>{b.name}</option>)}
         </select>
         <span class="pickresult" id="d-status" role="status"></span>
       </div>
-      <p class="cap left">
-        The firmware reports the chip, not the board. If your board shares a chip with another one here, such as a
-        XIAO ESP32S3 and an ESP32-S3-DevKitC-1, pick its pinout from the list.
-      </p>
+      <p class="cap left">{t("chipNote")}</p>
     </div>
 
     <div class="cols">
       <figure class="fig">
         <div id="d-board"></div>
-        <figcaption>
-          Solid: touched to ground now. Ringed: held low by the board itself. Faded: cannot be read, such as supply,
-          flash, USB and input-only pins.
-        </figcaption>
+        <figcaption>{t("figcaption")}</figcaption>
       </figure>
       <div class="stack">
         <div class="stack tight">
-          <h2 class="h3">Last touch</h2>
-          <p class="readout" id="d-readout" role="status">Nothing touched yet.</p>
+          <h2 class="h3">{t("lastTouch")}</h2>
+          <p class="readout" id="d-readout" role="status">{t("nothingTouched")}</p>
           <ol class="history" id="d-history"></ol>
         </div>
         <div class="stack tight">
-          <h2 class="h3">Silkscreen quiz</h2>
+          <h2 class="h3">{t("quizTitle")}</h2>
           <div class="row">
-            <button class="btn" type="button" id="d-quiz">Quiz me</button>
+            <button class="btn" type="button" id="d-quiz">{t("quizMe")}</button>
           </div>
           <p class="pickresult" id="d-quiztext" role="status"></p>
         </div>
@@ -83,15 +72,15 @@ export const getStaticPaths = localePaths;
 
     <div class="cols even band">
       <div class="stack tight">
-        <h2>Board passport</h2>
+        <h2>{t("passport")}</h2>
         <div class="tablebox" id="d-passport"></div>
         <form class="row" id="d-save" hidden>
-          <input type="text" id="d-name" placeholder="Name this board" aria-label="Name for this board" maxlength="40" />
-          <button class="btn" type="submit">Save to my boards</button>
+          <input type="text" id="d-name" placeholder={t("namePlaceholder")} aria-label={t("nameAria")} maxlength="40" />
+          <button class="btn" type="submit">{t("save")}</button>
         </form>
       </div>
       <div class="stack tight">
-        <h2>My boards</h2>
+        <h2>{t("myBoards")}</h2>
         <div class="stack tight" id="d-collection"></div>
       </div>
     </div>

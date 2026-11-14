@@ -3,6 +3,7 @@
 A project library and a serial workbench for ESP32 boards, built as a static site with [Astro 7](https://astro.build/).
 
 - **Library:** fifty-four projects, each with a highlighted pinout, a wiring table, a parts list with buy links, and either an Arduino sketch to copy or prebuilt firmware to flash from the page.
+- **Search engines and AI assistants:** a sitemap with every language version, breadcrumbs and structured data (question-and-answer data on error pages), and `llms.txt`, a plain map of the site built from the same data.
 - **Boards:** a page per board with its pinout, every pin's functions and a safe-to-use verdict: ESP32-DevKitC V4, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1 (with hardware-tested pins), ESP32-S2-DevKitC-1, ESP32-C6-DevKitC-1, Seeed XIAO ESP32C3 and ESP32S3, the AI-Thinker ESP32-CAM, the ESP32 DevKit V1 (DOIT) 30-pin and the ESP32-C3 SuperMini, plus a chip comparison. The DOIT and SuperMini are variants (`variantOf` in `src/data/boards.ts`): a project for the DevKitC or C3 DevKitM runs on them when every pin it uses is on their header. Chip data is in `src/data/chips.ts`. Projects that support more than one board have a board switch.
 - **Wire:** a wiring pad. Pick a board and parts, tap a part pin and a board pad, and each wire is checked for boot pins, input-only pins, 5 V signals and pads used twice. It can wire everything for you, and remix two projects onto one board.
 - **Detective:** flash a small helper firmware (ESP32, S2, S3, C3 and C6; the S2 and C6 images are not hardware tested yet), touch a jumper from GND to any pad and watch that pad light up, with a silkscreen quiz. XIAO boards show their D0 to D10 labels. It also reads the chip, flash size and MAC address into a board passport you can save. `scripts/build-firmware.mjs` builds the ESP32, S3 and C3 on Arduino core 2.0.17 and the S2 and C6 on core 3.x, in separate PlatformIO homes.
@@ -96,6 +97,15 @@ Add an entry to `PROJECTS` in `src/data/projects.ts`. The `Project` type documen
 - List the parts it needs beyond the board in `needs`, using keys of `DRAWER`.
 - Record real hardware checks in `verified`. A project with none is labelled "Not hardware tested".
 - For prebuilt firmware, put the merged images and an ESP Web Tools `manifest.json` under `public/firmware/<id>/` and set `flash`.
+
+## Languages
+
+English is the original and lives at the site root. The library, project pages, tools, bench, guide, shop and about pages are also machine-translated into Spanish, German, French and Brazilian Portuguese, under `/es/`, `/de/`, `/fr/` and `/pt-br/`; translated pages say so and link to the English original. Board pages, the error guide, the hall of flames and the changelog are English only. Sketch code, pin names and serial output are never translated.
+
+- Routing: the translated pages live in `src/pages/[...lang]/` and build once per language (`src/i18n/locales.ts`, `i18n` in `astro.config.mjs`). Links go through `localLink(Astro.currentLocale)` (`src/lib/paths.ts`), which adds the language prefix only to translated pages.
+- Interface text: one file per area in `src/i18n/strings/`, holding every language; `translator()` in `src/i18n/t.ts`. The types make every language list every key, so `astro check` fails on a missing string.
+- Project text: looked up by its exact English in `src/i18n/content/<locale>.json` (`src/i18n/content.ts`); a missing phrase shows in English. After changing a project, run `DUMP_I18N=1 npx astro build && node scripts/i18n-content.mjs` to list what each language is missing.
+- Search engines get `hreflang` links on every translated page and in `sitemap.xml`. Visitors are never redirected: an English page offers the visitor's browser language once, and the language menu remembers a choice.
 
 ## Buy links
 

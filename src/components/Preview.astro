@@ -3,6 +3,8 @@
 // is imported only after the page has loaded and the section is near the screen,
 // and the section reserves its height so the page does not move.
 import { PREVIEWS } from "../data/previews";
+import { translator } from "../i18n/t";
+import { PROJECT } from "../i18n/strings/project";
 
 interface Props {
   id: string;
@@ -10,31 +12,32 @@ interface Props {
 
 const { id } = Astro.props;
 const info = PREVIEWS[id];
+const t = translator(PROJECT, Astro.currentLocale);
+// Hints are keyed by preview id in the strings file; a new preview without one shows its English hint.
+const hintKey = `hint.${id}` as "hint.oled";
+const hint = hintKey in PROJECT.en ? t(hintKey) : info?.hint;
 ---
 
 {
   info && (
-    <section class="tryit" id="try-it" data-preview={id} aria-labelledby="try-it-title">
+    <section class="tryit" id="try-it" data-preview={id} aria-labelledby="try-it-title" data-load-fail={t("simLoadFail")} data-offline={t("simOffline")}>
       <div class="tryhead">
-        <h2 id="try-it-title" class="h3">Try it in your browser</h2>
-        <span class="tag">Simulation</span>
+        <h2 id="try-it-title" class="h3">{t("tryTitle")}</h2>
+        <span class="tag">{t("simulation")}</span>
         {info.sound && (
           <label class="trysound">
-            <input type="checkbox" data-sound checked /> Sound
+            <input type="checkbox" data-sound checked /> {t("sound")}
           </label>
         )}
       </div>
-      <p class="tryhint">{info.hint}</p>
+      <p class="tryhint">{hint}</p>
       <div class="tryhost" data-host style={`min-height:${info.height}px`}>
         <button class="btn" type="button" data-start>
-          Start the simulation
+          {t("startSim")}
         </button>
       </div>
       <p class="trystatus" data-status aria-live="polite" />
-      <p class="trynote">
-        A simulation running the sketch's logic in this page. Nothing here talks to a board, and real parts behave a
-        little differently.
-      </p>
+      <p class="trynote">{t("tryNote")}</p>
     </section>
   )
 }

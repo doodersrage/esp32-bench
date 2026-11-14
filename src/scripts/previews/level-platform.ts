@@ -3,12 +3,15 @@
 // to 45..135 degrees as in the sketch, so the plate stays level until the base
 // tilts more than 45 degrees. Servos turn at about an SG90's 600 degrees a second.
 import { createLoop, el, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
 
 const W = 420, H = 200, CENTER = 90, TRAVEL = 45, SERVO_DPS = 600, MAX_TILT = 60;
+const t = translator(PREVIEWS, pageLocale());
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 export const mount: Mount = ({ host, say }) => {
-  const canvas = el("canvas", { class: "stage", tabindex: "0", role: "img", "aria-label": "Side views of the platform" });
+  const canvas = el("canvas", { class: "stage", tabindex: "0", role: "img", "aria-label": t("levelAria") });
   canvas.width = W;
   canvas.height = H;
   const g = canvas.getContext("2d")!;
@@ -48,15 +51,15 @@ export const mount: Mount = ({ host, say }) => {
     g.font = "12px monospace";
     g.fillText(title, cx - 80, 22);
     g.fillStyle = muted;
-    g.fillText(`base ${tilt.toFixed(0)}°  servo ${Math.round(servo)}°`, cx - 80, 40);
+    g.fillText(t("levelBase", { tilt: tilt.toFixed(0), servo: Math.round(servo) }), cx - 80, 40);
     g.fillStyle = Math.abs(plate) < 1 ? css("--ok", "#1d7a4c") : css("--accent", "#c0341a");
-    g.fillText(Math.abs(plate) < 1 ? "plate level" : `plate off by ${Math.abs(plate).toFixed(0)}°`, cx - 80, 58);
+    g.fillText(Math.abs(plate) < 1 ? t("levelOk") : t("levelOff", { deg: Math.abs(plate).toFixed(0) }), cx - 80, 58);
   };
 
   const draw = () => {
     g.clearRect(0, 0, W, H);
-    view(105, "Roll (servo X)", roll, sx);
-    view(315, "Pitch (servo Y)", pitch, sy);
+    view(105, t("levelRoll"), roll, sx);
+    view(315, t("levelPitch"), pitch, sy);
   };
 
   const loop = createLoop(host, (dt, now) => {
@@ -95,10 +98,10 @@ export const mount: Mount = ({ host, say }) => {
     else return;
     e.preventDefault();
     const off = Math.max(Math.abs(roll), Math.abs(pitch)) > TRAVEL;
-    say(`Base roll ${roll} degrees, pitch ${pitch} degrees.${off ? " Beyond 45 degrees the servos run out of travel." : " The plate stays level."}`);
+    say(t(off ? "levelSayOff" : "levelSayLevel", { roll, pitch }));
   });
 
-  host.append(canvas, el("div", { class: "tryrow" }, readout), el("p", { class: "readout", text: "Pointer or arrow keys tilt the base; 0 levels it." }));
+  host.append(canvas, el("div", { class: "tryrow" }, readout), el("p", { class: "readout", text: t("levelHelp") }));
   draw();
   loop.start();
   return () => loop.dispose();

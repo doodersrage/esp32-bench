@@ -14,6 +14,18 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-23",
+    date: "2026-11-14",
+    title: "Version 0.23: ESP32 Bench in Spanish, German, French and Portuguese",
+    summary: "The library, every project, the bench, the wiring checker and the tools are now also in Spanish, German, French and Brazilian Portuguese.",
+    items: [
+      "Pick a language from the menu at the top. Translated pages say they were machine-translated and link to the English original.",
+      "Sketch code, pin names and serial output stay exactly as the board prints them.",
+      "Board pages, the error guide and this page stay in English for now.",
+    ],
+    link: "/de/",
+  },
+  {
     id: "v0-22",
     date: "2026-11-14",
     title: "Version 0.22: the ESP32-S3 in the emulator, and a safe copy of your sync code",

@@ -1,6 +1,11 @@
 // Live serial plotter. Numbers that keep appearing in the same kind of line
 // become a series; each series gets its own small chart with its own scale.
 
+import { pageLocale, translator } from "../i18n/t";
+import { BENCH } from "../i18n/strings/bench";
+
+const t = translator(BENCH, pageLocale());
+
 interface Series {
   key: string;
   label: string;
@@ -37,7 +42,7 @@ function labelFor(before: string, after: string, index: number): string {
   if (assigned) return assigned;
   const unit = /^\s?(°?[A-Za-z%]{1,5})\b/.exec(after)?.[1] ?? /^\s?(%[A-Za-z]{0,4})/.exec(after)?.[1];
   const word = /([A-Za-z]{2,12})\s*$/.exec(before)?.[1];
-  return [word, unit].filter(Boolean).join(" ") || `value ${index + 1}`;
+  return [word, unit].filter(Boolean).join(" ") || t("valueN", { n: index + 1 });
 }
 
 export function feedPlotter(raw: string) {
@@ -182,15 +187,16 @@ function render() {
       card.dataset.series = s.key;
       card.innerHTML =
         '<div class="plothead"><span class="plotlabel"></span><span class="plotnow"></span>' +
-        '<button class="btn sm" type="button" data-hide>Hide</button></div>' +
+        '<button class="btn sm" type="button" data-hide></button></div>' +
         '<canvas></canvas><div class="plotrange"></div>';
       card.querySelector(".plotlabel")!.textContent = s.label;
-      card.querySelector<HTMLButtonElement>("[data-hide]")!.setAttribute("aria-label", `Hide the ${s.label} chart`);
+      card.querySelector<HTMLButtonElement>("[data-hide]")!.setAttribute("aria-label", t("hideAria", { label: s.label }));
+      card.querySelector<HTMLButtonElement>("[data-hide]")!.textContent = t("hide");
       host.append(card);
     }
     const last = s.values[s.values.length - 1];
     card.querySelector(".plotnow")!.textContent = format(last);
-    card.querySelector(".plotrange")!.textContent = `min ${format(Math.min(...s.values))}  max ${format(Math.max(...s.values))}  ${s.values.length} points`;
+    card.querySelector(".plotrange")!.textContent = t("plotRange", { min: format(Math.min(...s.values)), max: format(Math.max(...s.values)), n: s.values.length });
     draw(card.querySelector("canvas")!, s.values);
   }
 }

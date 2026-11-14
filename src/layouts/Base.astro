@@ -67,6 +67,33 @@ const versions = LOCALES.map((l) => ({
   url: absolute(localePath(englishPath, l), Astro.site),
 }));
 const englishUrl = `${base}${englishPath}`;
+
+// Breadcrumbs for search results, from the URL: a page inside a section
+// (a project, a board, an error, a tool) sits under that section.
+const SECTION_OF: Record<string, [string, string]> = {
+  projects: [t("navLibrary"), "/"],
+  boards: [t("navBoards"), "/boards/"],
+  errors: [t("navErrors"), "/errors/"],
+  tools: [t("navTools"), "/tools/"],
+};
+const segments = englishPath.split("/").filter(Boolean);
+const section = segments.length >= 2 ? SECTION_OF[segments[0]] : undefined;
+const crumbs: [string, string][] =
+  section && title
+    ? [[SITE.name, "/"], ...(section[1] === "/" ? [] : [section]), [title, englishPath]]
+    : [];
+const breadcrumbLd = crumbs.length
+  ? {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: crumbs.map(([name, path], i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name,
+        item: absolute(translated ? localePath(path, locale) : path, Astro.site),
+      })),
+    }
+  : undefined;
 const imageUrl = absolute(image, Astro.site);
 const correctionUrl = noindex || current === "report" ? "" : reportUrl("correction", { page: canonical });
 
@@ -119,6 +146,7 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
     <meta name="theme-color" content={SITE.themeColor} />
     <link rel="alternate" type="application/rss+xml" title={`${SITE.name}: what's new`} href={link("/rss.xml")} />
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+    {breadcrumbLd && <script type="application/ld+json" set:html={JSON.stringify(breadcrumbLd)} />}
     {
       import.meta.env.PROD && SITE.ahrefsKey && (
         <script is:inline src="https://analytics.ahrefs.com/analytics.js" data-key={SITE.ahrefsKey} async />

@@ -3,38 +3,37 @@ import { localePaths } from "../../../i18n/locales";
 import Base from "../../../layouts/Base.astro";
 import { localLink } from "../../../lib/paths";
 import { TOOLS } from "../../../data/tools";
+import { translator } from "../../../i18n/t";
+import { TOOLS_UI, toolText } from "../../../i18n/strings/tools";
 
 const link = localLink(Astro.currentLocale);
-
-
+const t = translator(TOOLS_UI, Astro.currentLocale);
+const tt = (english: string) => toolText(english, Astro.currentLocale);
 
 export const getStaticPaths = localePaths;
 ---
 
 <Base
-  title="ESP32 tools in your browser"
+  title={t("indexTitle")}
   current="tools"
   image="/og/tools/index.png"
-  description="Free ESP32 tools that run in the browser: backtrace decoder, web flasher, partition table builder, serial monitor, pin finder and wiring checker. Nothing to install, nothing uploaded."
+  description={t("indexDescription")}
 >
   <section class="view">
     <div class="stack tight">
-      <h1 class="h2">Tools</h1>
-      <p class="lede">
-        Everything here runs in this page. Files you open and data from your board stay on your computer. The tools that
-        talk to a board need Chrome, Edge or Opera on a desktop.
-      </p>
+      <h1 class="h2">{t("indexH1")}</h1>
+      <p class="lede">{t("indexLede")}</p>
     </div>
     <div class="grid">
       {
-        TOOLS.map((t, i) => (
-          <a class="card" href={link(t.href)}>
-            <span class="no">Tool {String(i + 1).padStart(2, "0")}</span>
-            <span class="name">{t.name}</span>
-            <span class="sum">{t.sum}</span>
+        TOOLS.map((tool, i) => (
+          <a class="card" href={link(tool.href)}>
+            <span class="no">{t("toolNo", { n: String(i + 1).padStart(2, "0") })}</span>
+            <span class="name">{tt(tool.name)}</span>
+            <span class="sum">{tt(tool.sum)}</span>
             <span class="meta">
-              {t.tags.map((tag) => (
-                <span class="tag">{tag}</span>
+              {tool.tags.map((tag) => (
+                <span class="tag">{tt(tag)}</span>
               ))}
             </span>
           </a>

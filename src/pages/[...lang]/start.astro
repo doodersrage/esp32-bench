@@ -1,123 +1,110 @@
 ---
 import { localePaths } from "../../i18n/locales";
+import { START } from "../../i18n/strings/pages";
+import { translator } from "../../i18n/t";
 import Base from "../../layouts/Base.astro";
 import { localLink } from "../../lib/paths";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(START, Astro.currentLocale);
 
 const BOARDS_URL = "https://espressif.github.io/arduino-esp32/package_esp32_index.json";
 
 export const getStaticPaths = localePaths;
 ---
 
-<Base
-  title="Getting started with the ESP32"
-  current="start"
-  description="Set up an ESP32 from zero: the right USB cable, drivers for CP210x and CH340, Linux serial permissions, Web Serial in Chrome and Edge, and the Arduino IDE."
->
+<Base title={t("title")} current="start" description={t("description")}>
   <section class="view prose">
     <div class="stack tight">
-      <h1 class="h2">Getting started</h1>
-      <p class="lede">
-        From a board in a bag to a board printing to your screen, in about fifteen minutes. Most first-day problems are
-        a cable, a driver or a permission, and they are all covered here.
-      </p>
+      <h1 class="h2">{t("h1")}</h1>
+      <p class="lede">{t("lede")}</p>
     </div>
 
-    <nav class="toc" aria-label="On this page">
-      <a href="#need">What you need</a>
-      <a href="#board">Pick a board</a>
-      <a href="#plug">Plug it in</a>
-      <a href="#check">Check it talks</a>
-      <a href="#ide">Arduino IDE</a>
-      <a href="#upload">First upload</a>
-      <a href="#next">What next</a>
+    <nav class="toc" aria-label={t("toc")}>
+      <a href="#need">{t("tocNeed")}</a>
+      <a href="#board">{t("tocBoard")}</a>
+      <a href="#plug">{t("tocPlug")}</a>
+      <a href="#check">{t("tocCheck")}</a>
+      <a href="#ide">{t("tocIde")}</a>
+      <a href="#upload">{t("tocUpload")}</a>
+      <a href="#next">{t("tocNext")}</a>
     </nav>
 
-    <h2 id="need">1. What you need</h2>
+    <h2 id="need">{t("needH")}</h2>
     <ul>
-      <li>An ESP32 dev board. The ESP32-DevKitC, ESP32-S3-DevKitC-1 and ESP32-C3-DevKitM-1 are covered in detail on <a href={link("/boards/")}>Boards</a>, and most clones work the same way.</li>
-      <li><strong>A USB data cable.</strong> Many cables in drawers are charge-only: the board lights up but no computer ever sees it. If nothing shows up, try another cable first.</li>
-      <li>Chrome, Edge or Opera on a desktop computer for the browser tools. Firefox and Safari cannot talk to serial ports.</li>
+      <li set:html={t("need1", { boards: link("/boards/") })} />
+      <li set:html={t("need2")} />
+      <li>{t("need3")}</li>
     </ul>
 
-    <h2 id="board">2. Pick a board</h2>
+    <h2 id="board">{t("boardH")}</h2>
     <div class="tablebox">
       <table>
-        <thead><tr><th>Board</th><th>Good for</th><th>Watch out for</th></tr></thead>
+        <thead><tr><th>{t("thBoard")}</th><th>{t("thGood")}</th><th>{t("thWatch")}</th></tr></thead>
         <tbody>
-          <tr><td>ESP32 (classic)</td><td>Most tutorials and libraries, Wi-Fi, Bluetooth Classic and BLE, touch pins.</td><td>GPIO 34 to 39 are input only. A few pins set the boot mode.</td></tr>
-          <tr><td>ESP32-S3</td><td>More pins and memory, native USB, cameras and displays.</td><td>Two USB ports on many boards. Serial output may need USB CDC On Boot.</td></tr>
-          <tr><td>ESP32-C3</td><td>Small and cheap, Wi-Fi and BLE, native USB.</td><td>Fewer pins, no touch pins and no Bluetooth Classic.</td></tr>
-          <tr><td>ESP32-S2</td><td>Native USB and plenty of pins on one core.</td><td>No Bluetooth at all.</td></tr>
-          <tr><td>ESP32-C6</td><td>Wi-Fi 6, BLE, and Thread or Zigbee radios.</td><td>Newer, so some libraries and tutorials have not caught up.</td></tr>
-          <tr><td>Seeed XIAO ESP32C3 or ESP32S3</td><td>Thumb-sized boards for small builds.</td><td>Few pins, labelled D0 to D10, which are not the GPIO numbers sketches use.</td></tr>
-          <tr><td>AI-Thinker ESP32-CAM</td><td>A camera and a microSD slot on one cheap board.</td><td>No USB socket: flash it through a USB serial adapter or a programmer base, with GPIO 0 tied to GND. Few pins are free.</td></tr>
+          <tr><td>{t("classic")}</td><td>{t("classicGood")}</td><td>{t("classicWatch")}</td></tr>
+          <tr><td>ESP32-S3</td><td>{t("s3Good")}</td><td>{t("s3Watch")}</td></tr>
+          <tr><td>ESP32-C3</td><td>{t("c3Good")}</td><td>{t("c3Watch")}</td></tr>
+          <tr><td>ESP32-S2</td><td>{t("s2Good")}</td><td>{t("s2Watch")}</td></tr>
+          <tr><td>ESP32-C6</td><td>{t("c6Good")}</td><td>{t("c6Watch")}</td></tr>
+          <tr><td>{t("xiao")}</td><td>{t("xiaoGood")}</td><td>{t("xiaoWatch")}</td></tr>
+          <tr><td>AI-Thinker ESP32-CAM</td><td>{t("camGood")}</td><td>{t("camWatch")}</td></tr>
         </tbody>
       </table>
     </div>
-    <p>
-      Every board has its own page with a full pinout on <a href={link("/boards/")}>Boards</a>, and the chips are side
-      by side on <a href={link("/boards/compare/")}>Compare the ESP32 chips</a>.
-    </p>
+    <p set:html={t("boardP", { boards: link("/boards/"), compare: link("/boards/compare/") })} />
 
-    <h2 id="plug">3. Plug it in</h2>
-    <p>
-      Look at the small chip next to the USB socket. It decides which driver you need. ESP32-S3 and ESP32-C3 boards that
-      use the chip's own USB need no driver at all.
-    </p>
+    <h2 id="plug">{t("plugH")}</h2>
+    <p>{t("plugP")}</p>
     <div class="tablebox">
       <table>
-        <thead><tr><th>Chip marking</th><th>Driver</th></tr></thead>
+        <thead><tr><th>{t("thChip")}</th><th>{t("thDriver")}</th></tr></thead>
         <tbody>
-          <tr><td class="m">CP2102, CP2104</td><td>Silicon Labs CP210x. Built into Linux; Windows usually fetches it automatically; otherwise install it from Silicon Labs.</td></tr>
-          <tr><td class="m">CH340, CH343, CH9102</td><td>WCH CH34x. Built into Linux and recent macOS; on Windows install it from WCH if the port does not appear.</td></tr>
-          <tr><td class="m">No chip (S3, C3)</td><td>Native USB. No driver on Windows 10 or 11, macOS or Linux.</td></tr>
+          <tr><td class="m">CP2102, CP2104</td><td>{t("cp210x")}</td></tr>
+          <tr><td class="m">CH340, CH343, CH9102</td><td>{t("ch34x")}</td></tr>
+          <tr><td class="m">{t("noChip")}</td><td>{t("nativeUsb")}</td></tr>
         </tbody>
       </table>
     </div>
 
-    <h3 class="h3">Linux: permission to open the port</h3>
+    <h3 class="h3">{t("linuxH")}</h3>
     <ol class="steps">
-      <li>Add yourself to the group that owns serial ports: <code>sudo usermod -aG dialout $USER</code> on Debian, Ubuntu and Fedora, or <code>uucp</code> instead of <code>dialout</code> on Arch.</li>
-      <li>Log out and back in so the new group applies.</li>
-      <li>On Ubuntu, if a CH340 board appears and vanishes at once, the braille display service has claimed it: <code>sudo apt remove brltty</code>.</li>
-      <li>Chromium installed as a Snap needs serial access: <code>sudo snap connect chromium:raw-usb</code>.</li>
+      <li set:html={t("linux1")} />
+      <li>{t("linux2")}</li>
+      <li set:html={t("linux3")} />
+      <li set:html={t("linux4")} />
     </ol>
 
-    <h2 id="check">4. Check it talks</h2>
+    <h2 id="check">{t("checkH")}</h2>
     <ol class="steps">
-      <li>Open the <a href={link("/bench/")}>Bench</a> and press Connect.</li>
-      <li>Pick the port: <code>cu.usbserial</code> or <code>cu.usbmodem</code> on a Mac, <code>COM3</code> or similar on Windows, <code>ttyUSB0</code> or <code>ttyACM0</code> on Linux.</li>
-      <li>Leave the speed at 115200 and press the board's EN or RST button. A few boot lines should appear, starting with <code>rst:0x1 (POWERON_RESET)</code>.</li>
+      <li set:html={t("check1", { bench: link("/bench/") })} />
+      <li set:html={t("check2")} />
+      <li set:html={t("check3")} />
     </ol>
-    <p>
-      Seeing those lines means the cable, driver and permissions all work. Want to try flashing before installing
-      anything? The <a href={link("/detective/")}>Detective</a> and the <a href={link("/projects/probeharbor-probe/")}>ProbeHarbor probe</a> flash straight from the browser.
-    </p>
+    <p set:html={t("checkP", { detective: link("/detective/"), probe: link("/projects/probeharbor-probe/") })} />
 
-    <h2 id="ide">5. Set up the Arduino IDE</h2>
+    <h2 id="ide">{t("ideH")}</h2>
     <ol class="steps">
-      <li>Install Arduino IDE 2 from arduino.cc.</li>
-      <li>Open File, Preferences, and add this to Additional boards manager URLs:<br /><code class="wrapcode">{BOARDS_URL}</code></li>
-      <li>Open Tools, Board, Boards Manager, search for <strong>esp32</strong> and install <strong>esp32 by Espressif Systems</strong>. The projects here are written for version 3.</li>
-      <li>Pick your board under Tools, Board, esp32: <strong>ESP32 Dev Module</strong>, <strong>ESP32S3 Dev Module</strong> or <strong>ESP32C3 Dev Module</strong>.</li>
-      <li>On an S3 or C3 plugged into its native USB port, set Tools, USB CDC On Boot to Enabled, or nothing will print.</li>
+      <li>{t("ide1")}</li>
+      <li>{t("ide2")}<br /><code class="wrapcode">{BOARDS_URL}</code></li>
+      <li set:html={t("ide3")} />
+      <li set:html={t("ide4")} />
+      <li>{t("ide5")}</li>
     </ol>
 
-    <h2 id="upload">6. First upload</h2>
+    <h2 id="upload">{t("uploadH")}</h2>
     <ol class="steps">
-      <li>Close the bench tab or press Disconnect. Only one program can own a serial port at a time.</li>
-      <li>Open the <a href={link("/projects/blink/")}>Blink and heartbeat</a> project, copy the sketch into the IDE and press Upload.</li>
-      <li>If the upload stops at <code>Connecting...</code>, hold the BOOT button, tap EN, then let go of BOOT. Some boards need this every time.</li>
-      <li>When it finishes, reconnect the bench at the project's speed and watch the heartbeat.</li>
+      <li>{t("up1")}</li>
+      <li set:html={t("up2", { blink: link("/projects/blink/") })} />
+      <li set:html={t("up3")} />
+      <li>{t("up4")}</li>
     </ol>
 
-    <h2 id="next">7. What next</h2>
+    <h2 id="next">{t("nextH")}</h2>
     <ul>
-      <li><a href={link("/projects/wifi-scan/")}>Wi-Fi scanner</a> and <a href={link("/projects/i2c-scan/")}>I2C scanner</a> need no extra parts, or one sensor.</li>
-      <li>Not sure what to build? Tick your parts on the <a href={link("/#drawer")}>library</a> page and let it pick.</li>
-      <li>Something went wrong? Paste the output into the <a href={link("/errors/")}>error reference</a> or the bench's crash translator.</li>
+      <li set:html={t("next1", { wifi: link("/projects/wifi-scan/"), i2c: link("/projects/i2c-scan/") })} />
+      <li set:html={t("next2", { library: link("/#drawer") })} />
+      <li set:html={t("next3", { errors: link("/errors/") })} />
     </ul>
   </section>
 </Base>

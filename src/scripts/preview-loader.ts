@@ -61,9 +61,8 @@ export function mountPreview(section: HTMLElement): void {
       host.replaceChildren();
       mount(ctx);
     } catch {
-      status.textContent = navigator.onLine
-        ? "The simulation could not be loaded. Reload the page to try again."
-        : "The simulation needs a connection the first time it loads.";
+      // Messages come from the page in its language (Preview.astro).
+      status.textContent = (navigator.onLine ? section.dataset.loadFail : section.dataset.offline) ?? "";
       started = false;
     }
   };

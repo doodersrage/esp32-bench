@@ -3,13 +3,17 @@
 // and a 7-unit gap a word. The sidetone is the sketch's 650 Hz.
 import { MorseDecoder } from "../../lib/preview/logic";
 import { button, createLoop, el, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
+
+const t = translator(PREVIEWS, pageLocale());
 
 export const mount: Mount = ({ host, say, sound }) => {
   let d = new MorseDecoder();
-  const text = el("output", { class: "morsetext", "aria-label": "Decoded text" });
+  const text = el("output", { class: "morsetext", "aria-label": t("morseAria") });
   const symbol = el("span", { class: "readout morsesym", text: " " });
-  const speed = el("span", { class: "readout", text: "speed: 10 wpm" });
-  const keyButton = el("button", { type: "button", class: "btn go morsekey", text: "Key", "aria-label": "Morse key: hold for a dash, tap for a dot" });
+  const speed = el("span", { class: "readout", text: t("morseSpeed", { n: 10 }) });
+  const keyButton = el("button", { type: "button", class: "btn go morsekey", text: t("morseKey"), "aria-label": t("morseKeyAria") });
 
   const down = () => {
     sound.unlock();
@@ -25,7 +29,7 @@ export const mount: Mount = ({ host, say, sound }) => {
   };
   const show = () => {
     text.textContent = d.text || " ";
-    speed.textContent = `speed: ${d.wpm} wpm`;
+    speed.textContent = t("morseSpeed", { n: d.wpm });
   };
 
   keyButton.addEventListener("pointerdown", (e) => {
@@ -58,14 +62,14 @@ export const mount: Mount = ({ host, say, sound }) => {
     if (added) {
       symbol.textContent = " ";
       show();
-      if (added === " ") say(`Decoded so far: ${d.text.trim()}`);
+      if (added === " ") say(t("morseSoFar", { text: d.text.trim() }));
     }
   }, 50);
-  const clear = button("Clear", () => {
+  const clear = button(t("clear"), () => {
     d = new MorseDecoder();
     symbol.textContent = " ";
     show();
-    say("Cleared.");
+    say(t("cleared"));
   });
   host.append(text, el("div", { class: "tryrow" }, keyButton, symbol, speed, clear));
   show();

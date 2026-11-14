@@ -2,11 +2,15 @@
 // same tumble (faces slowing from 30 to 210 ms), and the running tally.
 import { pips, tumble } from "../../lib/preview/logic";
 import { button, el, oledCanvas, sleep, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
 
 const DICE = 2;
 
+const t = translator(PREVIEWS, pageLocale());
+
 export const mount: Mount = ({ host, say, reduced }) => {
-  const screen = oledCanvas("OLED showing two dice");
+  const screen = oledCanvas(t("diceAria"));
   const { fb, canvas } = screen;
   const counts = new Array(13).fill(0);
   let rolls = 0;
@@ -22,7 +26,7 @@ export const mount: Mount = ({ host, say, reduced }) => {
     drawDie(72, 10, two);
     screen.draw();
     canvas.dataset.faces = `${one},${two}`;
-    canvas.setAttribute("aria-label", `OLED showing two dice: ${one} and ${two}`);
+    canvas.setAttribute("aria-label", t("diceAriaFaces", { one, two }));
   };
 
   const roll = async () => {
@@ -41,21 +45,21 @@ export const mount: Mount = ({ host, say, reduced }) => {
     const total = one + two;
     counts[total]++;
     rolls++;
-    let line = `Rolled ${one} and ${two}: ${total}.`;
+    let line = t("diceRolled", { one, two, total });
     if (rolls % 12 === 0) {
       const tally = [];
-      for (let t = DICE; t <= DICE * 6; t++) tally.push(`${t}:${counts[t]}`);
-      line += ` After ${rolls} rolls: ${tally.join(" ")}`;
+      for (let n = DICE; n <= DICE * 6; n++) tally.push(`${n}:${counts[n]}`);
+      line += " " + t("diceAfter", { n: rolls, tally: tally.join(" ") });
     }
     say(line);
-    tallyText.textContent = `${rolls} ${rolls === 1 ? "roll" : "rolls"}`;
+    tallyText.textContent = t(rolls === 1 ? "diceOneRoll" : "diceManyRolls", { n: rolls });
     rolling = false;
     rollButton.disabled = false;
     rollButton.focus();
   };
 
-  const rollButton = button("Roll", () => void roll(), "btn go");
-  const tallyText = el("span", { class: "readout", text: "0 rolls" });
+  const rollButton = button(t("diceRoll"), () => void roll(), "btn go");
+  const tallyText = el("span", { class: "readout", text: t("diceManyRolls", { n: 0 }) });
   canvas.addEventListener("click", () => void roll());
   host.addEventListener("keydown", (e) => {
     if (e.key === " " && e.target !== rollButton) {

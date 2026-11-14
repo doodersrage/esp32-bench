@@ -2,6 +2,10 @@
 import { loadShop, saveShop } from "./progress";
 import { loadState as loadSyncState } from "./sync";
 import { localiseAmazon } from "./amazon-region";
+import { pageLocale, translator } from "../i18n/t";
+import { SHOP } from "../i18n/strings/home";
+
+const t = translator(SHOP, pageLocale());
 
 interface Item {
   key: string;
@@ -13,6 +17,8 @@ interface Item {
   href: string;
   rel: string;
   buy: string;
+  /** An Amazon search rather than a product link */
+  search: boolean;
   amazonQ: string;
 }
 interface ShopProject {
@@ -30,6 +36,7 @@ interface Line {
   href: string;
   rel: string;
   buy: string;
+  search: boolean;
   amazonQ: string;
 }
 
@@ -53,7 +60,7 @@ function merge(projects: ShopProject[], together: boolean): Line[] {
     for (const item of p.items.filter((i) => !i.alternative)) {
       let line = lines.get(item.key);
       if (!line) {
-        line = { label: item.label, qty: 0, optional: true, projects: [], texts: [], href: "", rel: "", buy: "", amazonQ: "" };
+        line = { label: item.label, qty: 0, optional: true, projects: [], texts: [], href: "", rel: "", buy: "", search: false, amazonQ: "" };
         lines.set(item.key, line);
       }
       line.qty = together ? line.qty + item.qty : Math.max(line.qty, item.qty);
@@ -61,7 +68,7 @@ function merge(projects: ShopProject[], together: boolean): Line[] {
       if (!line.projects.includes(p.name)) line.projects.push(p.name);
       if (!line.texts.includes(item.text)) line.texts.push(item.text);
       // A product link beats a search when two projects list the same part.
-      if (item.href && (!line.href || (line.buy.startsWith("Find") && !item.buy.startsWith("Find")))) Object.assign(line, { href: item.href, rel: item.rel, buy: item.buy, amazonQ: item.amazonQ });
+      if (item.href && (!line.href || (line.search && !item.search))) Object.assign(line, { href: item.href, rel: item.rel, buy: item.buy, search: item.search, amazonQ: item.amazonQ });
     }
   }
   return [...lines.values()].sort((a, b) => Number(a.optional) - Number(b.optional) || a.label.localeCompare(b.label));
@@ -86,7 +93,7 @@ function render() {
       a.href = p.url;
       const remove = el("button", "", "×");
       remove.type = "button";
-      remove.setAttribute("aria-label", `Remove ${p.name}`);
+      remove.setAttribute("aria-label", t("remove", { name: p.name }));
       remove.addEventListener("click", () => {
         list = list.filter((id) => id !== p.id);
         render();
@@ -107,9 +114,9 @@ function render() {
       const qty = el("td", "q", `${line.qty}×`);
       const part = el("td");
       part.append(line.label);
-      if (line.optional) part.append(el("span", "opt", "optional"));
+      if (line.optional) part.append(el("span", "opt", t("optional")));
       part.title = line.texts.join("\n");
-      const used = el("td", "for", line.projects.length === projects.length && projects.length > 1 ? "All" : line.projects.join(", "));
+      const used = el("td", "for", line.projects.length === projects.length && projects.length > 1 ? t("all") : line.projects.join(", "));
       const buy = el("td", "m");
       if (line.href) {
         const a = el("a", "", line.buy);
@@ -140,12 +147,12 @@ $<HTMLButtonElement>("shop-print").addEventListener("click", () => window.print(
 const copy = $<HTMLButtonElement>("shop-copy");
 copy.addEventListener("click", async () => {
   const label = copy.textContent;
-  const text = current.map((l) => `${l.qty}x ${l.label}${l.optional ? " (optional)" : ""}${l.href ? `  ${l.href}` : ""}`).join("\n");
+  const text = current.map((l) => `${l.qty}x ${l.optional ? t("copyOptional", { label: l.label }) : l.label}${l.href ? `  ${l.href}` : ""}`).join("\n");
   try {
     await navigator.clipboard.writeText(text);
-    copy.textContent = "Copied";
+    copy.textContent = t("copied");
   } catch {
-    copy.textContent = "Copy blocked";
+    copy.textContent = t("copyBlocked");
   }
   setTimeout(() => (copy.textContent = label), 1600);
 });

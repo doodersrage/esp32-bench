@@ -15,6 +15,11 @@ import {
   type CompileResult,
 } from "../../lib/compile-client";
 import { flashMergedImage, serialSupport } from "../../lib/esp-flash";
+import { FIRMWARE, fromLib, withNodes } from "../../i18n/strings/firmware";
+import { pageLocale, translator } from "../../i18n/t";
+import { HTML_LANG } from "../../i18n/locales";
+
+const t = translator(FIRMWARE, pageLocale());
 
 interface Ctx {
   root: HTMLElement;
@@ -117,25 +122,25 @@ export async function openBuilder(root: HTMLElement): Promise<void> {
       store(codeKey(ctx), code === ctx.original ? null : code);
       markEdited(ctx);
     },
-    tool ? "Sketch editor" : "Sketch editor for this project",
+    tool ? t("editorTool") : t("editorProject"),
   );
   markEdited(ctx);
 
   q<HTMLButtonElement>(root, "[data-sb-build]")?.addEventListener("click", () => void build(ctx));
   q<HTMLButtonElement>(root, "[data-sb-reset]")?.addEventListener("click", () => {
-    if (!window.confirm("Throw away your changes and go back to the original sketch?")) return;
+    if (!window.confirm(t("confirmReset"))) return;
     ctx.editor.setCode(ctx.original);
     ctx.editor.clearErrors();
     store(codeKey(ctx), null);
     markEdited(ctx);
-    setStatus(ctx, "Back to the original sketch.");
+    setStatus(ctx, t("backToOriginal"));
   });
   if (tool) {
     root.addEventListener("change", (e) => {
       if ((e.target as HTMLElement).matches("[data-sb-board], [data-sb-lib], [data-sb-huge]")) saveToolChoices(ctx);
     });
   }
-  setStatus(ctx, saved && saved !== original ? "Your edits from last time are back." : "Ready to build.");
+  setStatus(ctx, saved && saved !== original ? t("editsBack") : t("ready"));
 }
 
 function saveToolChoices(ctx: Ctx) {
@@ -172,7 +177,7 @@ async function build(ctx: Ctx) {
   const code = ctx.editor.getCode();
   const problem = checkBeforeBuild(code);
   if (problem) {
-    setStatus(ctx, problem, true);
+    setStatus(ctx, fromLib(t, problem), true);
     return;
   }
   const btn = q<HTMLButtonElement>(ctx.root, "[data-sb-build]")!;
@@ -182,16 +187,16 @@ async function build(ctx: Ctx) {
   renderResult(ctx, null);
 
   const started = performance.now();
-  let phase = "Building...";
-  const tick = () => setStatus(ctx, `${phase} ${Math.round((performance.now() - started) / 1000)} s`);
+  let phase = t("libBuilding");
+  const tick = () => setStatus(ctx, t("tick", { phase, s: Math.round((performance.now() - started) / 1000) }));
   tick();
   const timer = window.setInterval(tick, 1000);
   try {
     try {
       const health = await fetchJson(`${ctx.api}/health`, {}, 5000);
-      phase = healthMessage(health.body ? (health.body as { state?: string }).state : undefined);
+      phase = fromLib(t, healthMessage(health.body ? (health.body as { state?: string }).state : undefined));
     } catch {
-      phase = "Building...";
+      phase = t("libBuilding");
     }
     tick();
     const { status, body } = await fetchJson(
@@ -202,16 +207,17 @@ async function build(ctx: Ctx) {
     const result = readAnswer(status, body);
     renderResult(ctx, result);
     const secs = Math.round((performance.now() - started) / 1000);
-    if (result.kind === "built") setStatus(ctx, `Built in ${secs} s.`);
-    else if (result.kind === "errors") setStatus(ctx, `${result.sketch.length + result.other.length} compile ${result.sketch.length + result.other.length === 1 ? "error" : "errors"}.`, true);
-    else setStatus(ctx, result.kind === "failure" ? "The build failed." : "Not built.", true);
+    const count = result.kind === "errors" ? result.sketch.length + result.other.length : 0;
+    if (result.kind === "built") setStatus(ctx, t("builtIn", { s: secs }));
+    else if (result.kind === "errors") setStatus(ctx, count === 1 ? t("oneError") : t("manyErrors", { n: count }), true);
+    else setStatus(ctx, result.kind === "failure" ? t("buildFailed") : t("notBuilt"), true);
   } catch (err) {
     const timedOut = (err as Error).name === "TimeoutError";
     renderResult(ctx, {
       kind: "unavailable",
-      message: timedOut ? "The compiler took too long to answer. Try again in a minute." : navigator.onLine ? "The compiler could not be reached. Try again in a minute." : "You are offline. Building needs a connection.",
+      message: timedOut ? t("tooLong") : navigator.onLine ? t("unreachable") : t("offlineBuild"),
     });
-    setStatus(ctx, "Not built.", true);
+    setStatus(ctx, t("notBuilt"), true);
   } finally {
     window.clearInterval(timer);
     btn.disabled = false;
@@ -222,7 +228,7 @@ function bar(label: string, used?: number, total?: number): HTMLElement {
   const box = el("div", "sb-bar");
   const pct = percent(used, total);
   const head = el("div", "sb-barhead");
-  head.append(el("span", "", label), el("span", "", used && total ? `${kb(used)} of ${kb(total)} (${pct}%)` : "not reported"));
+  head.append(el("span", "", label), el("span", "", used && total ? t("usage", { used: kb(used), total: kb(total), pct }) : t("notReported")));
   const track = el("div", "sb-track");
   const fill = el("span", pct > 90 ? "sb-fill warn" : "sb-fill");
   fill.style.width = `${pct}%`;
@@ -248,17 +254,17 @@ function renderResult(ctx: Ctx, result: CompileResult | null) {
   if (!result) return;
 
   if (result.kind === "busy" || result.kind === "unavailable" || result.kind === "rejected") {
-    box.append(el("p", "notice", result.message));
+    box.append(el("p", "notice", fromLib(t, result.message)));
     return;
   }
   const a = result.answer;
   if (result.kind === "errors") {
-    box.append(el("h3", "h3", "Compile errors"));
+    box.append(el("h3", "h3", t("compileErrors")));
     if (result.sketch.length) {
       const list = el("ul", "sb-errors");
       for (const e of result.sketch) {
         const li = el("li");
-        const b = el("button", "sb-errorlink", `Line ${e.line}:${e.col}`);
+        const b = el("button", "sb-errorlink", t("lineCol", { line: e.line, col: e.col }));
         b.type = "button";
         b.addEventListener("click", () => ctx.editor.goTo(e.line, e.col));
         li.append(b, " ", el("span", "", e.message));
@@ -269,41 +275,45 @@ function renderResult(ctx: Ctx, result: CompileResult | null) {
       ctx.editor.goTo(result.sketch[0].line, result.sketch[0].col);
     }
     if (result.other.length) {
-      box.append(el("p", "cap left", "In a library or the ESP32 core, usually caused by something in the sketch:"));
+      box.append(el("p", "cap left", t("otherErrors")));
       const list = el("ul", "sb-errors other");
       for (const e of result.other) list.append(el("li", "", errorText(e)));
       box.append(list);
     }
   } else if (result.kind === "failure") {
-    box.append(el("p", "notice", result.message));
+    box.append(el("p", "notice", fromLib(t, result.message)));
   } else {
     ctx.image = result.image;
     ctx.chip = a.chip ?? "";
     const head = el("p", "sb-ok");
-    head.textContent = `Built for the ${(a.chip ?? ctx.board()).toUpperCase()} with Arduino-ESP32 core ${a.core ?? "?"} in ${a.seconds?.toFixed(1) ?? "?"} s.`;
-    box.append(head, bar("Flash (program)", a.sizes?.flashUsed, a.sizes?.flashTotal), bar("RAM (globals)", a.sizes?.ramUsed, a.sizes?.ramTotal));
+    head.textContent = t("builtFor", {
+      chip: (a.chip ?? ctx.board()).toUpperCase(),
+      core: a.core ?? "?",
+      s: a.seconds?.toLocaleString(HTML_LANG[pageLocale()], { minimumFractionDigits: 1, maximumFractionDigits: 1 }) ?? "?",
+    });
+    box.append(head, bar(t("flashBar"), a.sizes?.flashUsed, a.sizes?.flashTotal), bar(t("ramBar"), a.sizes?.ramUsed, a.sizes?.ramTotal));
     if (result.image) box.append(flashControls(ctx, result.image));
-    else box.append(el("p", "notice", "The compiler did not send the firmware image back. Build again to flash it."));
+    else box.append(el("p", "notice", t("noImage")));
   }
-  if (a.warnings?.length) box.append(details(`${a.warnings.length} ${a.warnings.length === 1 ? "warning" : "warnings"}`, a.warnings.map(errorText).join("\n")));
-  if (a.log) box.append(details("Build log (end)", a.log));
+  if (a.warnings?.length) box.append(details(a.warnings.length === 1 ? t("oneWarning") : t("manyWarnings", { n: a.warnings.length }), a.warnings.map(errorText).join("\n")));
+  if (a.log) box.append(details(t("buildLog"), a.log));
 }
 
 function flashControls(ctx: Ctx, image: Uint8Array): HTMLElement {
   const wrap = el("div", "stack tight sb-flash");
   const row = el("div", "row");
-  const flashBtn = el("button", "btn go", "Flash to my board");
+  const flashBtn = el("button", "btn go", t("flashMy"));
   flashBtn.type = "button";
-  const download = el("button", "btn", "Download .bin");
+  const download = el("button", "btn", t("download"));
   download.type = "button";
-  const bench = el("a", "btn", "Open the bench");
+  const bench = el("a", "btn", t("openBench"));
   bench.href = ctx.benchHref;
   row.append(flashBtn, download, bench);
   const progress = el("div", "sb-track");
   const fill = el("span", "sb-fill");
   progress.append(fill);
   progress.hidden = true;
-  const note = el("p", "cap left", "The image includes the bootloader and partition table, so it is written at offset 0x0.");
+  const note = el("p", "cap left", t("offsetNote"));
   const out = el("p", "sb-flashstatus");
   out.setAttribute("role", "status");
   wrap.append(row, progress, out, note);
@@ -311,7 +321,7 @@ function flashControls(ctx: Ctx, image: Uint8Array): HTMLElement {
   const { supported, secure } = serialSupport();
   if (!supported || !secure) {
     flashBtn.disabled = true;
-    out.textContent = !supported ? "This browser cannot flash. Use Chrome or Edge on a desktop, or download the .bin." : "Flashing needs a secure page: open the site over https.";
+    out.textContent = !supported ? t("cannotFlashBin") : t("flashSecure");
   }
 
   download.addEventListener("click", () => {
@@ -337,7 +347,7 @@ function flashControls(ctx: Ctx, image: Uint8Array): HTMLElement {
     flashBtn.disabled = true;
     progress.hidden = false;
     fill.style.width = "0%";
-    out.textContent = "Connecting to the board...";
+    out.textContent = t("connecting");
     const terminal = { clean: () => undefined, writeLine: () => undefined, write: () => undefined };
     try {
       await flashMergedImage(port as Parameters<typeof flashMergedImage>[0], image, {
@@ -345,22 +355,22 @@ function flashControls(ctx: Ctx, image: Uint8Array): HTMLElement {
         expectChip: ctx.chip || undefined,
         onProgress: (pct) => {
           fill.style.width = `${pct}%`;
-          out.textContent = `Writing: ${pct}%`;
+          out.textContent = t("writing", { pct });
         },
       });
       fill.style.width = "100%";
-      out.replaceChildren("Flashed and reset. ");
+      const b = el("a", "", t("watchBench"));
+      b.href = ctx.benchHref;
       if (ctx.hasSettings) {
-        const go = el("button", "sb-errorlink", "Send its settings");
+        const go = el("button", "sb-errorlink", t("sendItsSettings"));
         go.type = "button";
         go.addEventListener("click", () => document.querySelector("[data-settings-form]")?.scrollIntoView({ behavior: "smooth", block: "start" }));
-        out.append("This project needs settings such as Wi-Fi: ", go, ", then ");
+        out.replaceChildren(...withNodes(t("flashedSettings"), { go, bench: b }));
+      } else {
+        out.replaceChildren(...withNodes(t("flashedDone"), { bench: b }));
       }
-      const b = el("a", "", "watch it on the bench");
-      b.href = ctx.benchHref;
-      out.append(b, ".");
     } catch (err) {
-      out.textContent = `Flashing failed: ${(err as Error).message ?? err}`;
+      out.textContent = t("flashFailed", { error: fromLib(t, String((err as Error).message ?? err)) });
     } finally {
       flashBtn.disabled = false;
     }

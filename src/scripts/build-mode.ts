@@ -5,6 +5,11 @@
 // is never half powered while you wire signals, then the signals in table order,
 // then anything that is already on the board or on the other board.
 
+import { FIRMWARE, withNodes } from "../i18n/strings/firmware";
+import { pageLocale, translator } from "../i18n/t";
+
+const t = translator(FIRMWARE, pageLocale());
+
 interface Step {
   row: number;
   text: string;
@@ -77,15 +82,19 @@ export function startBuild(fig: HTMLElement): void {
     </div>
     <p class="wdb-text"></p>
     <p class="wdb-note cap left"></p>
-    <label class="wdb-tick"><input type="checkbox" /> Done</label>
+    <label class="wdb-tick"><input type="checkbox" /> <span data-l="done"></span></label>
     <div class="row">
-      <button class="btn sm" type="button" data-back>Back</button>
-      <button class="btn sm go" type="button" data-next>Next</button>
-      <button class="btn sm" type="button" data-close>Close</button>
-      <span class="cap left">Arrow keys move between steps.</span>
+      <button class="btn sm" type="button" data-back></button>
+      <button class="btn sm go" type="button" data-next></button>
+      <button class="btn sm" type="button" data-close></button>
+      <span class="cap left" data-l="arrows"></span>
     </div>
     <p class="wdb-done" hidden></p>`;
   box.tabIndex = -1;
+  box.querySelector<HTMLElement>('[data-l="done"]')!.textContent = t("done");
+  box.querySelector<HTMLElement>('[data-l="arrows"]')!.textContent = t("arrowKeys");
+  box.querySelector<HTMLElement>("[data-back]")!.textContent = t("back");
+  box.querySelector<HTMLElement>("[data-close]")!.textContent = t("close");
 
   const count = box.querySelector<HTMLElement>(".wdb-count")!;
   const bar = box.querySelector<HTMLElement>(".wdb-bar span")!;
@@ -101,14 +110,14 @@ export function startBuild(fig: HTMLElement): void {
 
   function render(): void {
     const s = steps[at];
-    count.textContent = `Step ${at + 1} of ${steps.length}`;
+    count.textContent = t("stepOf", { n: at + 1, total: steps.length });
     bar.style.width = `${(done.size / steps.length) * 100}%`;
-    text.textContent = s.drawn ? s.text : `${s.text} Not drawn: nothing to wire on this board for this step.`;
+    text.textContent = s.drawn ? s.text : t("notDrawn", { text: s.text });
     note.textContent = s.note;
     note.hidden = !s.note;
     tick.checked = done.has(s.row);
     back.disabled = at === 0;
-    next.textContent = at === steps.length - 1 ? "Finish" : "Next";
+    next.textContent = at === steps.length - 1 ? t("finish") : t("next");
     for (const w of wires) {
       // A rail belongs to every row on it (data-rows); other wires to one row (data-row).
       const rows = (w.dataset.rows ?? w.dataset.row ?? "").split(",").filter(Boolean).map(Number);
@@ -124,11 +133,11 @@ export function startBuild(fig: HTMLElement): void {
     const all = done.size >= steps.length;
     finished.hidden = !all;
     if (all) {
-      finished.replaceChildren(
-        "Everything is wired. Check the power and ground wires once more, then ",
-        Object.assign(document.createElement("a"), { href: fig.dataset.bench ?? "/bench/", textContent: `open the bench at ${fig.dataset.baud} baud` }),
-        " and flash the sketch.",
-      );
+      const bench = Object.assign(document.createElement("a"), {
+        href: fig.dataset.bench ?? "/bench/",
+        textContent: t("openBenchAt", { baud: fig.dataset.baud ?? "" }),
+      });
+      finished.replaceChildren(...withNodes(t("allWired"), { bench }));
     }
   }
 

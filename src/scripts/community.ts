@@ -1,5 +1,9 @@
 // Community builds on a project page: approved build reports from the report API.
 import { reportUrl } from "../lib/site";
+import { pageLocale, translator } from "../i18n/t";
+import { PROJECT, withNode } from "../i18n/strings/project";
+
+const t = translator(PROJECT, pageLocale());
 
 interface Build {
   board: string;
@@ -53,24 +57,20 @@ async function load(): Promise<void> {
     const { builds, lab } = (await res.json()) as { builds: Build[]; lab?: Lab | null };
     if (lab && lab.results.length > 0) showLab(lab);
     if (builds.length === 0) {
-      status.replaceChildren("Nobody has published a build of this project yet. Built it? ", sendLink("Send the first build report"), ".");
+      status.replaceChildren(...withNode(t("noneYet"), sendLink(t("sendFirst"))));
       return;
     }
     const worked = builds.filter((b) => b.worked).length;
-    status.replaceChildren(
-      `${builds.length} published build ${builds.length === 1 ? "report" : "reports"}, ${worked} working. Built it too? `,
-      sendLink("Add yours"),
-      ".",
-    );
+    status.replaceChildren(...withNode(t(builds.length === 1 ? "countOne" : "countMany", { n: builds.length, worked }), sendLink(t("addYours"))));
     list.replaceChildren(
       ...builds.map((b) => {
         const li = el("li", "build");
         const head = el("div", "buildhead");
         head.append(
-          el("span", `tag ${b.worked ? "ok" : "bad"}`, b.worked ? "Worked" : "Did not work"),
+          el("span", `tag ${b.worked ? "ok" : "bad"}`, b.worked ? t("worked") : t("didNotWork")),
           el("span", "tag", b.board),
-          ...(b.core ? [el("span", "tag", `core ${b.core}`)] : []),
-          el("span", "buildby", `${b.name}, ${b.date}`),
+          ...(b.core ? [el("span", "tag", t("core", { v: b.core }))] : []),
+          el("span", "buildby", t("buildBy", { name: b.name, date: b.date })),
         );
         li.append(head);
         if (b.result && !/^yes, as described$/i.test(b.result)) li.append(el("p", "buildresult", b.result));
@@ -81,12 +81,7 @@ async function load(): Promise<void> {
     );
     list.hidden = false;
   } catch {
-    status.replaceChildren(
-      navigator.onLine ? "Community build reports could not be loaded right now. " : "Community build reports need a connection. ",
-      "Built it? ",
-      sendLink("Send a build report"),
-      ".",
-    );
+    status.replaceChildren(...withNode(t(navigator.onLine ? "loadFail" : "needConnection"), sendLink(t("sendReport"))));
   }
 }
 
@@ -95,11 +90,11 @@ const BOARD_NAMES: Record<string, string> = {
   "xiao-esp32c3": "XIAO ESP32C3", "xiao-esp32s3": "XIAO ESP32S3", "esp32-cam": "ESP32-CAM",
   "esp32-doit": "ESP32 DOIT 30-pin", "esp32c3-supermini": "ESP32-C3 SuperMini",
 };
-const STATUS_WORD: Record<LabResult["status"], string> = { passed: "passed", failed: "failed", flash_failed: "could not be flashed", skipped: "skipped" };
+const statusWord = (s: LabResult["status"]) => t(`status.${s}`);
 const STATUS_CLASS: Record<LabResult["status"], string> = { passed: "ok", failed: "bad", flash_failed: "pending", skipped: "pending" };
 
 function joinNames(names: string[]): string {
-  return names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return names.length <= 1 ? names.join("") : t("and", { list: names.slice(0, -1).join(", "), last: names[names.length - 1] });
 }
 
 /** The latest hardware lab run for this project, shown before visitors' reports. */
@@ -109,22 +104,25 @@ function showLab(lab: Lab): void {
   const by = (status: LabResult["status"]) => lab.results.filter((r) => r.status === status).map((r) => name(r.board));
   const passed = by("passed");
   const parts: string[] = [];
-  if (passed.length) parts.push(`passed on ${joinNames(passed)}`);
+  if (passed.length) parts.push(t("passedOn", { boards: joinNames(passed) }));
   const failed = by("failed");
-  if (failed.length) parts.push(`failed on ${joinNames(failed)}`);
+  if (failed.length) parts.push(t("failedOn", { boards: joinNames(failed) }));
   const unflashed = by("flash_failed");
-  if (unflashed.length) parts.push(`could not be flashed on ${joinNames(unflashed)}`);
+  if (unflashed.length) parts.push(t("unflashedOn", { boards: joinNames(unflashed) }));
   const date = lab.run.finished_at.slice(0, 10);
 
   const head = el("div", "labhead");
-  head.append(el("span", "tag ok", "Lab"), ...lab.results.map((r) => el("span", `tag ${STATUS_CLASS[r.status]}`, `${name(r.board)}: ${STATUS_WORD[r.status]}`)), el("span", "labwhen", date));
-  const line = el("p", "", `Ran in the ESP32 Bench lab on ${date}${lab.run.core ? ` with core ${lab.run.core}` : ""}: ${parts.join(", ")}. The lab flashes the prebuilt firmware onto a bare board and checks what it prints.`);
+  head.append(el("span", "tag ok", t("lab")), ...lab.results.map((r) => el("span", `tag ${STATUS_CLASS[r.status]}`, `${name(r.board)}: ${statusWord(r.status)}`)), el("span", "labwhen", date));
+  const results = parts.join(", ");
+  const line = el("p", "", lab.run.core ? t("labLineCore", { date, core: lab.run.core, results }) : t("labLine", { date, results }));
   const details = lab.results
     .filter((r) => r.output)
     .map((r) => {
       const d = el("details", "");
-      d.append(el("summary", "", `${name(r.board)}: last lines the board printed${r.missing.length ? `, missing ${r.missing.length} expected ${r.missing.length === 1 ? "line" : "lines"}` : ""}`));
-      if (r.missing.length) d.append(el("p", "", `Expected but not seen: ${r.missing.map((m) => `/${m}/`).join(", ")}`));
+      const board = name(r.board);
+      const n = r.missing.length;
+      d.append(el("summary", "", n ? t(n === 1 ? "labLastMissingOne" : "labLastMissingMany", { board, n }) : t("labLast", { board })));
+      if (n) d.append(el("p", "", t("expectedNotSeen", { list: r.missing.map((m) => `/${m}/`).join(", ") })));
       d.append(el("pre", "code", r.output));
       return d;
     });

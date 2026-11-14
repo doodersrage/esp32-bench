@@ -2,6 +2,10 @@
 // for sender and receiver projects. It has its own port, baud rate and log.
 import { explainLine } from "../lib/crash";
 import { SerialSession, getSerial } from "../lib/serial";
+import { pageLocale, translator } from "../i18n/t";
+import { BENCH, crashHint, serialMessage } from "../i18n/strings/bench";
+
+const t = translator(BENCH, pageLocale());
 
 const MAX_LINES = 1500;
 const TROUBLE = /(Guru Meditation|Brownout detector|abort\(\)|Backtrace:|assert failed|wdt timeout|watchdog got triggered|CORRUPT HEAP|Stack smashing|fault\b)/i;
@@ -44,12 +48,12 @@ export function initSecondBoard() {
     const hint = explainLine(text);
     if (hint && !hinted.has(hint.key)) {
       hinted.add(hint.key);
-      addLine(`Hint: ${hint.text}`, "sys");
+      addLine(t("hint", { text: crashHint(hint, pageLocale()) }), "sys");
     }
   }
 
   function setConnected(on: boolean) {
-    connectBtn.textContent = on ? "Disconnect" : "Connect second board";
+    connectBtn.textContent = on ? t("disconnect") : t("connectSecond");
     connectBtn.classList.toggle("go", !on);
     resetBtn.disabled = !on;
     tx.disabled = !on;
@@ -61,7 +65,7 @@ export function initSecondBoard() {
     onLine: (line) => addLine(line),
     onClose(lost) {
       setConnected(false);
-      addLine(lost ? "Board disconnected." : "Disconnected.", "sys");
+      addLine(lost ? t("boardDisconnected") : t("disconnected"), "sys");
     },
   });
 
@@ -70,7 +74,7 @@ export function initSecondBoard() {
     if (!opening && session.connected) await session.close();
     pane.hidden = !opening;
     terms.classList.toggle("two", opening);
-    toggle.textContent = opening ? "Remove second board" : "Add a second board";
+    toggle.textContent = opening ? t("removeSecond") : t("addSecond");
     toggle.setAttribute("aria-expanded", String(opening));
   });
 
@@ -82,17 +86,17 @@ export function initSecondBoard() {
     const result = await session.open(Number(baud.value));
     if (result === "cancelled") return;
     if (result !== "ok") {
-      addLine(result, "sys");
+      addLine(serialMessage(result, pageLocale()), "sys");
       return;
     }
     hinted.clear();
     setConnected(true);
-    addLine(`Connected at ${baud.value} baud. Pick a different port from the first board.`, "sys");
+    addLine(t("connectedAt2", { baud: baud.value }), "sys");
   });
 
   resetBtn.addEventListener("click", async () => {
     const error = await session.reset();
-    addLine(error ? `Reset failed: ${error}. Press the EN button on the board instead.` : "Reset pulse sent on EN.", "sys");
+    addLine(error ? t("resetFailed", { error: serialMessage(error, pageLocale()) }) : t("resetSent"), "sys");
   });
 
   $("clear2").addEventListener("click", () => term.replaceChildren());
@@ -102,7 +106,7 @@ export function initSecondBoard() {
     const text = tx.value;
     tx.value = "";
     const error = await session.write(`${text}\n`);
-    addLine(error ? `Send failed: ${error}` : `> ${text}`, error ? "sys" : "tx");
+    addLine(error ? t("sendFailed", { error: serialMessage(error, pageLocale()) }) : `> ${text}`, error ? "sys" : "tx");
   });
 
   if (!getSerial()) connectBtn.disabled = true;

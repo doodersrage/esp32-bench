@@ -2,13 +2,17 @@
 // (about 60 frames a second) or its lava lamp (about 33), switched like BOOT.
 import { fireStep, heatColor, lavaColors } from "../../lib/preview/logic";
 import { button, createLoop, el, ledStrip, playPause, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
 
 const COUNT = 30;
+
+const t = translator(PREVIEWS, pageLocale());
 // Adafruit's gamma32 uses a 2.6 gamma table.
 const gamma = (v: number) => Math.round(255 * (v / 255) ** 2.6);
 
 export const mount: Mount = ({ host, say, reduced }) => {
-  const strip = ledStrip(COUNT, "A strip of 30 LEDs");
+  const strip = ledStrip(COUNT, t("fireAria"));
   const heat = new Uint8Array(COUNT);
   let lava = false;
   let since = 0;
@@ -26,14 +30,14 @@ export const mount: Mount = ({ host, say, reduced }) => {
     }
   };
   const loop = createLoop(host, frame, 60);
-  const mode = button("BOOT: switch effect", () => {
+  const mode = button(t("fireMode"), () => {
     lava = !lava;
     mode.setAttribute("aria-pressed", String(lava));
     say(lava ? "mode: lava lamp" : "mode: fire");
     if (!loop.running) frame(100, performance.now());
   });
   mode.setAttribute("aria-pressed", "false");
-  const toggle = playPause(loop);
+  const toggle = playPause(loop, [t("play"), t("pause")]);
   host.append(strip.canvas, el("div", { class: "tryrow" }, mode, toggle));
 
   // Warm the fire up so the first frame is not black.
@@ -41,10 +45,10 @@ export const mount: Mount = ({ host, say, reduced }) => {
   strip.set(Array.from(heat, heatColor));
   if (!reduced) {
     loop.start();
-    toggle.textContent = "Pause";
+    toggle.textContent = t("pause");
     toggle.setAttribute("aria-pressed", "true");
   } else {
-    say("Animation paused because your system asks for reduced motion. Press Play to run it.");
+    say(t("reducedMotion"));
   }
   return () => loop.dispose();
 };

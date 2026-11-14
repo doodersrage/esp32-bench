@@ -118,7 +118,9 @@ export function check(): Promise<string> {
 export async function create(turnstile: string): Promise<string> {
   const data = snapshot();
   const res = await call("POST", null, { turnstile, data });
-  if (res.status !== 200 || typeof res.json.code !== "string") throw new Error(String(res.json.error ?? "The code could not be made. Please try again."));
+  // The API explains itself in English; other languages get a translated message instead.
+  if (res.status !== 200 || typeof res.json.code !== "string")
+    throw new Error(res.json.error && pageLocale() === "en" ? String(res.json.error) : tr("syncMakeFailed"));
   saveState({ code: res.json.code, agreed: fingerprint(data), at: Date.now() });
   return res.json.code;
 }
@@ -126,13 +128,13 @@ export async function create(turnstile: string): Promise<string> {
 /** Link this browser to an existing code, combining both copies. */
 export async function link(typed: string): Promise<void> {
   const code = normaliseCode(typed);
-  if (!code) throw new Error("That does not look like a sync code: 16 letters and digits, like 7KQ4-M2XD-9PQA-R3TW.");
+  if (!code) throw new Error(tr("syncBadCode"));
   const got = await call("GET", code);
-  if (got.status === 404) throw new Error("No data for that sync code. Check it, or make a new one.");
-  if (got.status !== 200) throw new Error("Could not reach the sync service. Please try again.");
+  if (got.status === 404) throw new Error(tr("syncNoData"));
+  if (got.status !== 200) throw new Error(tr("syncUnreachable"));
   const both = mergeSync((got.json.data ?? {}) as SyncData, snapshot());
   const put = await call("PUT", code, { data: both });
-  if (put.status !== 200) throw new Error("Could not save to the sync service. Please try again.");
+  if (put.status !== 200) throw new Error(tr("syncSaveFailed"));
   apply(both);
   saveState({ code, agreed: fingerprint(both), at: Date.now() });
 }
@@ -147,7 +149,7 @@ export async function deleteCloud(): Promise<void> {
   const s = loadState();
   if (!s) return;
   const res = await call("DELETE", s.code);
-  if (res.status !== 200) throw new Error("Could not delete the cloud copy. Please try again.");
+  if (res.status !== 200) throw new Error(tr("syncDeleteFailed"));
   saveState(null);
 }
 

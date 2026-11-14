@@ -3,7 +3,19 @@
 // the user connects, so the page itself stays light.
 import type { ESPLoader, Transport } from "esptool-js";
 import { closeSession, openSession, writeAndReset, type FlashSession } from "../lib/esp-flash";
-import { ROLE_LABEL, bootloaderOffset, checkPlan, guessRole, hex, parseOffset, type PlanFile, type Role } from "../lib/flash-plan";
+import { bootloaderOffset, checkPlan, guessRole, hex, parseOffset, type PlanFile, type Role } from "../lib/flash-plan";
+import { pageLocale, translator } from "../i18n/t";
+import { FLASH_PLAN_PATTERNS, TOOLS_UI, byPattern } from "../i18n/strings/tools";
+
+const t = translator(TOOLS_UI, pageLocale());
+const ROLE_KEY = {
+  merged: "roleMerged",
+  bootloader: "roleBootloader",
+  partitions: "rolePartitions",
+  boot_app0: "roleBootApp0",
+  app: "roleApp",
+  other: "roleOther",
+} as const satisfies Record<Role, keyof typeof TOOLS_UI.en>;
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 const picker = $<HTMLInputElement>("#fl-files");
@@ -72,8 +84,8 @@ function render() {
     tr.append(el("td", { className: "name", textContent: f.name }));
 
     const roleTd = el("td");
-    const role = el("select", { ariaLabel: `What ${f.name} is` });
-    for (const r of Object.keys(ROLE_LABEL) as Role[]) role.append(el("option", { value: r, textContent: ROLE_LABEL[r], selected: r === f.role }));
+    const role = el("select", { ariaLabel: t("flWhatIs", { file: f.name }) });
+    for (const r of Object.keys(ROLE_KEY) as Role[]) role.append(el("option", { value: r, textContent: t(ROLE_KEY[r]), selected: r === f.role }));
     role.addEventListener("change", () => {
       f.role = role.value as Role;
       f.offset = f.role === "bootloader" ? "auto" : f.role === "merged" ? 0 : f.role === "partitions" ? 0x8000 : f.role === "boot_app0" ? 0xe000 : f.role === "app" ? 0x10000 : f.offset;
@@ -87,8 +99,8 @@ function render() {
     const offTd = el("td");
     const off = el("input", {
       value: f.offset === "auto" ? "auto" : hex(f.offset),
-      ariaLabel: `Offset for ${f.name}`,
-      title: f.offset === "auto" ? "Set by the chip: 0x1000 on ESP32 and S2, 0x0 on S3, C3, C6 and H2" : "",
+      ariaLabel: t("flOffsetFor", { file: f.name }),
+      title: f.offset === "auto" ? t("flAutoTitle") : "",
     });
     off.addEventListener("change", () => {
       const v = parseOffset(off.value);
@@ -104,7 +116,7 @@ function render() {
     if (f.offset === "auto" && resolved !== null) offTd.append(el("span", { className: "cap left", textContent: ` = ${hex(resolved)}` }));
     tr.append(offTd);
 
-    const rm = el("button", { type: "button", className: "btn sm", textContent: "✕", ariaLabel: `Remove ${f.name}` });
+    const rm = el("button", { type: "button", className: "btn sm", textContent: "✕", ariaLabel: t("remove", { name: f.name }) });
     rm.addEventListener("click", () => {
       files.splice(i, 1);
       render();
@@ -120,7 +132,7 @@ function render() {
   problemsList.replaceChildren(
     ...problems.map((p) => {
       const li = el("li", { className: "finding" });
-      li.append(el("span", { className: p.level === "error" ? "tag bad" : "tag warnt", textContent: p.level === "error" ? "Error" : "Check" }), el("span", { textContent: p.text }));
+      li.append(el("span", { className: p.level === "error" ? "tag bad" : "tag warnt", textContent: p.level === "error" ? t("tagError") : t("tagCheck") }), el("span", { textContent: byPattern(p.text, FLASH_PLAN_PATTERNS, t) }));
       return li;
     }),
   );
@@ -154,7 +166,7 @@ async function connect() {
   render();
   try {
     const port = await serialApi!.requestPort();
-    log("Loading the flasher...");
+    log(t("flLoading"));
     session = await openSession(port, Number(baud.value), terminal);
     loader = session.loader;
     const description = session.description;
@@ -169,17 +181,17 @@ async function connect() {
     const mb = /^(\d+)MB$/.exec(size ?? "");
     flashBytes = mb ? Number(mb[1]) * 1024 * 1024 : undefined;
     showChip([
-      ["Chip", description],
-      ["Features", features.join(", ") || "not reported"],
-      ["Crystal", crystal ? `${crystal} MHz` : "not reported"],
-      ["MAC", mac || "not reported"],
-      ["Flash", size || "not detected"],
-      ["Bootloader at", hex(bootOffset)],
+      [t("chipChip"), description],
+      [t("chipFeatures"), features.join(", ") || t("notReported")],
+      [t("chipCrystal"), crystal ? `${crystal} MHz` : t("notReported")],
+      [t("chipMac"), mac || t("notReported")],
+      [t("chipFlash"), size || t("notDetected")],
+      [t("chipBootloader"), hex(bootOffset)],
     ]);
-    log(`Connected to ${description}.`);
+    log(t("flConnected", { chip: description }));
   } catch (err) {
     const msg = (err as Error).message ?? String(err);
-    if ((err as Error).name !== "NotFoundError") log(`Could not connect: ${msg}`);
+    if ((err as Error).name !== "NotFoundError") log(t("flCouldNot", { msg }));
     await cleanup();
   } finally {
     busy = false;
@@ -205,15 +217,15 @@ async function flash() {
       eraseAll: eraseFirst.checked,
       onProgress: (pct, index) => {
         progbar.style.width = `${pct}%`;
-        progtext.textContent = `${pct}%: writing ${files[index].name} at ${hex(fileArray[index].address)}`;
+        progtext.textContent = t("flWriting", { pct, file: files[index].name, offset: hex(fileArray[index].address) });
       },
     });
-    log("Flashed and reset. Open the bench to watch it start.");
-    progtext.textContent = "Done. The board has been reset and is running the new firmware.";
+    log(t("flDoneLog"));
+    progtext.textContent = t("flDone");
     await cleanup();
   } catch (err) {
-    log(`Flashing failed: ${(err as Error).message ?? err}`);
-    progtext.textContent = "Flashing failed. See the log below.";
+    log(t("flFailedLog", { msg: String((err as Error).message ?? err) }));
+    progtext.textContent = t("flFailed");
   } finally {
     busy = false;
     render();
@@ -221,9 +233,7 @@ async function flash() {
 }
 
 function confirmErase(): boolean {
-  return window.confirm(
-    "Erase the whole flash chip?\n\nThis deletes the firmware, saved Wi-Fi and Preferences settings (nvs) and every file in SPIFFS or LittleFS. It cannot be undone.",
-  );
+  return window.confirm(t("flConfirm"));
 }
 
 async function eraseOnly() {
@@ -231,11 +241,11 @@ async function eraseOnly() {
   busy = true;
   render();
   try {
-    log("Erasing the whole flash. This takes up to a minute...");
+    log(t("flErasing"));
     await loader.eraseFlash();
-    log("Flash erased.");
+    log(t("flErased"));
   } catch (err) {
-    log(`Erase failed: ${(err as Error).message ?? err}`);
+    log(t("flEraseFailed", { msg: String((err as Error).message ?? err) }));
   } finally {
     busy = false;
     render();
@@ -251,7 +261,7 @@ disconnectBtn.addEventListener("click", async () => {
   chipName = "";
   bootOffset = null;
   flashBytes = undefined;
-  log("Disconnected.");
+  log(t("flDisconnected"));
   render();
 });
 render();

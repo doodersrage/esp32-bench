@@ -2,80 +2,72 @@
 import { localePaths } from "../../../i18n/locales";
 import Base from "../../../layouts/Base.astro";
 import { localLink } from "../../../lib/paths";
+import { translator } from "../../../i18n/t";
+import { TOOLS_UI } from "../../../i18n/strings/tools";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(TOOLS_UI, Astro.currentLocale);
 
 export const getStaticPaths = localePaths;
 ---
 
 <Base
-  title="ESP32 web flasher: flash your own .bin from the browser"
+  title={t("flTitle")}
   current="tools"
   image="/og/tools/flash.png"
-  description="Flash your own ESP32 firmware .bin files from Chrome or Edge with no install: merged images or bootloader, partitions and app at the right offsets for ESP32, S2, S3, C3 and C6. Erase the flash and read the chip, MAC and flash size."
+  description={t("flDescription")}
 >
   <section class="view">
-    <a class="back" href={link("/tools/")}>← All tools</a>
+    <a class="back" href={link("/tools/")}>{t("allTools")}</a>
     <div class="stack tight">
-      <h1 class="h2">Flash your own firmware</h1>
-      <p class="lede">
-        Write .bin files to an ESP32 straight from the browser, the way <code>esptool.py write_flash</code> does. Your
-        files go from this page to the board over USB and nowhere else.
-      </p>
+      <h1 class="h2">{t("flH1")}</h1>
+      <p class="lede" set:html={t("flLede")} />
     </div>
 
-    <p class="notice" id="fl-unsupported" hidden>
-      <strong>This browser cannot flash.</strong> Flashing uses Web Serial, which Chrome, Edge and Opera support on desktop
-      computers. Open this page in one of those.
-    </p>
-    <p class="notice" id="fl-insecure" hidden>
-      <strong>Flashing needs a secure page.</strong> Open this site over https or from http://localhost.
-    </p>
+    <p class="notice" id="fl-unsupported" hidden set:html={t("flUnsupported")} />
+    <p class="notice" id="fl-insecure" hidden set:html={t("flInsecure")} />
 
     <div class="stack tight">
-      <h2 class="h3">1. Pick the files</h2>
+      <h2 class="h3">{t("flStep1")}</h2>
       <label class="btn pick">
         <input type="file" id="fl-files" accept=".bin,application/octet-stream" multiple />
-        Add .bin files
+        {t("flAdd")}
       </label>
-      <p class="cap left">
-        One merged image goes at 0x0. A build in separate parts needs the bootloader, partition table and app (Arduino
-        also has boot_app0). Offsets are filled in from the file names; check them against your build output.
-      </p>
+      <p class="cap left">{t("flFilesCap")}</p>
       <div class="tablebox">
         <table class="fl">
           <thead>
             <tr>
-              <th>File</th>
-              <th>What it is</th>
-              <th>Size</th>
-              <th>Offset</th>
-              <th><span class="sr">Remove</span></th>
+              <th>{t("flThFile")}</th>
+              <th>{t("flThWhat")}</th>
+              <th>{t("thSize")}</th>
+              <th>{t("thOffset")}</th>
+              <th><span class="sr">{t("flThRemove")}</span></th>
             </tr>
           </thead>
           <tbody id="fl-rows"></tbody>
         </table>
       </div>
-      <p class="empty" id="fl-empty">No files yet.</p>
+      <p class="empty" id="fl-empty">{t("flEmpty")}</p>
       <ul class="findings" id="fl-problems"></ul>
     </div>
 
     <div class="stack tight">
-      <h2 class="h3">2. Connect and flash</h2>
+      <h2 class="h3">{t("flStep2")}</h2>
       <div class="controls">
-        <label>Speed
+        <label>{t("flSpeed")}
           <select id="fl-baud">
             <option value="115200">115200</option>
             <option value="460800">460800</option>
             <option value="921600" selected>921600</option>
           </select>
         </label>
-        <label><input type="checkbox" id="fl-erase" /> Erase the whole flash first</label>
+        <label><input type="checkbox" id="fl-erase" /> {t("flEraseFirst")}</label>
         <span class="sp"></span>
-        <button class="btn" type="button" id="fl-connect">Connect board</button>
-        <button class="btn go" type="button" id="fl-flash" disabled>Flash</button>
-        <button class="btn" type="button" id="fl-erase-only" disabled>Erase flash</button>
-        <button class="btn" type="button" id="fl-disconnect" disabled>Disconnect</button>
+        <button class="btn" type="button" id="fl-connect">{t("flConnect")}</button>
+        <button class="btn go" type="button" id="fl-flash" disabled>{t("flFlash")}</button>
+        <button class="btn" type="button" id="fl-erase-only" disabled>{t("flEraseOnly")}</button>
+        <button class="btn" type="button" id="fl-disconnect" disabled>{t("flDisconnect")}</button>
       </div>
       <dl class="chip" id="fl-chip" hidden></dl>
       <div class="progress" id="fl-progress" hidden>
@@ -83,10 +75,7 @@ export const getStaticPaths = localePaths;
         <span class="cap left" id="fl-progtext"></span>
       </div>
       <pre class="term fllog" id="fl-log" aria-live="polite"></pre>
-      <p class="cap left">
-        If connecting stalls, hold BOOT, tap EN or RST, then let go of BOOT and try again. Close any serial monitor
-        first, including the <a href={link("/bench/")}>bench</a>: only one program can use the port.
-      </p>
+      <p class="cap left" set:html={t("flStall", { bench: link("/bench/") })} />
     </div>
   </section>
 </Base>
@@ -107,7 +96,7 @@ export const getStaticPaths = localePaths;
   .progbar { height: 12px; border: 1px solid var(--line); background: var(--panel); }
   .progbar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
   .fllog { height: 22vh; min-height: 160px; margin: 0; white-space: pre-wrap; }
-  .cap a { color: var(--accent); }
+  .cap :global(a) { color: var(--accent); }
 </style>
 
 <script>

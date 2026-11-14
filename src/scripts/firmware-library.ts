@@ -1,6 +1,11 @@
 // Shows the "Flash it from the browser" block when the prebuilt firmware
 // library has images for this project, and lets a board that shares its chip
 // family with a DevKit (a XIAO, the ESP32-CAM) pick its own manifest.
+import { HTML_LANG } from "../i18n/locales";
+import { FIRMWARE } from "../i18n/strings/firmware";
+import { pageLocale, translator } from "../i18n/t";
+
+const t = translator(FIRMWARE, pageLocale());
 
 interface LibraryIndex {
   builtAt: string;
@@ -65,15 +70,16 @@ if (box) {
     // In UTC, so the date matches the one in the version string.
     const when = Number.isNaN(date.getTime())
       ? ""
-      : date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
-    const version = index.version ? `Firmware ${index.version}, built` : "Built";
-    if (built) built.textContent = `${version} ${when}${index.core ? ` with Arduino-ESP32 core ${index.core}` : ""}, for the ${families.join(", ")}.`;
+      : date.toLocaleDateString(HTML_LANG[pageLocale()], { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" });
+    const vars = { version: index.version, when, core: index.core, families: families.join(", ") };
+    const key = index.version ? (index.core ? "builtVerCore" : "builtVer") : index.core ? "builtCore" : "builtPlain";
+    if (built) built.textContent = t(key, vars);
 
     const button = box.querySelector<HTMLElement>("esp-web-install-button");
     const activate = box.querySelector<HTMLButtonElement>('[slot="activate"]');
-    if (activate) activate.textContent = "Flash to your board";
+    if (activate) activate.textContent = t("flashButton");
     const caption = box.querySelector<HTMLElement>(".flashbox .cap");
-    if (caption) caption.textContent = `One image per chip family: ${families.join(", ")}. The installer detects which one is connected.`;
+    if (caption) caption.textContent = t("oneImage", { families: families.join(", ") });
 
     // Boards with their own manifest (they share a chip family with a DevKit board).
     const pick = box.querySelector<HTMLElement>("[data-fw-pick]");

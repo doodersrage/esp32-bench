@@ -2,8 +2,13 @@
 import { boardsOf, isNew, pickerNeeds, type Project } from "../data/projects";
 import { boardById } from "../data/boards";
 import { localLink } from "../lib/paths";
+import { translator } from "../i18n/t";
+import { contentTranslator } from "../i18n/content";
+import { PROJECT } from "../i18n/strings/project";
 
 const link = localLink(Astro.currentLocale);
+const t = translator(PROJECT, Astro.currentLocale);
+const tc = contentTranslator(Astro.currentLocale);
 
 interface Props {
   project: Project;
@@ -20,14 +25,22 @@ const { project: p, number, order, suggest } = Astro.props;
 const boards = boardsOf(p).map(boardById).filter((b) => !b.variantOf);
 const verified = (p.verified ?? []).length > 0;
 const fresh = isNew(p);
+const name = tc(p.name);
+const sum = tc(p.sum);
+const level = t(`level.${p.level}`);
 
 // Lowercased text the library search matches against.
 const haystack = [
   p.name,
   p.sum,
   p.level,
+  // The visitor's language too, so a search in it finds the card.
+  ...(name !== p.name ? [name] : []),
+  ...(sum !== p.sum ? [sum] : []),
+  ...(level !== p.level ? [level] : []),
   p.libs.join(" "),
   p.parts.map((x) => x[1]).join(" "),
+  p.parts.map((x) => tc(x[1])).filter((x, i) => x !== p.parts[i][1]).join(" "),
   boards.map((b) => `${b.short} ${b.name}`).join(" "),
   p.flash ? "flash prebuilt firmware" : "",
   fresh ? "new" : "",
@@ -37,14 +50,14 @@ const haystack = [
 ---
 
 <a class="card" href={link(`/projects/${p.id}/`)} data-id={p.id} data-tags={p.tags.join(" ")} data-level={p.level} data-boards={boardsOf(p).join(" ")} data-order={order} data-suggest={suggest} data-mins={p.mins} data-added={p.added ?? ""} data-flash={p.flash ? "1" : "0"} data-needs={pickerNeeds(p).map((group) => group.join("|")).join(" ")} data-hay={haystack}>
-  <span class="no"><span data-no>No. {String(number).padStart(2, "0")}</span><span class="built" data-built hidden>Built</span>{fresh && <span class="new">New</span>}</span>
-  <span class="name">{p.name}</span>
-  <span class="sum">{p.sum}</span>
+  <span class="no"><span data-no>{t("cardNo", { n: String(number).padStart(2, "0") })}</span><span class="built" data-built hidden>{t("cardBuilt")}</span>{fresh && <span class="new">{t("cardNew")}</span>}</span>
+  <span class="name">{name}</span>
+  <span class="sum">{sum}</span>
   <span class="meta">
-    <span class="tag lvl">{p.level}</span>
-    <span class="tag">{p.mins} min</span>
+    <span class="tag lvl">{level}</span>
+    <span class="tag">{t("mins", { n: p.mins })}</span>
     {boards.map((b) => <span class="tag pin">{b.short}</span>)}
-    <span class="tag ok" data-lab-tag hidden title="Passed the latest hardware lab run on at least one board">Lab tested</span>
-    <span class:list={["tag", verified ? "ok" : "todo"]} data-verified={verified ? "1" : undefined}>{verified ? "Hardware tested" : "Not hardware tested"}</span>
+    <span class="tag ok" data-lab-tag hidden title={t("cardLabTitle")}>{t("labTested")}</span>
+    <span class:list={["tag", verified ? "ok" : "todo"]} data-verified={verified ? "1" : undefined}>{verified ? t("hwTested") : t("notHwTested")}</span>
   </span>
 </a>

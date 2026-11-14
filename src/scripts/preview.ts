@@ -1,5 +1,9 @@
 // "What it prints" on project pages: replays the serial output recorded when
 // the project's library firmware ran in QEMU (scripts/emulate-firmware.mjs).
+import { pageLocale, translator } from "../i18n/t";
+import { PROJECT } from "../i18n/strings/project";
+
+const t = translator(PROJECT, pageLocale());
 interface BoardRun {
   /** Index of the first line printed by the app; lines before it are the ROM's boot messages */
   app: number;
@@ -71,10 +75,7 @@ async function start() {
   if (boards.length === 0) return;
   for (const b of boards) pick.append(new Option(names[b] ?? b, b));
   pick.hidden = boards.length < 2;
-  const date = data.builtAt ? ` built ${data.builtAt.slice(0, 10)}` : "";
-  note.textContent =
-    `Recorded from this project's library firmware${date}, running in QEMU, Espressif's ESP32 emulator, with nothing attached. ` +
-    "A real board prints the same lines; the timings and the boot messages (dimmed) differ a little.";
+  note.textContent = data.builtAt ? t("previewNoteBuilt", { date: data.builtAt.slice(0, 10) }) : t("previewNote");
   box.hidden = false;
 
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;

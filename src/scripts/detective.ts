@@ -4,6 +4,14 @@ import { boardById, type Board, type BoardId } from "../data/boards";
 import type { ChipId } from "../data/chips";
 import { megabytes, parseLine, toPassport, type Passport } from "../lib/detective";
 import { SerialSession, getSerial } from "../lib/serial";
+import { pageLocale, translator } from "../i18n/t";
+import { HTML_LANG } from "../i18n/locales";
+import { DETECTIVE, serialMessage } from "../i18n/strings/bench";
+
+const locale = pageLocale();
+const t = translator(DETECTIVE, locale);
+/** megabytes() says "none" for no PSRAM. */
+const size = (bytes: number) => (bytes <= 0 ? t("none") : megabytes(bytes));
 
 interface SavedBoard extends Passport {
   name: string;
@@ -70,11 +78,12 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", text 
 
 /** "5th pad down on the right", counting from the end away from the USB connector. */
 function whereIs(board: Board, pin: string): string {
-  const ordinal = (n: number) => `${n}${["th", "st", "nd", "rd"][n % 100 > 10 && n % 100 < 14 ? 0 : Math.min(n % 10, 4) % 4]}`;
+  // English counts "5th"; the other languages put the number in their own phrase.
+  const ordinal = (n: number) => (locale === "en" ? `${n}${["th", "st", "nd", "rd"][n % 100 > 10 && n % 100 < 14 ? 0 : Math.min(n % 10, 4) % 4]}` : String(n));
   const left = board.left.indexOf(pin);
-  if (left >= 0) return `${ordinal(left + 1)} pad down on the left`;
+  if (left >= 0) return t("whereLeft", { n: ordinal(left + 1) });
   const right = board.right.indexOf(pin);
-  return right >= 0 ? `${ordinal(right + 1)} pad down on the right` : "not on this board's headers";
+  return right >= 0 ? t("whereRight", { n: ordinal(right + 1) }) : t("whereNone");
 }
 
 function renderBoard() {
@@ -99,24 +108,24 @@ function renderBoard() {
   };
   b.left.forEach((label, i) => grid.append(pad(label, "l", i + 1), pad(b.right[i], "r", i + 1)));
   grid.setAttribute("role", "img");
-  grid.setAttribute("aria-label", `${b.name}. ${touched.size > 0 ? `Touched: ${[...touched].map(gpioName).join(", ")}` : "No pad touched"}`);
+  grid.setAttribute("aria-label", touched.size > 0 ? t("ariaTouched", { board: b.name, list: [...touched].map(gpioName).join(", ") }) : t("ariaNone", { board: b.name }));
   boardBox.replaceChildren(grid);
 }
 
 function renderPassport() {
   saveForm.hidden = passport === null;
   if (!passport) {
-    passportBox.replaceChildren(el("p", "lede", "Connect a board running the pin detective to read its passport."));
+    passportBox.replaceChildren(el("p", "lede", t("passportEmpty")));
     return;
   }
   const rows: [string, string][] = [
-    ["Chip", `${passport.chip}, revision ${passport.revision}`],
-    ["Cores", `${passport.cores} at ${passport.mhz} MHz`],
-    ["Flash", megabytes(passport.flash)],
-    ["PSRAM", megabytes(passport.psram)],
-    ["MAC address", passport.mac],
-    ["SDK", passport.sdk],
-    ["Pinout shown", boardById(passport.board).name],
+    [t("rowChip"), t("chipRev", { chip: passport.chip, rev: passport.revision })],
+    [t("rowCores"), t("coresAt", { cores: passport.cores, mhz: passport.mhz })],
+    [t("rowFlash"), size(passport.flash)],
+    [t("rowPsram"), size(passport.psram)],
+    [t("rowMac"), passport.mac],
+    [t("rowSdk"), passport.sdk],
+    [t("rowPinout"), boardById(passport.board).name],
   ];
   const table = el("table");
   const body = el("tbody");
@@ -147,7 +156,7 @@ function saveCollection(boards: SavedBoard[]) {
 function renderCollection() {
   const boards = loadCollection();
   if (boards.length === 0) {
-    collection.replaceChildren(el("p", "lede", "No boards saved yet. They are kept in this browser only."));
+    collection.replaceChildren(el("p", "lede", t("noBoards")));
     return;
   }
   collection.replaceChildren(
@@ -155,9 +164,9 @@ function renderCollection() {
       const card = el("div", "passport");
       const head = el("div", "codehead");
       head.append(el("span", "name", b.name));
-      const remove = el("button", "btn sm", "Remove");
+      const remove = el("button", "btn sm", t("remove"));
       remove.type = "button";
-      remove.setAttribute("aria-label", `Remove ${b.name}`);
+      remove.setAttribute("aria-label", t("removeAria", { name: b.name }));
       remove.addEventListener("click", () => {
         saveCollection(loadCollection().filter((x) => x.mac !== b.mac));
         renderCollection();
@@ -165,8 +174,8 @@ function renderCollection() {
       head.append(remove);
       card.append(
         head,
-        el("span", "plotlabel", `${b.chip} rev ${b.revision} · ${megabytes(b.flash)} flash · PSRAM ${megabytes(b.psram)}`),
-        el("span", "plotlabel", `${b.mac} · added ${new Date(b.savedAt).toLocaleDateString()}`),
+        el("span", "plotlabel", t("savedSpecs", { chip: b.chip, rev: b.revision, flash: size(b.flash), psram: size(b.psram) })),
+        el("span", "plotlabel", t("savedWhen", { mac: b.mac, date: new Date(b.savedAt).toLocaleDateString(HTML_LANG[locale]) })),
       );
       return card;
     }),
@@ -178,18 +187,18 @@ function nextQuestion() {
   const onBoard = [...watched].filter((pin) => (b.left.includes(pin) || b.right.includes(pin)) && !heldLow.has(pin));
   if (onBoard.length === 0) {
     quizTarget = null;
-    quizText.textContent = "Connect a board first.";
+    quizText.textContent = t("connectFirst");
     return;
   }
   const pool = onBoard.filter((pin) => pin !== quizTarget);
   quizTarget = pool[Math.floor(Math.random() * pool.length)] ?? onBoard[0];
-  quizText.textContent = `Touch the pad you think is ${gpioName(quizTarget)}. Score: ${quizScore.right} of ${quizScore.asked}.`;
+  quizText.textContent = t("quizAsk", { gpio: gpioName(quizTarget), right: quizScore.right, asked: quizScore.asked });
 }
 
 function onTouch(pin: string) {
   const b = boardById(boardId);
   const silk = b.silk?.[pin];
-  readout.textContent = `${gpioName(pin)} is low. It is the ${whereIs(b, pin)}, labelled ${silk ? `${silk} on the silkscreen` : `${pin} on this pinout`}.`;
+  readout.textContent = t("readout", { gpio: gpioName(pin), where: whereIs(b, pin), label: silk ? t("labelSilk", { silk }) : t("labelPinout", { pin }) });
   const item = el("li", "", `${new Date().toTimeString().slice(0, 8)}  ${gpioName(pin)}`);
   history.prepend(item);
   while (history.childElementCount > 8) history.lastElementChild?.remove();
@@ -198,7 +207,7 @@ function onTouch(pin: string) {
     quizScore.asked += 1;
     const right = pin === quizTarget;
     if (right) quizScore.right += 1;
-    const verdict = right ? `Yes, that is ${gpioName(pin)}.` : `That pad is ${gpioName(pin)}, not ${gpioName(quizTarget)}.`;
+    const verdict = right ? t("quizRight", { gpio: gpioName(pin) }) : t("quizWrong", { gpio: gpioName(pin), target: gpioName(quizTarget) });
     nextQuestion();
     quizText.textContent = `${verdict} ${quizText.textContent}`;
   }
@@ -215,7 +224,7 @@ const session = new SerialSession({
       firmware = event.firmware;
       touched = new Set();
       if (passport) passport = { ...passport, board: boardId };
-      status.textContent = `Connected: ${boardById(boardId).name}, pin detective ${firmware}. Touch a jumper from GND to any pad.`;
+      status.textContent = t("hello", { board: boardById(boardId).name, firmware });
     } else if (event.type === "id") {
       passport = toPassport(boardId, firmware, event.fields);
       renderPassport();
@@ -237,12 +246,12 @@ const session = new SerialSession({
   onClose(lost) {
     chip = null;
     fitLayouts(null);
-    connectBtn.textContent = "Connect board";
+    connectBtn.textContent = t("connect");
     connectBtn.classList.add("go");
     touched = new Set();
     quizTarget = null;
-    quizBtn.textContent = "Quiz me";
-    status.textContent = lost ? "Board disconnected." : "Disconnected.";
+    quizBtn.textContent = t("quizMe");
+    status.textContent = lost ? t("boardDisconnected") : t("disconnected");
     renderBoard();
   },
 });
@@ -253,19 +262,19 @@ connectBtn.addEventListener("click", async () => {
     return;
   }
   greeted = false;
-  status.textContent = "Pick the board's port in the browser prompt.";
+  status.textContent = t("pickPort");
   const result = await session.open(115200);
   if (result === "cancelled") {
-    status.textContent = "No port was picked.";
+    status.textContent = t("noPort");
     return;
   }
   if (result !== "ok") {
-    status.textContent = result;
+    status.textContent = serialMessage(result, locale);
     return;
   }
-  connectBtn.textContent = "Disconnect";
+  connectBtn.textContent = t("disconnect");
   connectBtn.classList.remove("go");
-  status.textContent = "Connected. Waiting for the pin detective to answer.";
+  status.textContent = t("waiting");
   // The firmware prints its identity at boot. Ask again in case the board did
   // not reset when the port opened.
   for (const wait of [1500, 2500, 4000]) {
@@ -275,7 +284,7 @@ connectBtn.addEventListener("click", async () => {
   }
   await new Promise((r) => setTimeout(r, 1500));
   if (!greeted && session.connected) {
-    status.textContent = "The board is connected but is not running the pin detective. Flash it with the button above, then connect again.";
+    status.textContent = t("notRunning");
   }
 });
 
@@ -298,13 +307,13 @@ layoutSelect.addEventListener("change", () => {
 quizBtn.addEventListener("click", () => {
   if (quizTarget !== null) {
     quizTarget = null;
-    quizBtn.textContent = "Quiz me";
-    quizText.textContent = `Final score: ${quizScore.right} of ${quizScore.asked}.`;
+    quizBtn.textContent = t("quizMe");
+    quizText.textContent = t("finalScore", { right: quizScore.right, asked: quizScore.asked });
     return;
   }
   quizScore = { right: 0, asked: 0 };
   nextQuestion();
-  if (quizTarget !== null) quizBtn.textContent = "Stop the quiz";
+  if (quizTarget !== null) quizBtn.textContent = t("stopQuiz");
 });
 
 saveForm.addEventListener("submit", (e) => {
@@ -321,7 +330,7 @@ saveForm.addEventListener("submit", (e) => {
 
 if (!getSerial()) {
   connectBtn.disabled = true;
-  status.textContent = "This browser has no Web Serial. Use Chrome or Edge on a desktop to connect a board.";
+  status.textContent = t("noSerial");
 }
 fitLayouts(null);
 renderBoard();

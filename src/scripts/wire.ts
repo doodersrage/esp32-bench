@@ -3,6 +3,8 @@
 import { BOARDS, boardById, type Board, type BoardId } from "../data/boards";
 import { partById, type Part } from "../data/parts";
 import { autoWire, checkWiring, pinConstants, type Connection } from "../lib/wiring";
+import { pageLocale, translator } from "../i18n/t";
+import { PAD_WHY, PART_NAMES, PIN_NOTES, WIRE, byEnglish } from "../i18n/strings/bench";
 
 interface State {
   board: BoardId;
@@ -19,6 +21,9 @@ const status = $("w-status");
 const findings = $("w-findings");
 const tableBody = $("w-table");
 const code = $("w-code");
+
+const locale = pageLocale();
+const t = translator(WIRE, locale);
 
 const STORE = "bench.wire";
 let state: State = { board: "esp32", parts: ["dht22"], connections: [] };
@@ -50,6 +55,64 @@ const parts = (): Part[] => state.parts.map(partById).filter((p): p is Part => B
 const padOf = (part: string, pin: string) => state.connections.find((c) => c.part === part && c.pin === pin)?.pad;
 const gpioName = (pad: string) => (/^\d+$/.test(pad) ? `GPIO ${pad}` : pad);
 
+/** A part's name in the page's language: generic names are translated, product names stay. */
+const partName = (part: Part): string => (part.id in PART_NAMES.en ? translator(PART_NAMES, locale)(part.id as keyof typeof PART_NAMES.en) : part.name);
+const whyText = (why: string) => byEnglish(PAD_WHY, why, locale);
+const noteText = (note: string) => byEnglish(PIN_NOTES, note, locale);
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * A finding from src/lib/wiring.ts, rebuilt in the page's language. The lib
+ * writes English sentences, so they are matched here against its templates;
+ * anything that does not match is shown as it is.
+ */
+function findingText(text: string, list: Part[]): string {
+  if (locale === "en") return text;
+  // "Part PIN" as the lib writes it, and as this page shows it.
+  const who = new Map<string, string>();
+  for (const part of list) for (const pin of part.pins) who.set(`${part.name} ${pin.name}`, `${partName(part)} ${pin.name}`);
+  const names = [...who.keys()].sort((a, b) => b.length - a.length).map(escape).join("|");
+  if (!names) return text;
+  const W = `(${names})`;
+  const P = "(GPIO \\d+|[^\\s:]+)";
+  let m: RegExpExecArray | null;
+
+  if ((m = new RegExp(`^${W} on ${P}: (.*)$`).exec(text))) {
+    const where = t("where", { who: who.get(m[1]) ?? m[1], pad: m[2] });
+    const pad = m[2];
+    const rest = m[3];
+    const pin = m[1].slice(m[1].lastIndexOf(" ") + 1);
+    if (rest === "this part runs on 3.3 V. 5 V can damage it and will put 5 V on its signal pins. Use 3V3.") return t("f3v3", { where });
+    let r: RegExpExecArray | null;
+    if ((r = /^(.+) belongs on (3V3|5V|GND)\.$/.exec(rest))) return t("fBelongs", { where, pin: r[1], label: r[2] });
+    if ((r = /^that pad is (.*) Pick a numbered GPIO\.$/.exec(rest))) return t("fNotGpio", { where, why: whyText(r[1]) });
+    const pullup = " This part relies on the internal pull-up, so add an external 10 kΩ to 3V3 or pick another pin.";
+    if (rest.endsWith(pullup)) return t("fPullup", { where, why: whyText(rest.slice(0, -pullup.length)) });
+    const drive = " needs a pin the board can drive.";
+    if (rest.endsWith(drive)) {
+      const head = rest.slice(0, -drive.length);
+      const why = Object.values(PAD_WHY.en).find((w) => head.startsWith(`${w} `));
+      if (why) return t("fInputOnly", { where, why: whyText(why), pin: head.slice(why.length + 1) || pin });
+    }
+    if ((r = new RegExp(`^${P} is (.*) Using it breaks flashing and the bench over that port\\.$`).exec(rest)))
+      return t("fUsb", { where, gpio: r[1], why: whyText(r[2]) });
+    if ((r = new RegExp(`^${P} is (.*)$`).exec(rest))) return t("fIs", { where, gpio: r[1], why: whyText(r[2]) });
+    const raw = pad.replace(/^GPIO /, "");
+    if (rest.startsWith(`${raw} `)) return t("fUart", { where, pad, why: whyText(rest.slice(raw.length + 1)) });
+    return text;
+  }
+  if ((m = new RegExp(`^${W} outputs 5 V and ESP32 pins take 3\\.3 V\\. (.*)$`).exec(text)))
+    return t("f5v", { who: who.get(m[1]) ?? m[1], note: noteText(m[2]) });
+  if ((m = new RegExp(`^${W} is not connected yet\\.$`).exec(text))) return t("fOpen", { who: who.get(m[1]) ?? m[1] });
+  if ((m = new RegExp(`^${W}: (.*)$`).exec(text))) return t("fNote", { who: who.get(m[1]) ?? m[1], note: noteText(m[2]) });
+  if ((m = new RegExp(`^${P} is used twice: (.*)\\. Give each its own pin\\.$`).exec(text))) {
+    const users = m[2].split(" and ").map((u) => who.get(u) ?? u);
+    return t("fTwice", { gpio: m[1], users: users.join(t("joinAnd")) });
+  }
+  if (text === "I2C parts share SDA and SCL. Each needs its own address, or one will hide the other.") return t("fI2c");
+  return text;
+}
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", text = ""): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -64,7 +127,7 @@ function nextOpenPin(): string | null {
 
 function connect(pad: string) {
   if (!selected) {
-    status.textContent = "Pick a part pin first, then a pad.";
+    status.textContent = t("pickFirst");
     return;
   }
   const [part, pin] = selected.split("/");
@@ -79,7 +142,7 @@ function renderPins() {
   pinsBox.replaceChildren(
     ...parts().map((part) => {
       const group = el("div", "wpart");
-      group.append(el("span", "wpartname", part.name));
+      group.append(el("span", "wpartname", partName(part)));
       const row = el("div", "row");
       for (const pin of part.pins) {
         const id = `${part.id}/${pin.name}`;
@@ -98,7 +161,7 @@ function renderPins() {
       return group;
     }),
   );
-  if (parts().length === 0) pinsBox.append(el("p", "lede", "Add a part to start wiring."));
+  if (parts().length === 0) pinsBox.append(el("p", "lede", t("addPart")));
 }
 
 function renderBoard() {
@@ -106,7 +169,8 @@ function renderBoard() {
   const used = new Map<string, string[]>();
   for (const c of state.connections) {
     if (!state.parts.includes(c.part)) continue;
-    used.set(c.pad, [...(used.get(c.pad) ?? []), `${partById(c.part)?.name ?? c.part} ${c.pin}`]);
+    const part = partById(c.part);
+    used.set(c.pad, [...(used.get(c.pad) ?? []), `${part ? partName(part) : c.part} ${c.pin}`]);
   }
   const grid = el("div", "board");
   const pcb = el("div", "pcb");
@@ -137,9 +201,9 @@ function renderBoard() {
     button.append(...(side === "l" ? [text, hole] : [hole, text]));
     button.setAttribute(
       "aria-label",
-      `${gpioName(label)}${rule ? `, ${rule.why}` : ""}${users ? ` Connected to ${users.join(" and ")}.` : ""}`,
+      `${rule ? t("padTitle", { gpio: gpioName(label), why: whyText(rule.why) }) : gpioName(label)}${users ? ` ${t("padConnected", { users: users.join(t("joinAnd")) })}` : ""}`,
     );
-    button.title = rule ? `${gpioName(label)}: ${rule.why}` : gpioName(label);
+    button.title = rule ? t("padTitle", { gpio: gpioName(label), why: whyText(rule.why) }) : gpioName(label);
     button.addEventListener("click", () => connect(label));
     return button;
   };
@@ -150,36 +214,37 @@ function renderBoard() {
 function renderResults() {
   const list = parts();
   const found = checkWiring(board(), list, state.connections.filter((c) => state.parts.includes(c.part)));
-  const labels = { error: "Fix", warn: "Careful", note: "Note" };
+  const labels = { error: t("levelError"), warn: t("levelWarn"), note: t("levelNote") };
   findings.replaceChildren(
     ...found.map((f) => {
       const li = el("li", `finding ${f.level}`);
-      li.append(el("span", `tag ${f.level === "error" ? "bad" : f.level === "warn" ? "warnt" : ""}`, labels[f.level]), el("span", "", f.text));
+      li.append(el("span", `tag ${f.level === "error" ? "bad" : f.level === "warn" ? "warnt" : ""}`, labels[f.level]), el("span", "", findingText(f.text, list)));
       return li;
     }),
   );
-  if (found.length === 0 && list.length > 0) findings.append(el("li", "finding", "Every pin is connected and nothing looks risky."));
+  if (found.length === 0 && list.length > 0) findings.append(el("li", "finding", t("allGood")));
 
   tableBody.replaceChildren(
     ...list.flatMap((part) =>
       part.pins.map((pin) => {
         const tr = el("tr");
         const pad = padOf(part.id, pin.name);
-        tr.append(el("td", "", `${part.name} ${pin.name}`), el("td", "m", pad ? gpioName(pad) : "not connected"));
+        tr.append(el("td", "", `${partName(part)} ${pin.name}`), el("td", "m", pad ? gpioName(pad) : t("notConnected")));
         return tr;
       }),
     ),
   );
-  code.textContent = pinConstants(list, state.connections) || "// Signal pins appear here once they are wired.";
+  code.textContent = pinConstants(list, state.connections) || t("codeEmpty");
 
   const errors = found.filter((f) => f.level === "error").length;
   if (selected) {
     const [partId, pin] = selected.split("/");
-    status.textContent = `Now tap a pad for ${partById(partId)?.name ?? partId} ${pin}.`;
+    const part = partById(partId);
+    status.textContent = t("nowTap", { who: `${part ? partName(part) : partId} ${pin}` });
   } else if (list.length === 0) {
     status.textContent = "";
   } else {
-    status.textContent = errors > 0 ? `${errors} ${errors === 1 ? "wire needs" : "wires need"} fixing.` : nextOpenPin() ? "Tap a part pin to continue." : "All wired.";
+    status.textContent = errors === 1 ? t("oneNeedsFix") : errors > 1 ? t("manyNeedFix", { n: errors }) : nextOpenPin() ? t("tapContinue") : t("allWired");
   }
 }
 
@@ -235,9 +300,9 @@ $("w-copy").addEventListener("click", async () => {
   const rows = [...tableBody.querySelectorAll("tr")].map((tr) => [...tr.children].map((td) => td.textContent).join(" -> "));
   try {
     await navigator.clipboard.writeText(`${board().name}\n${rows.join("\n")}\n\n${code.textContent}`);
-    button.textContent = "Copied";
+    button.textContent = t("copied");
   } catch {
-    button.textContent = "Copy blocked";
+    button.textContent = t("copyBlocked");
   }
   setTimeout(() => {
     button.textContent = label;
@@ -257,13 +322,13 @@ $("remix-go").addEventListener("click", () => {
   }
   const note = $("remix-note");
   if (chosen.size === 0) {
-    note.textContent = "Neither project needs parts beyond the board, so there is nothing to wire.";
+    note.textContent = t("remixNothing");
     return;
   }
   state.parts = [...chosen].filter((id) => partById(id));
   wireAll();
-  const names = state.parts.map((id) => partById(id)?.name).join(", ");
-  note.textContent = `Loaded ${names}. This merges the wiring and pin numbers. The two sketches still have to be combined by hand.`;
+  const names = state.parts.map((id) => partById(id)).filter((p): p is Part => Boolean(p)).map(partName).join(", ");
+  note.textContent = t("remixLoaded", { names });
 });
 
 if (!load()) state.connections = autoWire(board(), parts());

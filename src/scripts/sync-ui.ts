@@ -1,5 +1,12 @@
 // The "Use this log on another device" panel on the home page.
 import { create, deleteCloud, link, loadState, unlink } from "./sync";
+import { pageLocale, translator } from "../i18n/t";
+import { HOME } from "../i18n/strings/home";
+import { HTML_LANG } from "../i18n/locales";
+
+const t = translator(HOME, pageLocale());
+const lang = HTML_LANG[pageLocale()];
+const FILE_NAME = "esp32-bench-sync-code.txt";
 
 interface Turnstile {
   render(el: HTMLElement, options: Record<string, unknown>): string;
@@ -28,8 +35,8 @@ function render() {
   if (on) on.hidden = !s;
   if (s && shown) shown.textContent = s.code;
   const logLink = document.getElementById("loglink");
-  if (logLink) logLink.textContent = s ? "Your bench log · synced" : "Your bench log";
-  if (s && when) when.textContent = `Last synced ${new Date(s.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}.`;
+  if (logLink) logLink.textContent = s ? t("logLinkSynced") : t("logLink");
+  if (s && when) when.textContent = t("lastSynced", { when: new Date(s.at).toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" }) });
 }
 
 /** A link that opens this panel with the code filled in. The code rides in the #fragment, which is never sent to a server. */
@@ -40,7 +47,7 @@ async function copy(text: string, done: string) {
     await navigator.clipboard.writeText(text);
     say(done);
   } catch {
-    say(`Copy this: ${text}`);
+    say(t("copyThis", { text }));
   }
 }
 
@@ -62,30 +69,30 @@ function loadTurnstile(): Promise<Turnstile> {
 make?.addEventListener("click", async () => {
   if (!human || widget !== null) return;
   make.disabled = true;
-  say("One quick human check, then your code appears.");
+  say(t("humanCheck"));
   try {
-    const t = await loadTurnstile();
-    widget = t.render(human, {
+    const ts = await loadTurnstile();
+    widget = ts.render(human, {
       sitekey: box?.dataset.sitekey ?? "",
       action: "sync",
       theme: "auto",
       callback: async (token: string) => {
-        say("Making your code…");
+        say(t("making"));
         try {
           const code = await create(token);
-          say(`Your sync code is ${code}. Save it as a file or copy the link, then enter it on your other devices.`);
+          say(t("made", { code }));
           human.replaceChildren();
           widget = null;
           make.disabled = false;
           render();
         } catch (e) {
           say((e as Error).message);
-          if (widget !== null) t.reset(widget);
+          if (widget !== null) ts.reset(widget);
         }
       },
     });
   } catch {
-    say("The human check could not load. Check your connection or turn off blockers for this page.");
+    say(t("humanFail"));
     make.disabled = false;
   }
 });
@@ -95,7 +102,7 @@ form?.addEventListener("submit", async (e) => {
   if (!input) return;
   const button = form.querySelector("button");
   if (button) button.disabled = true;
-  say("Linking…");
+  say(t("linking"));
   try {
     await link(input.value);
     // The library, badges and drawer read storage once at load: start fresh with the combined log.
@@ -110,32 +117,31 @@ form?.addEventListener("submit", async (e) => {
 
 $("sync-copy")?.addEventListener("click", () => {
   const s = loadState();
-  if (s) void copy(s.code, "Code copied.");
+  if (s) void copy(s.code, t("codeCopied"));
 });
 $("sync-copylink")?.addEventListener("click", () => {
   const s = loadState();
-  if (s) void copy(shareLink(s.code), "Link copied. Open it on the other device and press Link this browser.");
+  if (s) void copy(shareLink(s.code), t("linkCopied"));
 });
 /** A small text file with the code and its link, for safekeeping: there is no way to recover a lost code. */
 function saveCode(code: string) {
   const text = [
-    "ESP32 Bench sync code",
+    t("fileTitle"),
     "",
-    `Code: ${code}`,
-    `Link: ${shareLink(code)}`,
-    `Saved: ${new Date().toLocaleString()}`,
+    t("fileCode", { code }),
+    t("fileLink", { link: shareLink(code) }),
+    t("fileSaved", { when: new Date().toLocaleString(lang) }),
     "",
-    "Enter the code under \"On your phone too\" on the ESP32 Bench home page, or open the link,",
-    "to bring your bench log, shopping list and parts drawer to another browser.",
-    "Anyone with the code can see and change that copy, so keep it to yourself.",
+    t("fileHow"),
+    t("fileKeep"),
     "",
   ].join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-  a.download = "esp32-bench-sync-code.txt";
+  a.download = FILE_NAME;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  say("Saved esp32-bench-sync-code.txt. Keep it somewhere safe.");
+  say(t("saved", { file: FILE_NAME }));
 }
 $("sync-save")?.addEventListener("click", () => {
   const s = loadState();
@@ -143,13 +149,13 @@ $("sync-save")?.addEventListener("click", () => {
 });
 $("sync-unlink")?.addEventListener("click", () => {
   unlink();
-  say("This browser no longer syncs. Its log stays here, and the cloud copy stays for your other devices.");
+  say(t("unlinked"));
 });
 $("sync-delete")?.addEventListener("click", async () => {
-  if (!confirm("Delete the cloud copy? Every browser using this code stops syncing. The log in each browser stays.")) return;
+  if (!confirm(t("deleteConfirm"))) return;
   try {
     await deleteCloud();
-    say("The cloud copy is deleted. Your log in this browser is unchanged.");
+    say(t("deleted"));
   } catch (e) {
     say((e as Error).message);
   }
@@ -161,7 +167,7 @@ if (fromLink && box && input && !loadState()) {
   input.value = fromLink[1];
   history.replaceState(null, "", location.pathname + location.search + "#log");
   box.scrollIntoView({ block: "center" });
-  say("Press Link this browser to combine this browser's log with the one behind the code.");
+  say(t("fromLink"));
 }
 
 if (location.hash === "#sync" && box) box.scrollIntoView({ block: "center" });

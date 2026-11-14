@@ -2,12 +2,16 @@
 // so a search can be shared, and lets arrow keys move through the results.
 import { search, type Prepared } from "../lib/search";
 import { loadIndex, resultItem } from "./search-ui";
+import { SEARCH } from "../i18n/strings/pages";
+import { pageLocale, translator } from "../i18n/t";
+
+const t = translator(SEARCH, pageLocale());
 
 const form = document.querySelector<HTMLFormElement>("#search-form");
 const input = document.querySelector<HTMLInputElement>("#search-q");
 const list = document.querySelector<HTMLOListElement>("#search-results");
 const count = document.querySelector<HTMLElement>("#search-count");
-const HINT = "Projects, boards, single pins, errors, tools and guides. Press / on any page to search.";
+const HINT = t("hint");
 
 if (form && input && list && count) {
   const initial = new URLSearchParams(location.search).get("q") ?? "";
@@ -29,15 +33,15 @@ if (form && input && list && count) {
     try {
       index = await loadIndex();
     } catch {
-      count.textContent = "The search index could not load. Check your connection and try again.";
+      count.textContent = t("loadFail");
       return;
     }
     if (input.value.trim() !== q) return;
     const hits = search(index, q, 60);
     list.replaceChildren(...hits.map((e) => resultItem(e)));
     count.textContent = hits.length
-      ? `${hits.length === 60 ? "Top 60" : hits.length} result${hits.length === 1 ? "" : "s"} for "${q}".`
-      : `Nothing found for "${q}". Try fewer words, a GPIO number like "GPIO 4", or a part name like "DS18B20".`;
+      ? t(hits.length === 60 ? "top" : hits.length === 1 ? "one" : "many", { n: hits.length, q })
+      : t("none", { q });
   };
 
   form.addEventListener("submit", (event) => {

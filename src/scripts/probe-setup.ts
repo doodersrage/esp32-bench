@@ -1,6 +1,10 @@
 // Send settings to a ProbeHarbor probe over USB and wait for its first reading.
 // Wire format (115200 baud): "TTEXTRAS<TAB>leak,door\nTTCFG<TAB>ssid<TAB>password<TAB>key\n".
 // The probe answers with lines that start "TT ".
+import { FIRMWARE } from "../i18n/strings/firmware";
+import { pageLocale, translator } from "../i18n/t";
+
+const t = translator(FIRMWARE, pageLocale());
 
 interface SerialPortLike {
   open(options: { baudRate: number }): Promise<void>;
@@ -33,7 +37,7 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-probe-setup]"))
   const serial = (navigator as Navigator & { serial?: SerialLike }).serial;
   if (!serial) {
     button.disabled = true;
-    status.textContent = "This browser has no Web Serial. Use Chrome or Edge on a desktop.";
+    status.textContent = t("noWebSerial");
     continue;
   }
 
@@ -49,7 +53,7 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-probe-setup]"))
     button.disabled = true;
     log.hidden = false;
     log.textContent = "";
-    status.textContent = "Pick the board's port in the browser prompt.";
+    status.textContent = t("pickPort");
 
     let port: SerialPortLike | null = null;
     let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -58,9 +62,9 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-probe-setup]"))
       await port.open({ baudRate: 115200 });
       // Opening the port resets many dev boards; release the lines and let it boot.
       await port.setSignals?.({ dataTerminalReady: false, requestToSend: false });
-      status.textContent = "Waiting for the board to start.";
+      status.textContent = t("waitStart");
       await sleep(2500);
-      if (!port.writable || !port.readable) throw new Error("the port did not open for reading and writing");
+      if (!port.writable || !port.readable) throw new Error(t("portNoRW"));
 
       const writer = port.writable.getWriter();
       // Extras go on their own line first: firmware 1.2+ saves them and older
@@ -88,7 +92,7 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-probe-setup]"))
         if (!acknowledged && Date.now() - lastSent > RESEND_EVERY_MS) {
           await send();
           lastSent = Date.now();
-          status.textContent = "Sending settings.";
+          status.textContent = t("sendingSettings");
         }
         pendingRead ??= reader.read();
         const chunk = await Promise.race([pendingRead, sleep(1000)]);
@@ -106,27 +110,27 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-probe-setup]"))
 
           if (line === "TT key saved") {
             acknowledged = true;
-            status.textContent = "The probe has the settings. Joining Wi-Fi.";
+            status.textContent = t("probeHasSettings");
           } else if (line === "TT wifi ok") {
-            status.textContent = "On Wi-Fi. Waiting for the first reading.";
+            status.textContent = t("onWifi");
           } else if (line.startsWith("TT sensor: ")) {
             sensor = line.slice("TT sensor: ".length).split(" on ")[0] ?? null;
           } else if (/^TT post 2\d\d /.test(line)) {
             outcome = "ok";
           } else if (line.startsWith("TT post failed")) {
-            postProblem = "The probe could not reach ProbeHarbor. It will keep retrying.";
+            postProblem = t("probeNoReach");
             status.textContent = postProblem;
           } else if (/^TT post -\d+ /.test(line)) {
             // The HTTP client's own errors, such as -5 for a lost connection.
             // The reading may still have arrived.
             const code = /^TT post (-\d+)/.exec(line)?.[1] ?? "";
-            postProblem = `The reply was lost (${code}). The reading may still have arrived; check the device page.`;
+            postProblem = t("replyLost", { code });
             status.textContent = postProblem;
           } else if (/^TT post \d{3} /.test(line)) {
             // 401 and 403 are followed by "TT key rejected", handled below.
             const code = line.slice("TT post ".length, "TT post ".length + 3);
             if (code !== "401" && code !== "403") {
-              postProblem = `ProbeHarbor answered ${code}. The probe will keep retrying.`;
+              postProblem = t("phAnswered", { code });
               status.textContent = postProblem;
             }
           } else if (FAILURES.some((f) => line.startsWith(f))) {
@@ -141,20 +145,20 @@ for (const root of document.querySelectorAll<HTMLElement>("[data-probe-setup]"))
       writer.releaseLock();
       if (outcome === "ok") {
         status.textContent = sensor
-          ? `Live. The ${sensor} posted its first reading.`
-          : "Live. The probe posted its first reading.";
+          ? t("liveSensor", { sensor })
+          : t("live");
       } else if (outcome === "timeout") {
         status.textContent =
           postProblem ??
           (acknowledged
-            ? "The probe took the settings but no reading arrived in 90 seconds. Check the sensor wiring."
-            : "The probe did not answer. Check it runs the ProbeHarbor firmware and no other serial monitor has the port.");
+            ? t("noReading")
+            : t("probeNoAnswer"));
       }
     } catch (error) {
       status.textContent =
         error instanceof DOMException && error.name === "NotFoundError"
-          ? "No port was picked."
-          : `Could not talk to the board: ${error instanceof Error ? error.message : String(error)}.`;
+          ? t("noPort")
+          : t("cannotTalk", { error: error instanceof Error ? error.message : String(error) });
     } finally {
       try {
         await reader?.cancel();

@@ -2,13 +2,16 @@
 // sketch's positions. It shows the visitor's own local time, as the board would
 // once it has synced and has your time zone rule.
 import { createLoop, el, oledCanvas, type Mount } from "../../lib/preview/runtime";
+import { PREVIEWS } from "../../i18n/strings/previews";
+import { pageLocale, translator } from "../../i18n/t";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const t = translator(PREVIEWS, pageLocale());
 const two = (n: number) => String(n).padStart(2, "0");
 
 export const mount: Mount = ({ host }) => {
-  const screen = oledCanvas("OLED clock");
+  const screen = oledCanvas(t("ntpAria"));
   const { fb, canvas } = screen;
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -27,10 +30,10 @@ export const mount: Mount = ({ host }) => {
     fb.setCursor(4, 50);
     fb.print(date);
     screen.draw();
-    canvas.setAttribute("aria-label", `OLED clock showing ${hhmm}, ${date}`);
+    canvas.setAttribute("aria-label", t("ntpAriaShowing", { time: hhmm, date }));
   };
   const loop = createLoop(host, draw, 5); // the sketch redraws every 200 ms
-  host.append(canvas, el("p", { class: "readout", text: `Your time zone here: ${zone}. On the board, set TZ_RULE to match.` }));
+  host.append(canvas, el("p", { class: "readout", text: t("ntpZone", { zone }) }));
   draw();
   loop.start();
   return () => loop.dispose();
