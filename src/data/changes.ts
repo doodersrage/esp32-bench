@@ -14,6 +14,18 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-27",
+    date: "2026-11-15",
+    title: "Version 0.27: ProbeHarbor probe firmware 1.5.2",
+    summary: "The ProbeHarbor probe now flashes as firmware 1.5.2, which fixes a crash when settings arrive twice and joins Wi-Fi more reliably on the ESP32-C3 SuperMini.",
+    items: [
+      "Fixed: firmware before 1.5.1 could crash when the settings form sent Wi-Fi and the key a second time. Probes on 1.5.0 or later update themselves; older ones need flashing once.",
+      "A probe that crashed now reports it with its next reading, shown on ProbeHarbor's device page.",
+      "On the ESP32-C3 SuperMini the probe retries Wi-Fi at low transmit power and keeps using it, and the setup portal opens about a second after a BOOT reset instead of forty.",
+    ],
+    link: "/projects/probeharbor-probe/",
+  },
+  {
     id: "v0-26",
     date: "2026-11-14",
     title: "Version 0.26: ProbeHarbor probe firmware 1.5.0, and the first hardware lab run",
