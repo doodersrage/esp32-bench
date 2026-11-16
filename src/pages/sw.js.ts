@@ -71,8 +71,11 @@ async function saveAssets(htmls) {
     }
     if (url.endsWith(".js")) {
       const text = await response.text();
-      for (const m of text.matchAll(/["'](\\.\\.?\\/[\\w.-]+\\.(?:js|css))["']/g)) add(new URL(m[1], url).href);
-      for (const m of text.matchAll(/["'](\\/_astro\\/[\\w.-]+\\.(?:js|css))["']/g)) add(new URL(m[1], self.location.origin).href);
+      // Imports in any quotes: esp-web-tools loads each chip's flasher code with
+      // import(\`./esp32c3-….js\`), so backticks count too. Vite's preload lists
+      // name files as "_astro/…" (from the site root) or "/_astro/…".
+      for (const m of text.matchAll(/["'\`](\\.\\.?\\/[\\w.-]+\\.(?:js|css))["'\`]/g)) add(new URL(m[1], url).href);
+      for (const m of text.matchAll(/["'\`]\\/?_astro\\/([\\w.-]+\\.(?:js|css))["'\`]/g)) add(new URL(HASHED + m[1], self.location.origin).href);
     }
   }
 }
