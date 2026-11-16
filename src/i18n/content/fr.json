@@ -728,6 +728,7 @@
  "Strip DIN, through 330 Ω": "Bande DIN, via 330 Ω",
  "Strip GND": "Bande GND",
  "Stripe to motor +, other end to motor -": "Bande vers moteur +, l’autre extrémité vers moteur -",
+ "SuperMini: browser flash and USB settings over the native USB port, DHT22 on GPIO 4, server certificate verified": "SuperMini : flash depuis le navigateur et réglages par le port USB natif, DHT22 sur GPIO 4, certificat du serveur vérifié",
  "SuperMini: signed over-the-air update with rollback, watchdog, readings kept through dropped connections, crash reports, the server certificate checked, and the setup portal from a phone after the BOOT reset": "SuperMini : mise à jour sans fil signée avec retour arrière, watchdog, mesures gardées pendant les coupures, rapports de plantage, certificat du serveur vérifié, et le portail de configuration depuis un téléphone après la réinitialisation BOOT",
  "TT post -5 means the reply was lost, not the reading. In testing the server had stored both readings that printed -5.": "TT post -5 signifie que la réponse s’est perdue, pas la mesure. Lors des tests, le serveur avait enregistré les deux mesures qui affichaient -5.",
  "Talking plant": "Plante qui parle",

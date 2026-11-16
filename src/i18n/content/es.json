@@ -728,6 +728,7 @@
  "Strip DIN, through 330 Ω": "DIN de la tira, a través de 330 Ω",
  "Strip GND": "GND de la tira",
  "Stripe to motor +, other end to motor -": "La franja a motor +, el otro extremo a motor -",
+ "SuperMini: browser flash and USB settings over the native USB port, DHT22 on GPIO 4, server certificate verified": "SuperMini: grabación desde el navegador y ajustes por el puerto USB nativo, DHT22 en GPIO 4, certificado del servidor verificado",
  "SuperMini: signed over-the-air update with rollback, watchdog, readings kept through dropped connections, crash reports, the server certificate checked, and the setup portal from a phone after the BOOT reset": "SuperMini: actualización inalámbrica firmada con vuelta atrás, watchdog, lecturas guardadas durante cortes de conexión, informes de fallos, certificado del servidor comprobado y el portal de configuración desde un móvil tras el reinicio con BOOT",
  "TT post -5 means the reply was lost, not the reading. In testing the server had stored both readings that printed -5.": "TT post -5 significa que se perdió la respuesta, no la lectura. En las pruebas, el servidor había guardado las dos lecturas que imprimieron -5.",
  "Talking plant": "Planta que habla",

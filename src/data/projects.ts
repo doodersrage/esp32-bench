@@ -280,6 +280,7 @@ export const PROJECTS: Project[] = [
       { board: "esp32s3", what: "Signed over-the-air update with rollback, and the server certificate checked", when: "firmware 1.5.0, 2026-11-13" },
       { board: "esp32c3", what: "SuperMini: signed over-the-air update with rollback, watchdog, readings kept through dropped connections, crash reports, the server certificate checked, and the setup portal from a phone after the BOOT reset", when: "firmware 1.5.1, 2026-11-14" },
       { board: "esp32", what: "Crash reports, and settings sent twice no longer crash it; updated itself to 1.5.2 over the air", when: "firmware 1.5.2, 2026-11-15" },
+      { board: "esp32c3", what: "SuperMini: browser flash and USB settings over the native USB port, DHT22 on GPIO 4, server certificate verified", when: "firmware 1.5.2, 2026-11-16" },
     ],
     open: [
       "Leak and battery inputs on any board",
