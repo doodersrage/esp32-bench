@@ -39,6 +39,14 @@ for (const p of m.projects) {
   assert.ok(Number.isInteger(p.baud) && p.baud > 0, `${p.id}: baud`);
   for (const part of p.parts) assert.ok(part.quantity > 0 && part.name, `${p.id}: part ${JSON.stringify(part)}`);
   for (const e of p.expect?.patterns ?? []) new RegExp(e, "m");
+  // Every library that is not part of the ESP32 core can be installed.
+  const installable = new Set((p.install ?? []).map((i: any) => i.library));
+  for (const lib of p.libraries) {
+    if (/built in|built into/i.test(lib)) continue;
+    assert.ok(installable.has(lib), `${p.id}: no registry id for library "${lib}" (add it to compile-libs.json)`);
+  }
+  for (const i of p.install ?? []) assert.match(i.registry, /^[^/\s]+\/[^/]+$/, `${p.id}: registry id ${i.registry}`);
+  if (p.partitions !== undefined) assert.equal(p.partitions, "huge_app", `${p.id}: partitions`);
 
   const seen = new Set<string>();
   for (const b of p.builds) {
