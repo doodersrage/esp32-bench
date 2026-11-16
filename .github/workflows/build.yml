@@ -66,6 +66,7 @@ jobs:
           node --experimental-strip-types tests/share.test.ts
           node --experimental-strip-types tests/previews.test.ts
           node --experimental-strip-types tests/lab-expect.test.ts
+          node --experimental-strip-types tests/desktop-manifest.test.ts
           node --experimental-strip-types tests/settings.test.ts
           node --experimental-strip-types tests/editor.test.ts
           node --experimental-strip-types tests/flash-hook.test.ts

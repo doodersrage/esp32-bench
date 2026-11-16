@@ -1,0 +1,54 @@
+// Run after `npx astro build`:  node --experimental-strip-types tests/desktop-manifest.test.ts
+// Checks dist/desktop-manifest.json, which the ESP32 Bench desktop app reads. Its
+// format is defined in the esp32-desktop repository (schema/project-manifest/);
+// these are the invariants the app relies on.
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+
+const path = "dist/desktop-manifest.json";
+if (!existsSync(path)) {
+  console.log("desktop manifest: build the site first");
+  process.exit(0);
+}
+const m = JSON.parse(readFileSync(path, "utf8"));
+
+assert.equal(m.format, "esp32bench-project-manifest");
+assert.match(m.version, /^\d+\.\d+\.\d+$/);
+assert.ok(!Number.isNaN(Date.parse(m.generated)), "generated is a date");
+
+const chips = new Set(["esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6"]);
+const boards = new Set<string>();
+for (const b of m.boards) {
+  assert.ok(chips.has(b.chip), `board ${b.id}: chip ${b.chip}`);
+  assert.ok(!boards.has(b.id), `board ${b.id} listed twice`);
+  boards.add(b.id);
+}
+for (const b of m.boards) {
+  if (b.variantOf) assert.ok(boards.has(b.variantOf), `board ${b.id}: variantOf ${b.variantOf}`);
+  if (b.buildAs) assert.ok(boards.has(b.buildAs), `board ${b.id}: buildAs ${b.buildAs}`);
+}
+
+const ids = new Set<string>();
+const unfilled = /%[A-Z][A-Z0-9_]*%/;
+for (const p of m.projects) {
+  assert.match(p.id, /^[a-z0-9][a-z0-9-]*$/, `project id ${p.id}`);
+  assert.ok(!ids.has(p.id), `project ${p.id} listed twice`);
+  ids.add(p.id);
+  assert.ok(["sketch", "prebuilt"].includes(p.firmware), `${p.id}: firmware`);
+  assert.ok(p.builds.length > 0, `${p.id}: at least one board`);
+  assert.ok(Number.isInteger(p.baud) && p.baud > 0, `${p.id}: baud`);
+  for (const part of p.parts) assert.ok(part.quantity > 0 && part.name, `${p.id}: part ${JSON.stringify(part)}`);
+  for (const e of p.expect?.patterns ?? []) new RegExp(e, "m");
+
+  const seen = new Set<string>();
+  for (const b of p.builds) {
+    assert.ok(boards.has(b.board), `${p.id}: unknown board ${b.board}`);
+    assert.ok(!seen.has(b.board), `${p.id}: board ${b.board} twice`);
+    seen.add(b.board);
+    if (p.firmware === "sketch") assert.ok(typeof b.code === "string" && b.code.length > 0, `${p.id}/${b.board}: code`);
+    else assert.equal(b.code, undefined, `${p.id}/${b.board}: prebuilt firmware has no code`);
+    const text = [b.code ?? "", ...b.pins, ...b.sample, ...b.wiring.flatMap((w: any) => [w.from, w.to, w.note])].join("\n");
+    assert.doesNotMatch(text, unfilled, `${p.id}/${b.board}: a %VAR% was left unfilled`);
+  }
+}
+console.log(`desktop manifest ${m.version}: ${m.projects.length} projects, ${m.boards.length} boards valid`);
