@@ -7,6 +7,9 @@ import type { APIRoute } from "astro";
 import { BOARDS } from "../data/boards";
 import { PROJECTS, boardsOf, forBoard } from "../data/projects";
 import { LAB_EXPECT } from "../data/lab-expect";
+import COMPILE from "../data/compile-libs.json";
+
+const REGISTRY: Record<string, string> = COMPILE.libs;
 
 export const MANIFEST_VERSION = "1.0.0";
 const SITE = "https://esp32bench.dev";
@@ -43,6 +46,13 @@ export function desktopManifest(generated = new Date().toISOString()) {
         firmware: p.code !== undefined ? "sketch" : "prebuilt",
         sourceUrl: p.sourceUrl,
         libraries: p.libs,
+        // Libraries to download before building, with their registry ids. Built-in
+        // libraries (part of the ESP32 core) are not listed.
+        install: omitEmpty(
+          p.libs.filter((l) => REGISTRY[l] !== undefined).map((l) => ({ library: l, registry: REGISTRY[l] })),
+        ),
+        // Arduino-ESP32 partition scheme, when the default app partition is too small.
+        partitions: COMPILE.hugeApp.includes(p.id) ? "huge_app" : undefined,
         baud: p.baud,
         needs: p.needs,
         parts: p.parts.map(([quantity, name, link]) => ({ quantity, name, link })),
