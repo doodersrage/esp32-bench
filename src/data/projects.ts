@@ -1530,6 +1530,64 @@ void loop() {
     ],
   },
   {
+    id: "bme280-serial", needs: [["i2c"]], name: "BME280 weather readings", level: "Starter", mins: 15, tags: ["sensors"], added: "2026-11-17",
+    sum: "Read temperature, humidity and air pressure from a BME280 and print them every two seconds, with the dew point, for the serial monitor or plotter. No Wi-Fi needed.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { SDA: "21", SCL: "22" }, esp32s3: { SDA: "8", SCL: "9" }, esp32c3: { SDA: "6", SCL: "7" } },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%"], libs: ["Adafruit BME280 Library", "Adafruit Unified Sensor", "Wire (built in)"], baud: 115200,
+    parts: [[1, "ESP32 dev board", BOM.esp32DevKit], [1, "BME280 breakout, I2C", BOM.bme280], [4, "Jumper wires"]],
+    wiring: [
+      ["BME280 VIN or VCC", "3V3", ""],
+      ["BME280 GND", "GND", ""],
+      ["BME280 SDA or SDI", "GPIO %SDA%", ""],
+      ["BME280 SCL or SCK", "GPIO %SCL%", ""],
+    ],
+    code: R`#include <Wire.h>
+#include <Adafruit_BME280.h>
+#include <math.h>
+
+Adafruit_BME280 bme;
+
+// Dew point in degrees C from temperature and relative humidity (Magnus formula).
+float dewPoint(float t, float h) {
+  const float a = 17.62f, b = 243.12f;
+  const float g = log(h / 100.0f) + a * t / (b + t);
+  return b * g / (a - g);
+}
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(%SDA%, %SCL%);
+  if (!bme.begin(0x76, &Wire) && !bme.begin(0x77, &Wire)) {
+    Serial.println("BME280 not found at 0x76 or 0x77: check wiring, or it may be a BMP280");
+    for (;;) delay(1000);
+  }
+  Serial.println("BME280 found. Readings every 2 s:");
+}
+
+void loop() {
+  const float t = bme.readTemperature();
+  const float h = bme.readHumidity();
+  const float p = bme.readPressure() / 100.0f;
+  // name = value pairs, so the Arduino serial plotter draws each one.
+  Serial.printf("temp_c = %.2f  humidity = %.1f  pressure_hpa = %.2f  dew_point_c = %.1f\n", t, h, p, dewPoint(t, h));
+  delay(2000);
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "The same sensor and wiring as the BME280 web dashboard, without the Wi-Fi: a first check that the breakout answers before building the dashboard.",
+      "Many cheap purple breakouts sold as BME280 carry a BMP280, which has no humidity sensor. The library refuses it, and the sketch says so. The chip markings tell them apart.",
+      "Address 0x76 or 0x77 depends on the board's SDO pin; the sketch tries both. Run the I2C scanner project if neither answers.",
+      "Pressure here is at your altitude, not corrected to sea level as weather reports are, so it reads lower the higher you live.",
+    ],
+    sample: [
+      "BME280 found. Readings every 2 s:",
+      "temp_c = 22.31  humidity = 41.2  pressure_hpa = 1013.62  dew_point_c = 8.5",
+      "temp_c = 22.33  humidity = 41.0  pressure_hpa = 1013.60  dew_point_c = 8.4",
+      "temp_c = 22.35  humidity = 40.9  pressure_hpa = 1013.57  dew_point_c = 8.4",
+    ],
+  },
+  {
     id: "wifi-portal", needs: [], name: "Wi-Fi setup portal", level: "Intermediate", mins: 20, tags: ["no-parts", "wireless"],
     sum: "No passwords in the sketch: the board opens its own setup network with a page to pick your Wi-Fi, saves it, and joins it from then on.",
     boards: ["esp32", "esp32s3", "esp32c3"],
