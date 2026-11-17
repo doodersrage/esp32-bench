@@ -49,6 +49,7 @@ export const LAB_EXPECT: Record<string, LabExpect> = {
   },
   "relay-servo": { patterns: ["relay off", "ready: type angle 0 to 180"], seconds: 10, needs: "none", notes: "The servo and relay are not checked, only that the command prompt comes up." },
   epaper: { patterns: ["(temp -?\\d+\\.\\d+ C|no probe: check the data wire)"], seconds: 20, needs: "parts", notes: "Without the probe the sketch prints no probe; the panel is not checked." },
+  "bme280-serial": { patterns: ["(temp_c = -?\\d+\\.\\d+|BME280 not found at 0x76 or 0x77)"], seconds: 12, needs: "parts", notes: "Without the sensor the sketch stops after BME280 not found; with it wired, a reading line every two seconds." },
   "bme280-web": { patterns: ["(wifi joining|BME280 not found at 0x76 or 0x77)"], seconds: 20, needs: "parts", notes: "Without the sensor the sketch stops after BME280 not found; with it wired, the lab's Wi-Fi is needed for the dashboard line." },
   "wifi-portal": { patterns: ["hold BOOT now to forget the saved network", "(portal up: join|wifi joining)"], seconds: 20, needs: "none", notes: "A bare board opens its own setup network, which needs no credentials." },
   "esp32-cam-stream": { patterns: ["(Camera ready|Camera init failed)"], seconds: 20, needs: "parts", notes: "Needs an ESP32-CAM; without a working camera the sketch reports the init error." },
