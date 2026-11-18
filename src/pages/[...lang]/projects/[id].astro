@@ -18,7 +18,8 @@ import COMPILE from "../../../data/compile-libs.json";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../../data/projects";
 import { BOARDS, boardById, buildChoices, buildTarget, type BoardId } from "../../../data/boards";
 import { localLink } from "../../../lib/paths";
-import { PROBEHARBOR, SITE, absolute, reportUrl } from "../../../lib/site";
+import { DESKTOP, PROBEHARBOR, SITE, absolute, reportUrl } from "../../../lib/site";
+import { DESKTOP_STRINGS } from "../../../i18n/strings/desktop";
 import { buyFor, shopVendor } from "../../../lib/shop";
 import { kitFor } from "../../../lib/kit";
 import { PATHS } from "../../../data/paths";
@@ -26,6 +27,7 @@ import { PAGE_PALETTE, kitIconSvg } from "../../../lib/kit-icons";
 
 const link = localLink(Astro.currentLocale);
 const t = translator(PROJECT, Astro.currentLocale);
+const desktop = translator(DESKTOP_STRINGS, Astro.currentLocale);
 // Project prose in this page's language; the logic below keeps working on the English data.
 const tc = contentTranslator(Astro.currentLocale);
 
@@ -138,6 +140,8 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
         <span class="tag">{t("baud", { n: p.baud })}</span>
         <span class="tag ok" data-lab-tag hidden title={t("labTagTitle")}>{t("labTested")}</span>
         <button class="btn sm printbtn" type="button" data-print>{t("print")}</button>
+        <a class="btn sm" href={DESKTOP.projectLink(p.id)} title={desktop("openLinkTitle")}>{desktop("openLink")}</a>
+        <a class="whatdesk" href={link("/desktop/")}>{desktop("whatIsThis")}</a>
         {
           p.code !== undefined && (
             <button
@@ -496,6 +500,8 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
   .labrun :global(.tag.pending) { border-style: dashed; }
   .libs { margin: 0; font-size: 0.92rem; }
   .printbtn { margin-left: auto; }
+  .whatdesk { align-self: center; font-size: 0.85rem; color: var(--muted); }
+  @media print { .meta a[href^="esp32bench:"], .whatdesk { display: none; } }
   .shoplink { font-size: 0.85rem; color: var(--accent); }
   .pathnote { margin: 0; font-size: 0.9rem; }
   .pathnote a { color: var(--accent); }
