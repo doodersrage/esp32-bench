@@ -19,7 +19,7 @@ export const DESKTOP_STRINGS = defineStrings({
     limitsH: "What it does not do",
     limitsPlatform: "It runs only on Arch Linux with KDE Plasma for now: not on Windows, macOS or other Linux distributions.",
     limitsSim:
-      "The simulator runs the firmware, not the electronics: there is no Bluetooth, analog inputs read 0, and the ESP32-S3 has no Wi-Fi.",
+      "The simulator runs the firmware, not the electronics: there is no Bluetooth, and analog inputs read 0.",
     limitsReset:
       "Resetting boards with a CP210x or CH340 USB chip into flashing mode has not been tested on hardware yet. If flashing fails, hold BOOT while it starts.",
     installH: "Install it",
@@ -52,7 +52,7 @@ export const DESKTOP_STRINGS = defineStrings({
     limitsH: "Qué no hace",
     limitsPlatform: "Por ahora solo funciona en Arch Linux con KDE Plasma: no en Windows, macOS ni otras distribuciones de Linux.",
     limitsSim:
-      "El simulador ejecuta el firmware, no la electrónica: no hay Bluetooth, las entradas analógicas leen 0 y el ESP32-S3 no tiene Wi-Fi.",
+      "El simulador ejecuta el firmware, no la electrónica: no hay Bluetooth y las entradas analógicas leen 0.",
     limitsReset:
       "El reinicio en modo de grabación de placas con chip USB CP210x o CH340 aún no se ha probado con hardware. Si la grabación falla, mantén pulsado BOOT mientras empieza.",
     installH: "Instálala",
@@ -85,7 +85,7 @@ export const DESKTOP_STRINGS = defineStrings({
     limitsH: "Was sie nicht kann",
     limitsPlatform: "Sie läuft vorerst nur unter Arch Linux mit KDE Plasma: nicht unter Windows, macOS oder anderen Linux-Distributionen.",
     limitsSim:
-      "Der Simulator führt die Firmware aus, nicht die Elektronik: kein Bluetooth, analoge Eingänge lesen 0, und der ESP32-S3 hat kein WLAN.",
+      "Der Simulator führt die Firmware aus, nicht die Elektronik: kein Bluetooth, und analoge Eingänge lesen 0.",
     limitsReset:
       "Das Zurücksetzen in den Flash-Modus bei Boards mit CP210x- oder CH340-USB-Chip ist noch nicht an echter Hardware getestet. Wenn das Flashen fehlschlägt, halte beim Start BOOT gedrückt.",
     installH: "Installieren",
@@ -118,7 +118,7 @@ export const DESKTOP_STRINGS = defineStrings({
     limitsH: "Ce qu'elle ne fait pas",
     limitsPlatform: "Pour l'instant, elle ne fonctionne que sous Arch Linux avec KDE Plasma : ni Windows, ni macOS, ni d'autres distributions Linux.",
     limitsSim:
-      "Le simulateur exécute le firmware, pas l'électronique : pas de Bluetooth, les entrées analogiques lisent 0, et l'ESP32-S3 n'a pas de Wi-Fi.",
+      "Le simulateur exécute le firmware, pas l'électronique : pas de Bluetooth, et les entrées analogiques lisent 0.",
     limitsReset:
       "Le passage en mode flash des cartes avec une puce USB CP210x ou CH340 n'a pas encore été testé sur du matériel. Si le flash échoue, maintenez BOOT pendant le démarrage.",
     installH: "L'installer",
@@ -151,7 +151,7 @@ export const DESKTOP_STRINGS = defineStrings({
     limitsH: "O que ele não faz",
     limitsPlatform: "Por enquanto ele roda só no Arch Linux com KDE Plasma: não no Windows, no macOS nem em outras distribuições Linux.",
     limitsSim:
-      "O simulador roda o firmware, não a eletrônica: não há Bluetooth, entradas analógicas leem 0 e o ESP32-S3 não tem Wi-Fi.",
+      "O simulador roda o firmware, não a eletrônica: não há Bluetooth e entradas analógicas leem 0.",
     limitsReset:
       "Reiniciar no modo de gravação placas com chip USB CP210x ou CH340 ainda não foi testado em hardware. Se a gravação falhar, segure BOOT enquanto ela começa.",
     installH: "Instale",

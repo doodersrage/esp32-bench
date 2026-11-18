@@ -52,12 +52,12 @@ export const PROBEHARBOR = {
 
 /** The desktop app (ESP32 Bench for Linux): the latest release, for /desktop/. */
 export const DESKTOP = {
-  version: "0.1.2",
+  version: "0.1.3",
   repo: "https://github.com/doodersrage/esp32-desktop",
   issues: "https://github.com/doodersrage/esp32-desktop/issues",
-  release: "https://github.com/doodersrage/esp32-desktop/releases/tag/v0.1.2",
-  package: "https://github.com/doodersrage/esp32-desktop/releases/download/v0.1.2/esp32bench-bin-0.1.2-1-x86_64.pkg.tar.zst",
-  packageFile: "esp32bench-bin-0.1.2-1-x86_64.pkg.tar.zst",
+  release: "https://github.com/doodersrage/esp32-desktop/releases/tag/v0.1.3",
+  package: "https://github.com/doodersrage/esp32-desktop/releases/download/v0.1.3/esp32bench-bin-0.1.3-1-x86_64.pkg.tar.zst",
+  packageFile: "esp32bench-bin-0.1.3-1-x86_64.pkg.tar.zst",
   /** A project in the app: its esp32bench:// link (the app asks before it builds anything). */
   projectLink: (id: string) => `esp32bench://project/${id}`,
 };
