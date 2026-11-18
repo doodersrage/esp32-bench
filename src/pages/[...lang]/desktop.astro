@@ -1,0 +1,48 @@
+---
+import { localePaths } from "../../i18n/locales";
+import Base from "../../layouts/Base.astro";
+import { DESKTOP } from "../../lib/site";
+import { DESKTOP_STRINGS } from "../../i18n/strings/desktop";
+import { translator } from "../../i18n/t";
+
+const t = translator(DESKTOP_STRINGS, Astro.currentLocale);
+const repo = `<a href="${DESKTOP.repo}">GitHub</a>`;
+
+// The desktop app: what it is, who it is for, how to install it. Linked from the
+// footer and from "Open in the desktop app" on project pages.
+export const getStaticPaths = localePaths;
+---
+
+<Base title={t("title")} current="none" description={t("description")}>
+  <section class="view prose">
+    <h1 class="h2">{t("h1")}</h1>
+    <p class="lede">{t("lede")}</p>
+
+    <h2>{t("doesH")}</h2>
+    <ul>
+      <li>{t("doesBuild")}</li>
+      <li>{t("doesFlash")}</li>
+      <li>{t("doesSim")}</li>
+      <li>{t("doesWifi")}</li>
+    </ul>
+
+    <h2>{t("limitsH")}</h2>
+    <ul>
+      <li>{t("limitsPlatform")}</li>
+      <li>{t("limitsSim")}</li>
+      <li>{t("limitsReset")}</li>
+    </ul>
+
+    <h2>{t("installH")}</h2>
+    <p set:html={t("install", { version: `<a href="${DESKTOP.release}">${DESKTOP.version}</a>` })} />
+    <pre class="code"><code>curl -LO {DESKTOP.package}
+sudo pacman -U {DESKTOP.packageFile}</code></pre>
+    <p>{t("installAfter")}</p>
+
+    <h2>{t("openH")}</h2>
+    <p>{t("open")}</p>
+
+    <h2>{t("sourceH")}</h2>
+    <p set:html={t("source", { repo })} />
+  </section>
+</Base>

@@ -15,12 +15,14 @@ import { isTranslatedPage, localLink } from "../lib/paths";
 import { HTML_LANG, LOCALES, LOCALE_NAMES, localeOf, localePath, unlocalePath } from "../i18n/locales";
 import { translator } from "../i18n/t";
 import { SHELL } from "../i18n/strings/shell";
+import { DESKTOP_STRINGS } from "../i18n/strings/desktop";
 import { SITE, absolute, reportUrl } from "../lib/site";
 import { amazonTags } from "../lib/shop";
 
 const link = localLink(Astro.currentLocale);
 const locale = localeOf(Astro.currentLocale);
 const t = translator(SHELL, locale);
+const desktop = translator(DESKTOP_STRINGS, locale);
 
 type Section =
   | "library"
@@ -241,6 +243,7 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
         <nav class="footnav" aria-label={t("footSite")}>
           <a href={link("/about/")} aria-current={current === "about" ? "page" : undefined}>{t("footAbout")}</a>
           <a href={link("/changes/")}>{t("footNew")}</a>
+          <a href={link("/desktop/")}>{desktop("footLink")}</a>
           <a href={link("/report/?kind=message")} aria-current={current === "report" ? "page" : undefined}>{t("footContact")}</a>
           <a href={link("/rss.xml")}>{t("footRss")}</a>
           {SITE.repo && <a href={SITE.repo}>{t("footSource")}</a>}
