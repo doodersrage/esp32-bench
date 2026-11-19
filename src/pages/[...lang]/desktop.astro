@@ -7,6 +7,11 @@ import { translator } from "../../i18n/t";
 
 const t = translator(DESKTOP_STRINGS, Astro.currentLocale);
 const repo = `<a href="${DESKTOP.repo}">GitHub</a>`;
+// One example file per package manager for the install commands.
+const pick = (distro: string) => DESKTOP.packages.find((p) => p.distro === distro)!;
+const arch = pick("Arch Linux");
+const ubuntu = pick("Ubuntu 26.04 LTS");
+const fedora = pick("Fedora 45");
 
 // The desktop app: what it is, who it is for, how to install it. Linked from the
 // footer and from "Open in the desktop app" on project pages.
@@ -35,8 +40,13 @@ export const getStaticPaths = localePaths;
 
     <h2>{t("installH")}</h2>
     <p set:html={t("install", { version: `<a href="${DESKTOP.release}">${DESKTOP.version}</a>` })} />
-    <pre class="code"><code>curl -LO {DESKTOP.package}
-sudo pacman -U {DESKTOP.packageFile}</code></pre>
+    <ul>
+      {DESKTOP.packages.map((p) => <li>{p.distro}: <a href={DESKTOP.download + p.file}><code>{p.file}</code></a></li>)}
+    </ul>
+    <p>{t("installCommand")}</p>
+    <pre class="code"><code>sudo pacman -U ./{arch.file}
+sudo apt install ./{ubuntu.file}
+sudo dnf install ./{fedora.file}</code></pre>
     <p>{t("installAfter")}</p>
 
     <h2>{t("openH")}</h2>

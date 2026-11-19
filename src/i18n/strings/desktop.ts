@@ -5,27 +5,25 @@ import { defineStrings } from "../t";
 export const DESKTOP_STRINGS = defineStrings({
   en: {
     title: "Desktop app for Linux",
-    description:
-      "ESP32 Bench as a desktop app for Arch Linux with KDE Plasma: build, flash, monitor and simulate the project library's sketches on your computer.",
+    description: "ESP32 Bench as a desktop app for Linux (Arch, Debian, Ubuntu and Fedora): build, flash, monitor and simulate the project library's sketches on your computer.",
     h1: "ESP32 Bench for Linux",
-    lede: "The same project library as a desktop app: build, flash and simulate projects on your computer, without a browser. It is new, and for Arch Linux with KDE Plasma only.",
+    lede: "The same project library as a desktop app: build, flash and simulate projects on your computer, without a browser. It is new, and for Linux: Arch, Debian, Ubuntu and Fedora.",
     doesH: "What it does",
     doesBuild: "Builds library projects with arduino-cli, and asks before it builds or flashes anything it downloaded. It also builds your own ESP-IDF project folders with your installed ESP-IDF.",
     doesFlash: "Flashes, inspects and monitors boards over USB, without root.",
     doesSim:
-      "Runs ESP32, ESP32-S3 and ESP32-C3 builds in a simulator, with a serial console, a debugger and virtual parts: LEDs, buttons, a NeoPixel strip, an OLED and I2C sensors.",
+      "Runs ESP32, ESP32-S3 and ESP32-C3 builds in a simulator, with a serial console, a debugger and virtual parts: LEDs, buttons, a potentiometer, a NeoPixel strip, an OLED and I2C sensors.",
     doesWifi:
       "Gives simulated sketches a Wi-Fi network that reaches nothing outside: they get an address, and their web pages open on your computer.",
     limitsH: "What it does not do",
-    limitsPlatform: "It runs only on Arch Linux with KDE Plasma for now: not on Windows, macOS or other Linux distributions.",
-    limitsSim:
-      "The simulator runs the firmware, not the electronics: there is no Bluetooth, and analog inputs read 0.",
+    limitsPlatform: "It runs on Arch Linux, Debian 13, Ubuntu 24.04 and 26.04, and Fedora 44 and 45, on 64-bit PCs: not on Windows or macOS. Real boards have been tested on Arch so far.",
+    limitsSim: "The simulator runs the firmware, not the electronics: there is no Bluetooth, and analog inputs read only a potentiometer placed on them, on the ESP32 and C3.",
     limitsReset:
       "Resetting boards with a CP210x or CH340 USB chip into flashing mode has not been tested on hardware yet. If flashing fails, hold BOOT while it starts.",
     installH: "Install it",
-    install: "Download the package from the latest release ({version}) and install it with pacman:",
-    installAfter:
-      "Then open ESP32 Bench from the launcher. The first time, Tools, then Toolchain setup, installs the build tools and builds the simulator, which takes a while.",
+    install: "Download the package for your distribution from the latest release ({version}):",
+    installCommand: "Then install the file you downloaded with your package manager, which fetches what it needs. For example, on Arch, on Ubuntu 26.04 and on Fedora 45:",
+    installAfter: "Then open ESP32 Bench from the launcher. The first time, Tools, then Toolchain setup, installs the build tools and builds the simulator, which takes a while. If tools it needs to build the simulator are missing, it shows the command that installs them.",
     openH: "Opening projects from this site",
     open:
       "Project pages have an Open in the desktop app link. With the app installed, it opens the project there, and nothing is built until you agree. Without the app, your browser cannot follow the link.",
@@ -38,27 +36,25 @@ export const DESKTOP_STRINGS = defineStrings({
   },
   es: {
     title: "App de escritorio para Linux",
-    description:
-      "ESP32 Bench como app de escritorio para Arch Linux con KDE Plasma: compila, graba, monitoriza y simula los sketches de la biblioteca de proyectos en tu ordenador.",
+    description: "ESP32 Bench como app de escritorio para Linux (Arch, Debian, Ubuntu y Fedora): compila, graba, monitoriza y simula los sketches de la biblioteca de proyectos en tu ordenador.",
     h1: "ESP32 Bench para Linux",
-    lede: "La misma biblioteca de proyectos como app de escritorio: compila, graba y simula proyectos en tu ordenador, sin navegador. Es nueva y solo funciona en Arch Linux con KDE Plasma.",
+    lede: "La misma biblioteca de proyectos como app de escritorio: compila, graba y simula proyectos en tu ordenador, sin navegador. Es nueva y es para Linux: Arch, Debian, Ubuntu y Fedora.",
     doesH: "Qué hace",
     doesBuild: "Compila los proyectos de la biblioteca con arduino-cli y pregunta antes de compilar o grabar cualquier cosa descargada. También compila tus propias carpetas de proyectos ESP-IDF con el ESP-IDF que tengas instalado.",
     doesFlash: "Graba, inspecciona y monitoriza placas por USB, sin root.",
     doesSim:
-      "Ejecuta compilaciones para ESP32, ESP32-S3 y ESP32-C3 en un simulador, con consola serie, depurador y piezas virtuales: LED, botones, una tira NeoPixel, una pantalla OLED y sensores I2C.",
+      "Ejecuta compilaciones para ESP32, ESP32-S3 y ESP32-C3 en un simulador, con consola serie, depurador y piezas virtuales: LED, botones, un potenciómetro, una tira NeoPixel, una pantalla OLED y sensores I2C.",
     doesWifi:
       "Da a los sketches simulados una red Wi-Fi que no llega a nada externo: reciben una dirección y sus páginas web se abren en tu ordenador.",
     limitsH: "Qué no hace",
-    limitsPlatform: "Por ahora solo funciona en Arch Linux con KDE Plasma: no en Windows, macOS ni otras distribuciones de Linux.",
-    limitsSim:
-      "El simulador ejecuta el firmware, no la electrónica: no hay Bluetooth y las entradas analógicas leen 0.",
+    limitsPlatform: "Funciona en Arch Linux, Debian 13, Ubuntu 24.04 y 26.04, y Fedora 44 y 45, en PC de 64 bits: no en Windows ni macOS. Por ahora solo se ha probado con placas reales en Arch.",
+    limitsSim: "El simulador ejecuta el firmware, no la electrónica: no hay Bluetooth y las entradas analógicas solo leen un potenciómetro colocado en ellas, en el ESP32 y el C3.",
     limitsReset:
       "El reinicio en modo de grabación de placas con chip USB CP210x o CH340 aún no se ha probado con hardware. Si la grabación falla, mantén pulsado BOOT mientras empieza.",
     installH: "Instálala",
-    install: "Descarga el paquete de la última versión ({version}) e instálalo con pacman:",
-    installAfter:
-      "Luego abre ESP32 Bench desde el lanzador. La primera vez, Tools y después Toolchain setup instala las herramientas de compilación y compila el simulador, lo que tarda un rato.",
+    install: "Descarga el paquete para tu distribución de la última versión ({version}):",
+    installCommand: "Luego instala el archivo descargado con tu gestor de paquetes, que trae lo que necesita. Por ejemplo, en Arch, en Ubuntu 26.04 y en Fedora 45:",
+    installAfter: "Luego abre ESP32 Bench desde el lanzador. La primera vez, Tools y después Toolchain setup instala las herramientas de compilación y compila el simulador, lo que tarda un rato. Si faltan herramientas para compilar el simulador, muestra la orden que las instala.",
     openH: "Abrir proyectos desde este sitio",
     open:
       "Las páginas de proyecto tienen un enlace Abrir en la app de escritorio. Con la app instalada, abre el proyecto allí, y no se compila nada hasta que aceptes. Sin la app, tu navegador no puede seguir el enlace.",
@@ -71,27 +67,25 @@ export const DESKTOP_STRINGS = defineStrings({
   },
   de: {
     title: "Desktop-App für Linux",
-    description:
-      "ESP32 Bench als Desktop-App für Arch Linux mit KDE Plasma: Sketches der Projektbibliothek auf deinem Rechner kompilieren, flashen, überwachen und simulieren.",
+    description: "ESP32 Bench als Desktop-App für Linux (Arch, Debian, Ubuntu und Fedora): Sketches der Projektbibliothek auf deinem Rechner kompilieren, flashen, überwachen und simulieren.",
     h1: "ESP32 Bench für Linux",
-    lede: "Dieselbe Projektbibliothek als Desktop-App: Projekte auf deinem Rechner kompilieren, flashen und simulieren, ohne Browser. Sie ist neu und läuft nur unter Arch Linux mit KDE Plasma.",
+    lede: "Dieselbe Projektbibliothek als Desktop-App: Projekte auf deinem Rechner kompilieren, flashen und simulieren, ohne Browser. Sie ist neu und für Linux: Arch, Debian, Ubuntu und Fedora.",
     doesH: "Was sie kann",
     doesBuild: "Kompiliert Projekte der Bibliothek mit arduino-cli und fragt nach, bevor sie etwas Heruntergeladenes kompiliert oder flasht. Eigene ESP-IDF-Projektordner kompiliert sie mit deinem installierten ESP-IDF.",
     doesFlash: "Flasht, untersucht und überwacht Boards über USB, ohne root.",
     doesSim:
-      "Führt Builds für ESP32, ESP32-S3 und ESP32-C3 in einem Simulator aus, mit serieller Konsole, Debugger und virtuellen Bauteilen: LEDs, Taster, ein NeoPixel-Streifen, ein OLED und I2C-Sensoren.",
+      "Führt Builds für ESP32, ESP32-S3 und ESP32-C3 in einem Simulator aus, mit serieller Konsole, Debugger und virtuellen Bauteilen: LEDs, Taster, ein Potentiometer, ein NeoPixel-Streifen, ein OLED und I2C-Sensoren.",
     doesWifi:
       "Gibt simulierten Sketches ein WLAN, das nichts außerhalb erreicht: Sie bekommen eine Adresse, und ihre Webseiten öffnen sich auf deinem Rechner.",
     limitsH: "Was sie nicht kann",
-    limitsPlatform: "Sie läuft vorerst nur unter Arch Linux mit KDE Plasma: nicht unter Windows, macOS oder anderen Linux-Distributionen.",
-    limitsSim:
-      "Der Simulator führt die Firmware aus, nicht die Elektronik: kein Bluetooth, und analoge Eingänge lesen 0.",
+    limitsPlatform: "Sie läuft unter Arch Linux, Debian 13, Ubuntu 24.04 und 26.04 sowie Fedora 44 und 45 auf 64-Bit-PCs: nicht unter Windows oder macOS. Mit echten Boards ist sie bisher nur unter Arch getestet.",
+    limitsSim: "Der Simulator führt die Firmware aus, nicht die Elektronik: kein Bluetooth, und analoge Eingänge lesen nur ein daran angeschlossenes Potentiometer, beim ESP32 und C3.",
     limitsReset:
       "Das Zurücksetzen in den Flash-Modus bei Boards mit CP210x- oder CH340-USB-Chip ist noch nicht an echter Hardware getestet. Wenn das Flashen fehlschlägt, halte beim Start BOOT gedrückt.",
     installH: "Installieren",
-    install: "Lade das Paket aus der neuesten Version ({version}) herunter und installiere es mit pacman:",
-    installAfter:
-      "Öffne dann ESP32 Bench aus dem Startmenü. Beim ersten Mal installiert Tools, dann Toolchain setup, die Build-Werkzeuge und baut den Simulator; das dauert eine Weile.",
+    install: "Lade das Paket für deine Distribution aus der neuesten Version ({version}) herunter:",
+    installCommand: "Installiere die heruntergeladene Datei dann mit deinem Paketmanager, der alles Nötige mitholt. Zum Beispiel unter Arch, Ubuntu 26.04 und Fedora 45:",
+    installAfter: "Öffne dann ESP32 Bench aus dem Startmenü. Beim ersten Mal installiert Tools, dann Toolchain setup, die Build-Werkzeuge und baut den Simulator; das dauert eine Weile. Fehlen Werkzeuge, um den Simulator zu bauen, zeigt es den Befehl, der sie installiert.",
     openH: "Projekte von dieser Seite öffnen",
     open:
       "Projektseiten haben einen Link In der Desktop-App öffnen. Ist die App installiert, öffnet er das Projekt dort, und nichts wird kompiliert, bevor du zustimmst. Ohne die App kann dein Browser dem Link nicht folgen.",
@@ -104,27 +98,25 @@ export const DESKTOP_STRINGS = defineStrings({
   },
   fr: {
     title: "Application de bureau pour Linux",
-    description:
-      "ESP32 Bench en application de bureau pour Arch Linux avec KDE Plasma : compilez, flashez, surveillez et simulez les sketches de la bibliothèque de projets sur votre ordinateur.",
+    description: "ESP32 Bench en application de bureau pour Linux (Arch, Debian, Ubuntu et Fedora) : compilez, flashez, surveillez et simulez les sketches de la bibliothèque de projets sur votre ordinateur.",
     h1: "ESP32 Bench pour Linux",
-    lede: "La même bibliothèque de projets en application de bureau : compilez, flashez et simulez des projets sur votre ordinateur, sans navigateur. Elle est nouvelle et ne fonctionne que sous Arch Linux avec KDE Plasma.",
+    lede: "La même bibliothèque de projets en application de bureau : compilez, flashez et simulez des projets sur votre ordinateur, sans navigateur. Elle est nouvelle et fonctionne sous Linux : Arch, Debian, Ubuntu et Fedora.",
     doesH: "Ce qu'elle fait",
     doesBuild: "Compile les projets de la bibliothèque avec arduino-cli et demande avant de compiler ou de flasher tout ce qui a été téléchargé. Elle compile aussi vos propres dossiers de projets ESP-IDF avec l'ESP-IDF installé.",
     doesFlash: "Flashe, inspecte et surveille les cartes par USB, sans root.",
     doesSim:
-      "Exécute les compilations pour ESP32, ESP32-S3 et ESP32-C3 dans un simulateur, avec une console série, un débogueur et des composants virtuels : LED, boutons, un ruban NeoPixel, un écran OLED et des capteurs I2C.",
+      "Exécute les compilations pour ESP32, ESP32-S3 et ESP32-C3 dans un simulateur, avec une console série, un débogueur et des composants virtuels : LED, boutons, un potentiomètre, un ruban NeoPixel, un écran OLED et des capteurs I2C.",
     doesWifi:
       "Donne aux sketches simulés un réseau Wi-Fi qui n'atteint rien à l'extérieur : ils reçoivent une adresse, et leurs pages web s'ouvrent sur votre ordinateur.",
     limitsH: "Ce qu'elle ne fait pas",
-    limitsPlatform: "Pour l'instant, elle ne fonctionne que sous Arch Linux avec KDE Plasma : ni Windows, ni macOS, ni d'autres distributions Linux.",
-    limitsSim:
-      "Le simulateur exécute le firmware, pas l'électronique : pas de Bluetooth, et les entrées analogiques lisent 0.",
+    limitsPlatform: "Elle fonctionne sous Arch Linux, Debian 13, Ubuntu 24.04 et 26.04, et Fedora 44 et 45, sur PC 64 bits : ni Windows, ni macOS. Avec de vraies cartes, elle n'a encore été testée que sous Arch.",
+    limitsSim: "Le simulateur exécute le firmware, pas l'électronique : pas de Bluetooth, et les entrées analogiques ne lisent qu'un potentiomètre placé dessus, sur l'ESP32 et le C3.",
     limitsReset:
       "Le passage en mode flash des cartes avec une puce USB CP210x ou CH340 n'a pas encore été testé sur du matériel. Si le flash échoue, maintenez BOOT pendant le démarrage.",
     installH: "L'installer",
-    install: "Téléchargez le paquet de la dernière version ({version}) et installez-le avec pacman :",
-    installAfter:
-      "Ouvrez ensuite ESP32 Bench depuis le lanceur. La première fois, Tools, puis Toolchain setup, installe les outils de compilation et compile le simulateur, ce qui prend un moment.",
+    install: "Téléchargez le paquet de votre distribution depuis la dernière version ({version}) :",
+    installCommand: "Installez ensuite le fichier téléchargé avec votre gestionnaire de paquets, qui récupère ce qu'il faut. Par exemple, sous Arch, Ubuntu 26.04 et Fedora 45 :",
+    installAfter: "Ouvrez ensuite ESP32 Bench depuis le lanceur. La première fois, Tools, puis Toolchain setup, installe les outils de compilation et compile le simulateur, ce qui prend un moment. S'il manque des outils pour compiler le simulateur, il affiche la commande qui les installe.",
     openH: "Ouvrir des projets depuis ce site",
     open:
       "Les pages de projet ont un lien Ouvrir dans l'application de bureau. Si l'application est installée, il y ouvre le projet, et rien n'est compilé avant votre accord. Sans l'application, votre navigateur ne peut pas suivre le lien.",
@@ -137,27 +129,25 @@ export const DESKTOP_STRINGS = defineStrings({
   },
   "pt-br": {
     title: "App de desktop para Linux",
-    description:
-      "ESP32 Bench como app de desktop para Arch Linux com KDE Plasma: compile, grave, monitore e simule os sketches da biblioteca de projetos no seu computador.",
+    description: "ESP32 Bench como app de desktop para Linux (Arch, Debian, Ubuntu e Fedora): compile, grave, monitore e simule os sketches da biblioteca de projetos no seu computador.",
     h1: "ESP32 Bench para Linux",
-    lede: "A mesma biblioteca de projetos como app de desktop: compile, grave e simule projetos no seu computador, sem navegador. Ele é novo e funciona só no Arch Linux com KDE Plasma.",
+    lede: "A mesma biblioteca de projetos como app de desktop: compile, grave e simule projetos no seu computador, sem navegador. Ele é novo e é para Linux: Arch, Debian, Ubuntu e Fedora.",
     doesH: "O que ele faz",
     doesBuild: "Compila os projetos da biblioteca com arduino-cli e pergunta antes de compilar ou gravar qualquer coisa baixada. Também compila suas próprias pastas de projetos ESP-IDF com o ESP-IDF instalado.",
     doesFlash: "Grava, inspeciona e monitora placas pela USB, sem root.",
     doesSim:
-      "Roda compilações para ESP32, ESP32-S3 e ESP32-C3 em um simulador, com console serial, depurador e peças virtuais: LEDs, botões, uma fita NeoPixel, um display OLED e sensores I2C.",
+      "Roda compilações para ESP32, ESP32-S3 e ESP32-C3 em um simulador, com console serial, depurador e peças virtuais: LEDs, botões, um potenciômetro, uma fita NeoPixel, um display OLED e sensores I2C.",
     doesWifi:
       "Dá aos sketches simulados uma rede Wi-Fi que não alcança nada lá fora: eles recebem um endereço, e suas páginas web abrem no seu computador.",
     limitsH: "O que ele não faz",
-    limitsPlatform: "Por enquanto ele roda só no Arch Linux com KDE Plasma: não no Windows, no macOS nem em outras distribuições Linux.",
-    limitsSim:
-      "O simulador roda o firmware, não a eletrônica: não há Bluetooth e entradas analógicas leem 0.",
+    limitsPlatform: "Ele roda no Arch Linux, Debian 13, Ubuntu 24.04 e 26.04 e Fedora 44 e 45, em PCs de 64 bits: não no Windows nem no macOS. Com placas reais, até agora só foi testado no Arch.",
+    limitsSim: "O simulador roda o firmware, não a eletrônica: não há Bluetooth, e entradas analógicas só leem um potenciômetro colocado nelas, no ESP32 e no C3.",
     limitsReset:
       "Reiniciar no modo de gravação placas com chip USB CP210x ou CH340 ainda não foi testado em hardware. Se a gravação falhar, segure BOOT enquanto ela começa.",
     installH: "Instale",
-    install: "Baixe o pacote da versão mais recente ({version}) e instale com o pacman:",
-    installAfter:
-      "Depois abra o ESP32 Bench pelo menu de aplicativos. Na primeira vez, Tools e depois Toolchain setup instala as ferramentas de compilação e compila o simulador, o que leva um tempo.",
+    install: "Baixe o pacote da sua distribuição na versão mais recente ({version}):",
+    installCommand: "Depois instale o arquivo baixado com o seu gerenciador de pacotes, que busca o que for preciso. Por exemplo, no Arch, no Ubuntu 26.04 e no Fedora 45:",
+    installAfter: "Depois abra o ESP32 Bench pelo menu de aplicativos. Na primeira vez, Tools e depois Toolchain setup instala as ferramentas de compilação e compila o simulador, o que leva um tempo. Se faltarem ferramentas para compilar o simulador, ele mostra o comando que as instala.",
     openH: "Abrir projetos a partir deste site",
     open:
       "As páginas de projeto têm um link Abrir no app de desktop. Com o app instalado, ele abre o projeto lá, e nada é compilado até você concordar. Sem o app, seu navegador não consegue seguir o link.",
