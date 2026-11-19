@@ -15,9 +15,11 @@ export const DESKTOP_STRINGS = defineStrings({
       "Runs ESP32, ESP32-S3 and ESP32-C3 builds in a simulator, with a serial console, a debugger and virtual parts: LEDs, buttons, a potentiometer, a NeoPixel strip, an OLED and I2C sensors.",
     doesWifi:
       "Gives simulated sketches a Wi-Fi network that reaches nothing outside: they get an address, and their web pages open on your computer.",
+    doesTrace: "Draws the simulated pins as a logic analyzer would, and saves the trace for PulseView or GTKWave.",
+    doesLanguages: "Speaks English, Spanish, German, French and Brazilian Portuguese, following your desktop's language.",
     limitsH: "What it does not do",
     limitsPlatform: "It runs on Arch Linux, Debian 13, Ubuntu 24.04 and 26.04, and Fedora 44 and 45, on 64-bit PCs: not on Windows or macOS. Real boards have been tested on Arch so far.",
-    limitsSim: "The simulator runs the firmware, not the electronics: there is no Bluetooth, and analog inputs read only a potentiometer placed on them, on the ESP32 and C3.",
+    limitsSim: "The simulator runs the firmware, not the electronics: there is no Bluetooth, and analog inputs read only a potentiometer placed on them.",
     limitsReset:
       "Resetting boards with a CP210x or CH340 USB chip into flashing mode has not been tested on hardware yet. If flashing fails, hold BOOT while it starts.",
     installH: "Install it",
@@ -46,15 +48,17 @@ export const DESKTOP_STRINGS = defineStrings({
       "Ejecuta compilaciones para ESP32, ESP32-S3 y ESP32-C3 en un simulador, con consola serie, depurador y piezas virtuales: LED, botones, un potenciómetro, una tira NeoPixel, una pantalla OLED y sensores I2C.",
     doesWifi:
       "Da a los sketches simulados una red Wi-Fi que no llega a nada externo: reciben una dirección y sus páginas web se abren en tu ordenador.",
+    doesTrace: "Dibuja los pines simulados como un analizador lógico y guarda la traza para PulseView o GTKWave.",
+    doesLanguages: "Está en inglés, español, alemán, francés y portugués de Brasil, según el idioma de tu escritorio.",
     limitsH: "Qué no hace",
     limitsPlatform: "Funciona en Arch Linux, Debian 13, Ubuntu 24.04 y 26.04, y Fedora 44 y 45, en PC de 64 bits: no en Windows ni macOS. Por ahora solo se ha probado con placas reales en Arch.",
-    limitsSim: "El simulador ejecuta el firmware, no la electrónica: no hay Bluetooth y las entradas analógicas solo leen un potenciómetro colocado en ellas, en el ESP32 y el C3.",
+    limitsSim: "El simulador ejecuta el firmware, no la electrónica: no hay Bluetooth y las entradas analógicas solo leen un potenciómetro colocado en ellas.",
     limitsReset:
       "El reinicio en modo de grabación de placas con chip USB CP210x o CH340 aún no se ha probado con hardware. Si la grabación falla, mantén pulsado BOOT mientras empieza.",
     installH: "Instálala",
     install: "Descarga el paquete para tu distribución de la última versión ({version}):",
     installCommand: "Luego instala el archivo descargado con tu gestor de paquetes, que trae lo que necesita. Por ejemplo, en Arch, en Ubuntu 26.04 y en Fedora 45:",
-    installAfter: "Luego abre ESP32 Bench desde el lanzador. La primera vez, Tools y después Toolchain setup instala las herramientas de compilación y compila el simulador, lo que tarda un rato. Si faltan herramientas para compilar el simulador, muestra la orden que las instala.",
+    installAfter: "Luego abre ESP32 Bench desde el lanzador. La primera vez, Herramientas y después Configurar herramientas instala las herramientas de compilación y compila el simulador, lo que tarda un rato. Si faltan herramientas para compilar el simulador, muestra la orden que las instala.",
     openH: "Abrir proyectos desde este sitio",
     open:
       "Las páginas de proyecto tienen un enlace Abrir en la app de escritorio. Con la app instalada, abre el proyecto allí, y no se compila nada hasta que aceptes. Sin la app, tu navegador no puede seguir el enlace.",
@@ -77,15 +81,17 @@ export const DESKTOP_STRINGS = defineStrings({
       "Führt Builds für ESP32, ESP32-S3 und ESP32-C3 in einem Simulator aus, mit serieller Konsole, Debugger und virtuellen Bauteilen: LEDs, Taster, ein Potentiometer, ein NeoPixel-Streifen, ein OLED und I2C-Sensoren.",
     doesWifi:
       "Gibt simulierten Sketches ein WLAN, das nichts außerhalb erreicht: Sie bekommen eine Adresse, und ihre Webseiten öffnen sich auf deinem Rechner.",
+    doesTrace: "Zeichnet die simulierten Pins wie ein Logikanalysator auf und speichert die Aufzeichnung für PulseView oder GTKWave.",
+    doesLanguages: "Spricht Englisch, Spanisch, Deutsch, Französisch und brasilianisches Portugiesisch, je nach Sprache deines Desktops.",
     limitsH: "Was sie nicht kann",
     limitsPlatform: "Sie läuft unter Arch Linux, Debian 13, Ubuntu 24.04 und 26.04 sowie Fedora 44 und 45 auf 64-Bit-PCs: nicht unter Windows oder macOS. Mit echten Boards ist sie bisher nur unter Arch getestet.",
-    limitsSim: "Der Simulator führt die Firmware aus, nicht die Elektronik: kein Bluetooth, und analoge Eingänge lesen nur ein daran angeschlossenes Potentiometer, beim ESP32 und C3.",
+    limitsSim: "Der Simulator führt die Firmware aus, nicht die Elektronik: kein Bluetooth, und analoge Eingänge lesen nur ein daran angeschlossenes Potentiometer.",
     limitsReset:
       "Das Zurücksetzen in den Flash-Modus bei Boards mit CP210x- oder CH340-USB-Chip ist noch nicht an echter Hardware getestet. Wenn das Flashen fehlschlägt, halte beim Start BOOT gedrückt.",
     installH: "Installieren",
     install: "Lade das Paket für deine Distribution aus der neuesten Version ({version}) herunter:",
     installCommand: "Installiere die heruntergeladene Datei dann mit deinem Paketmanager, der alles Nötige mitholt. Zum Beispiel unter Arch, Ubuntu 26.04 und Fedora 45:",
-    installAfter: "Öffne dann ESP32 Bench aus dem Startmenü. Beim ersten Mal installiert Tools, dann Toolchain setup, die Build-Werkzeuge und baut den Simulator; das dauert eine Weile. Fehlen Werkzeuge, um den Simulator zu bauen, zeigt es den Befehl, der sie installiert.",
+    installAfter: "Öffne dann ESP32 Bench aus dem Startmenü. Beim ersten Mal installiert Werkzeuge, dann Toolchain einrichten, die Build-Werkzeuge und baut den Simulator; das dauert eine Weile. Fehlen Werkzeuge, um den Simulator zu bauen, zeigt es den Befehl, der sie installiert.",
     openH: "Projekte von dieser Seite öffnen",
     open:
       "Projektseiten haben einen Link In der Desktop-App öffnen. Ist die App installiert, öffnet er das Projekt dort, und nichts wird kompiliert, bevor du zustimmst. Ohne die App kann dein Browser dem Link nicht folgen.",
@@ -108,15 +114,17 @@ export const DESKTOP_STRINGS = defineStrings({
       "Exécute les compilations pour ESP32, ESP32-S3 et ESP32-C3 dans un simulateur, avec une console série, un débogueur et des composants virtuels : LED, boutons, un potentiomètre, un ruban NeoPixel, un écran OLED et des capteurs I2C.",
     doesWifi:
       "Donne aux sketches simulés un réseau Wi-Fi qui n'atteint rien à l'extérieur : ils reçoivent une adresse, et leurs pages web s'ouvrent sur votre ordinateur.",
+    doesTrace: "Dessine les broches simulées comme un analyseur logique et enregistre le chronogramme pour PulseView ou GTKWave.",
+    doesLanguages: "Parle anglais, espagnol, allemand, français et portugais du Brésil, selon la langue de votre bureau.",
     limitsH: "Ce qu'elle ne fait pas",
     limitsPlatform: "Elle fonctionne sous Arch Linux, Debian 13, Ubuntu 24.04 et 26.04, et Fedora 44 et 45, sur PC 64 bits : ni Windows, ni macOS. Avec de vraies cartes, elle n'a encore été testée que sous Arch.",
-    limitsSim: "Le simulateur exécute le firmware, pas l'électronique : pas de Bluetooth, et les entrées analogiques ne lisent qu'un potentiomètre placé dessus, sur l'ESP32 et le C3.",
+    limitsSim: "Le simulateur exécute le firmware, pas l'électronique : pas de Bluetooth, et les entrées analogiques ne lisent qu'un potentiomètre placé dessus.",
     limitsReset:
       "Le passage en mode flash des cartes avec une puce USB CP210x ou CH340 n'a pas encore été testé sur du matériel. Si le flash échoue, maintenez BOOT pendant le démarrage.",
     installH: "L'installer",
     install: "Téléchargez le paquet de votre distribution depuis la dernière version ({version}) :",
     installCommand: "Installez ensuite le fichier téléchargé avec votre gestionnaire de paquets, qui récupère ce qu'il faut. Par exemple, sous Arch, Ubuntu 26.04 et Fedora 45 :",
-    installAfter: "Ouvrez ensuite ESP32 Bench depuis le lanceur. La première fois, Tools, puis Toolchain setup, installe les outils de compilation et compile le simulateur, ce qui prend un moment. S'il manque des outils pour compiler le simulateur, il affiche la commande qui les installe.",
+    installAfter: "Ouvrez ensuite ESP32 Bench depuis le lanceur. La première fois, Outils, puis Configuration des outils, installe les outils de compilation et compile le simulateur, ce qui prend un moment. S'il manque des outils pour compiler le simulateur, il affiche la commande qui les installe.",
     openH: "Ouvrir des projets depuis ce site",
     open:
       "Les pages de projet ont un lien Ouvrir dans l'application de bureau. Si l'application est installée, il y ouvre le projet, et rien n'est compilé avant votre accord. Sans l'application, votre navigateur ne peut pas suivre le lien.",
@@ -139,15 +147,17 @@ export const DESKTOP_STRINGS = defineStrings({
       "Roda compilações para ESP32, ESP32-S3 e ESP32-C3 em um simulador, com console serial, depurador e peças virtuais: LEDs, botões, um potenciômetro, uma fita NeoPixel, um display OLED e sensores I2C.",
     doesWifi:
       "Dá aos sketches simulados uma rede Wi-Fi que não alcança nada lá fora: eles recebem um endereço, e suas páginas web abrem no seu computador.",
+    doesTrace: "Desenha os pinos simulados como um analisador lógico e salva o traçado para o PulseView ou o GTKWave.",
+    doesLanguages: "Fala inglês, espanhol, alemão, francês e português do Brasil, conforme o idioma do seu desktop.",
     limitsH: "O que ele não faz",
     limitsPlatform: "Ele roda no Arch Linux, Debian 13, Ubuntu 24.04 e 26.04 e Fedora 44 e 45, em PCs de 64 bits: não no Windows nem no macOS. Com placas reais, até agora só foi testado no Arch.",
-    limitsSim: "O simulador roda o firmware, não a eletrônica: não há Bluetooth, e entradas analógicas só leem um potenciômetro colocado nelas, no ESP32 e no C3.",
+    limitsSim: "O simulador roda o firmware, não a eletrônica: não há Bluetooth, e entradas analógicas só leem um potenciômetro colocado nelas.",
     limitsReset:
       "Reiniciar no modo de gravação placas com chip USB CP210x ou CH340 ainda não foi testado em hardware. Se a gravação falhar, segure BOOT enquanto ela começa.",
     installH: "Instale",
     install: "Baixe o pacote da sua distribuição na versão mais recente ({version}):",
     installCommand: "Depois instale o arquivo baixado com o seu gerenciador de pacotes, que busca o que for preciso. Por exemplo, no Arch, no Ubuntu 26.04 e no Fedora 45:",
-    installAfter: "Depois abra o ESP32 Bench pelo menu de aplicativos. Na primeira vez, Tools e depois Toolchain setup instala as ferramentas de compilação e compila o simulador, o que leva um tempo. Se faltarem ferramentas para compilar o simulador, ele mostra o comando que as instala.",
+    installAfter: "Depois abra o ESP32 Bench pelo menu de aplicativos. Na primeira vez, Ferramentas e depois Configurar ferramentas instala as ferramentas de compilação e compila o simulador, o que leva um tempo. Se faltarem ferramentas para compilar o simulador, ele mostra o comando que as instala.",
     openH: "Abrir projetos a partir deste site",
     open:
       "As páginas de projeto têm um link Abrir no app de desktop. Com o app instalado, ele abre o projeto lá, e nada é compilado até você concordar. Sem o app, seu navegador não consegue seguir o link.",
