@@ -10,7 +10,7 @@ export const DESKTOP_STRINGS = defineStrings({
     h1: "ESP32 Bench for Linux",
     lede: "The same project library as a desktop app: build, flash and simulate projects on your computer, without a browser. It is new, and for Arch Linux with KDE Plasma only.",
     doesH: "What it does",
-    doesBuild: "Builds library projects with arduino-cli, and asks before it builds or flashes anything it downloaded.",
+    doesBuild: "Builds library projects with arduino-cli, and asks before it builds or flashes anything it downloaded. It also builds your own ESP-IDF project folders with your installed ESP-IDF.",
     doesFlash: "Flashes, inspects and monitors boards over USB, without root.",
     doesSim:
       "Runs ESP32, ESP32-S3 and ESP32-C3 builds in a simulator, with a serial console, a debugger and virtual parts: LEDs, buttons, a NeoPixel strip, an OLED and I2C sensors.",
@@ -19,7 +19,7 @@ export const DESKTOP_STRINGS = defineStrings({
     limitsH: "What it does not do",
     limitsPlatform: "It runs only on Arch Linux with KDE Plasma for now: not on Windows, macOS or other Linux distributions.",
     limitsSim:
-      "The simulator runs the firmware, not the electronics: there is no Bluetooth, analog inputs read 0, and the ESP32-S3 has no Wi-Fi.",
+      "The simulator runs the firmware, not the electronics: there is no Bluetooth, and analog inputs read 0.",
     limitsReset:
       "Resetting boards with a CP210x or CH340 USB chip into flashing mode has not been tested on hardware yet. If flashing fails, hold BOOT while it starts.",
     installH: "Install it",
@@ -43,7 +43,7 @@ export const DESKTOP_STRINGS = defineStrings({
     h1: "ESP32 Bench para Linux",
     lede: "La misma biblioteca de proyectos como app de escritorio: compila, graba y simula proyectos en tu ordenador, sin navegador. Es nueva y solo funciona en Arch Linux con KDE Plasma.",
     doesH: "Qué hace",
-    doesBuild: "Compila los proyectos de la biblioteca con arduino-cli y pregunta antes de compilar o grabar cualquier cosa descargada.",
+    doesBuild: "Compila los proyectos de la biblioteca con arduino-cli y pregunta antes de compilar o grabar cualquier cosa descargada. También compila tus propias carpetas de proyectos ESP-IDF con el ESP-IDF que tengas instalado.",
     doesFlash: "Graba, inspecciona y monitoriza placas por USB, sin root.",
     doesSim:
       "Ejecuta compilaciones para ESP32, ESP32-S3 y ESP32-C3 en un simulador, con consola serie, depurador y piezas virtuales: LED, botones, una tira NeoPixel, una pantalla OLED y sensores I2C.",
@@ -52,7 +52,7 @@ export const DESKTOP_STRINGS = defineStrings({
     limitsH: "Qué no hace",
     limitsPlatform: "Por ahora solo funciona en Arch Linux con KDE Plasma: no en Windows, macOS ni otras distribuciones de Linux.",
     limitsSim:
-      "El simulador ejecuta el firmware, no la electrónica: no hay Bluetooth, las entradas analógicas leen 0 y el ESP32-S3 no tiene Wi-Fi.",
+      "El simulador ejecuta el firmware, no la electrónica: no hay Bluetooth y las entradas analógicas leen 0.",
     limitsReset:
       "El reinicio en modo de grabación de placas con chip USB CP210x o CH340 aún no se ha probado con hardware. Si la grabación falla, mantén pulsado BOOT mientras empieza.",
     installH: "Instálala",
@@ -76,7 +76,7 @@ export const DESKTOP_STRINGS = defineStrings({
     h1: "ESP32 Bench für Linux",
     lede: "Dieselbe Projektbibliothek als Desktop-App: Projekte auf deinem Rechner kompilieren, flashen und simulieren, ohne Browser. Sie ist neu und läuft nur unter Arch Linux mit KDE Plasma.",
     doesH: "Was sie kann",
-    doesBuild: "Kompiliert Projekte der Bibliothek mit arduino-cli und fragt nach, bevor sie etwas Heruntergeladenes kompiliert oder flasht.",
+    doesBuild: "Kompiliert Projekte der Bibliothek mit arduino-cli und fragt nach, bevor sie etwas Heruntergeladenes kompiliert oder flasht. Eigene ESP-IDF-Projektordner kompiliert sie mit deinem installierten ESP-IDF.",
     doesFlash: "Flasht, untersucht und überwacht Boards über USB, ohne root.",
     doesSim:
       "Führt Builds für ESP32, ESP32-S3 und ESP32-C3 in einem Simulator aus, mit serieller Konsole, Debugger und virtuellen Bauteilen: LEDs, Taster, ein NeoPixel-Streifen, ein OLED und I2C-Sensoren.",
@@ -85,7 +85,7 @@ export const DESKTOP_STRINGS = defineStrings({
     limitsH: "Was sie nicht kann",
     limitsPlatform: "Sie läuft vorerst nur unter Arch Linux mit KDE Plasma: nicht unter Windows, macOS oder anderen Linux-Distributionen.",
     limitsSim:
-      "Der Simulator führt die Firmware aus, nicht die Elektronik: kein Bluetooth, analoge Eingänge lesen 0, und der ESP32-S3 hat kein WLAN.",
+      "Der Simulator führt die Firmware aus, nicht die Elektronik: kein Bluetooth, und analoge Eingänge lesen 0.",
     limitsReset:
       "Das Zurücksetzen in den Flash-Modus bei Boards mit CP210x- oder CH340-USB-Chip ist noch nicht an echter Hardware getestet. Wenn das Flashen fehlschlägt, halte beim Start BOOT gedrückt.",
     installH: "Installieren",
@@ -109,7 +109,7 @@ export const DESKTOP_STRINGS = defineStrings({
     h1: "ESP32 Bench pour Linux",
     lede: "La même bibliothèque de projets en application de bureau : compilez, flashez et simulez des projets sur votre ordinateur, sans navigateur. Elle est nouvelle et ne fonctionne que sous Arch Linux avec KDE Plasma.",
     doesH: "Ce qu'elle fait",
-    doesBuild: "Compile les projets de la bibliothèque avec arduino-cli et demande avant de compiler ou de flasher tout ce qui a été téléchargé.",
+    doesBuild: "Compile les projets de la bibliothèque avec arduino-cli et demande avant de compiler ou de flasher tout ce qui a été téléchargé. Elle compile aussi vos propres dossiers de projets ESP-IDF avec l'ESP-IDF installé.",
     doesFlash: "Flashe, inspecte et surveille les cartes par USB, sans root.",
     doesSim:
       "Exécute les compilations pour ESP32, ESP32-S3 et ESP32-C3 dans un simulateur, avec une console série, un débogueur et des composants virtuels : LED, boutons, un ruban NeoPixel, un écran OLED et des capteurs I2C.",
@@ -118,7 +118,7 @@ export const DESKTOP_STRINGS = defineStrings({
     limitsH: "Ce qu'elle ne fait pas",
     limitsPlatform: "Pour l'instant, elle ne fonctionne que sous Arch Linux avec KDE Plasma : ni Windows, ni macOS, ni d'autres distributions Linux.",
     limitsSim:
-      "Le simulateur exécute le firmware, pas l'électronique : pas de Bluetooth, les entrées analogiques lisent 0, et l'ESP32-S3 n'a pas de Wi-Fi.",
+      "Le simulateur exécute le firmware, pas l'électronique : pas de Bluetooth, et les entrées analogiques lisent 0.",
     limitsReset:
       "Le passage en mode flash des cartes avec une puce USB CP210x ou CH340 n'a pas encore été testé sur du matériel. Si le flash échoue, maintenez BOOT pendant le démarrage.",
     installH: "L'installer",
@@ -142,7 +142,7 @@ export const DESKTOP_STRINGS = defineStrings({
     h1: "ESP32 Bench para Linux",
     lede: "A mesma biblioteca de projetos como app de desktop: compile, grave e simule projetos no seu computador, sem navegador. Ele é novo e funciona só no Arch Linux com KDE Plasma.",
     doesH: "O que ele faz",
-    doesBuild: "Compila os projetos da biblioteca com arduino-cli e pergunta antes de compilar ou gravar qualquer coisa baixada.",
+    doesBuild: "Compila os projetos da biblioteca com arduino-cli e pergunta antes de compilar ou gravar qualquer coisa baixada. Também compila suas próprias pastas de projetos ESP-IDF com o ESP-IDF instalado.",
     doesFlash: "Grava, inspeciona e monitora placas pela USB, sem root.",
     doesSim:
       "Roda compilações para ESP32, ESP32-S3 e ESP32-C3 em um simulador, com console serial, depurador e peças virtuais: LEDs, botões, uma fita NeoPixel, um display OLED e sensores I2C.",
@@ -151,7 +151,7 @@ export const DESKTOP_STRINGS = defineStrings({
     limitsH: "O que ele não faz",
     limitsPlatform: "Por enquanto ele roda só no Arch Linux com KDE Plasma: não no Windows, no macOS nem em outras distribuições Linux.",
     limitsSim:
-      "O simulador roda o firmware, não a eletrônica: não há Bluetooth, entradas analógicas leem 0 e o ESP32-S3 não tem Wi-Fi.",
+      "O simulador roda o firmware, não a eletrônica: não há Bluetooth e entradas analógicas leem 0.",
     limitsReset:
       "Reiniciar no modo de gravação placas com chip USB CP210x ou CH340 ainda não foi testado em hardware. Se a gravação falhar, segure BOOT enquanto ela começa.",
     installH: "Instale",
