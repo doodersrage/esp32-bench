@@ -52,12 +52,21 @@ export const PROBEHARBOR = {
 
 /** The desktop app (ESP32 Bench for Linux): the latest release, for /desktop/. */
 export const DESKTOP = {
-  version: "0.1.4",
+  version: "0.1.5",
   repo: "https://github.com/doodersrage/esp32-desktop",
   issues: "https://github.com/doodersrage/esp32-desktop/issues",
-  release: "https://github.com/doodersrage/esp32-desktop/releases/tag/v0.1.4",
-  package: "https://github.com/doodersrage/esp32-desktop/releases/download/v0.1.4/esp32bench-bin-0.1.4-1-x86_64.pkg.tar.zst",
-  packageFile: "esp32bench-bin-0.1.4-1-x86_64.pkg.tar.zst",
+  release: "https://github.com/doodersrage/esp32-desktop/releases/tag/v0.1.5",
+  /** Where the release's packages download from: append a file name from `packages`. */
+  download: "https://github.com/doodersrage/esp32-desktop/releases/download/v0.1.5/",
+  /** The release's package for each supported distribution, in the order the page lists them. */
+  packages: [
+    { distro: "Arch Linux", file: "esp32bench-bin-0.1.5-1-x86_64.pkg.tar.zst" },
+    { distro: "Debian 13", file: "esp32bench_0.1.5-1.debian13_amd64.deb" },
+    { distro: "Ubuntu 24.04 LTS", file: "esp32bench_0.1.5-1.ubuntu24.04_amd64.deb" },
+    { distro: "Ubuntu 26.04 LTS", file: "esp32bench_0.1.5-1.ubuntu26.04_amd64.deb" },
+    { distro: "Fedora 44", file: "esp32bench-0.1.5-1.fc44.x86_64.rpm" },
+    { distro: "Fedora 45", file: "esp32bench-0.1.5-1.fc45.x86_64.rpm" },
+  ],
   /** A project in the app: its esp32bench:// link (the app asks before it builds anything). */
   projectLink: (id: string) => `esp32bench://project/${id}`,
 };
