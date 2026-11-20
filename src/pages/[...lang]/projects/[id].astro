@@ -25,6 +25,8 @@ import { buyFor, shopVendor } from "../../../lib/shop";
 import { kitFor } from "../../../lib/kit";
 import { PATHS } from "../../../data/paths";
 import { PAGE_PALETTE, kitIconSvg } from "../../../lib/kit-icons";
+import { CASE_FOR_BOARD, PRINTS } from "../../../data/prints";
+import { PRINTS_UI, printText } from "../../../i18n/strings/prints";
 
 const link = localLink(Astro.currentLocale);
 const t = translator(PROJECT, Astro.currentLocale);
@@ -85,6 +87,19 @@ const kitAlt = t("kitAlt", {
 });
 const kitSrc = link(`/og/kits/${p.id}.png`);
 const buildReportUrl = reportUrl("build", { project: p.id });
+// 3D-printable parts: the ones made for this project, then a case for each of its boards.
+const tp = translator(PRINTS_UI, Astro.currentLocale);
+const printLinks = [
+  ...PRINTS.filter((x) => x.projects?.includes(p.id) || (x.forParts && p.parts.some(([, text]) => x.forParts!.test(text)))).map((x) => ({
+    id: x.id,
+    text: printText(tp, "name", x.id),
+    tested: Boolean(x.tested),
+  })),
+  ...boards
+    .map((b) => ({ b, id: CASE_FOR_BOARD[b.id] }))
+    .filter(({ id }) => id)
+    .map(({ b, id }) => ({ id, text: tp("projCase", { board: b.short }), tested: Boolean(PRINTS.find((x) => x.id === id)?.tested) })),
+].filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i);
 // Starter paths this project is a step of, with the step after it.
 const onPaths = PATHS.flatMap((path) => {
   const at = path.steps.findIndex((s) => s.project === p.id);
@@ -226,6 +241,20 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
               <p class="libs">
                 <span class="swlabel">{t("libraries")}</span> {p.libs.length > 0 ? p.libs.map(libText).join(", ") : t("libsNone")}
               </p>
+            )
+          }
+          {
+            printLinks.length > 0 && (
+              <div class="prints">
+                <span class="swlabel">{tp("projH")}</span>
+                <ul>
+                  {printLinks.map((x) => (
+                    <li>
+                      <a href={link(`/prints/#${x.id}`)}>{x.text}</a> <span class={x.tested ? "tag ok" : "tag todo"}>{x.tested ? tp("tested") : tp("draft")}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )
           }
           {hasBuyLinks && <p class="cap left">{t("affiliate")}</p>}
@@ -490,6 +519,8 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
 </Base>
 
 <style>
+  .prints ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+  .prints .tag { font-size: 0.65rem; padding: 2px 4px; }
   .kitcard { display: block; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #f2f5f1; }
   .kitcard img { display: block; width: 100%; height: auto; }
   .partname { display: flex; gap: 10px; align-items: center; }

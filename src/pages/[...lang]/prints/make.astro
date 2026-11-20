@@ -1,0 +1,126 @@
+---
+// The part maker: pick a printable part, change its measurements, see it in 3D
+// and download a 3MF or STL. The form is drawn here from PART_DEFS, with every
+// label translated; src/scripts/print-maker.ts builds the part in the browser
+// with the same code the catalog downloads come from.
+import { localePaths } from "../../../i18n/locales";
+import Base from "../../../layouts/Base.astro";
+import { PART_DEFS } from "../../../lib/print/parts";
+import { localLink } from "../../../lib/paths";
+import { translator } from "../../../i18n/t";
+import { PRINTS_UI, paramLabel, type PrintsKey } from "../../../i18n/strings/prints";
+
+export const getStaticPaths = localePaths;
+
+const link = localLink(Astro.currentLocale);
+const t = translator(PRINTS_UI, Astro.currentLocale);
+const first = PART_DEFS[0].id;
+
+// Strings the script shows while it works.
+const ui = {
+  loading: t("loading"),
+  building: t("building"),
+  failed: t("failed"),
+  stats: t("stats"),
+  tooBig: t("tooBig"),
+  copied: t("copied"),
+  noWebgl: t("noWebgl"),
+};
+---
+
+<Base title={t("makeTitle")} description={t("makeDescription")} current="tools" image="/og/tools/prints.png">
+  <section class="view">
+    <a class="back" href={link("/prints/")}>{t("makeBack")}</a>
+    <div class="stack tight">
+      <h1 class="h2">{t("makeH1")}</h1>
+      <p class="lede">{t("makeLede")}</p>
+    </div>
+
+    <div class="mk">
+      <form id="mk-form" class="mkform" autocomplete="off">
+        <label class="mkpart">
+          <span>{t("partLabel")}</span>
+          <select name="part" id="mk-part">
+            {PART_DEFS.map((d) => <option value={d.id}>{t(`part.${d.id}` as PrintsKey)}</option>)}
+          </select>
+        </label>
+        {
+          PART_DEFS.map((d) => (
+            <fieldset class="mkparams" data-part={d.id} hidden={d.id !== first} disabled={d.id !== first}>
+              <legend class="sr">{t(`part.${d.id}` as PrintsKey)}</legend>
+              {d.params.map((p) =>
+                p.kind === "number" ? (
+                  <label class="mkrow">
+                    <span>{paramLabel(t, d.id, p.key)}</span>
+                    <span class="mkval">
+                      <input type="number" name={p.key} value={p.value} min={p.min} max={p.max} step={p.step} inputmode="decimal" />
+                      <span class="mkunit">{t("mm")}</span>
+                    </span>
+                  </label>
+                ) : p.kind === "bool" ? (
+                  <label class="mkrow mkcheck">
+                    <input type="checkbox" name={p.key} checked={p.value} />
+                    <span>{paramLabel(t, d.id, p.key)}</span>
+                  </label>
+                ) : (
+                  <label class="mkrow">
+                    <span>{paramLabel(t, d.id, p.key)}</span>
+                    <select name={p.key}>
+                      {p.options.map((o) => (
+                        <option value={o} selected={o === p.value}>
+                          {p.key === "board" ? t(`board.${o}` as PrintsKey) : o}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ),
+              )}
+            </fieldset>
+          ))
+        }
+        <p class="cap left">{t("measure")}</p>
+        <div class="row">
+          <button class="btn sm" type="button" id="mk-reset">{t("reset")}</button>
+          <button class="btn sm" type="button" id="mk-copy">{t("copyLink")}</button>
+        </div>
+      </form>
+
+      <div class="mkview">
+        <canvas id="mk-canvas" aria-label={t("viewHint")}></canvas>
+        <p class="mkstatus" id="mk-status" role="status">{t("loading")}</p>
+        <p class="mkstats" id="mk-stats"></p>
+        <div class="row">
+          <button class="btn go" type="button" id="mk-3mf" disabled>{t("download3mf")}</button>
+          <button class="btn" type="button" id="mk-stl" disabled>{t("downloadStl")}</button>
+        </div>
+        <p class="cap left">{t("viewHint")}</p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script id="mk-ui" type="application/json" set:html={JSON.stringify(ui)} />
+
+<style>
+  .mk { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 760px) { .mk { grid-template-columns: 1fr; } .mkview { order: -1; } }
+  .mkform { display: flex; flex-direction: column; gap: 10px; }
+  .mkpart { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+  .mkparams { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .mkrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; font-size: 0.9rem; }
+  .mkrow select { max-width: 200px; }
+  .mkval { display: inline-flex; align-items: center; gap: 4px; }
+  .mkval input { width: 6.5em; text-align: right; }
+  .mkunit { font: 500 0.75rem/1 var(--mono); color: var(--muted); }
+  .mkcheck { grid-template-columns: auto 1fr; }
+  .mkview { position: sticky; top: 72px; display: flex; flex-direction: column; gap: 8px; }
+  #mk-canvas { width: 100%; aspect-ratio: 4 / 3; background: #f2f5f1; border: 1px solid var(--line); cursor: grab; display: block; }
+  #mk-canvas:active { cursor: grabbing; }
+  .mkstatus { margin: 0; font-size: 0.88rem; color: var(--muted); min-height: 1.3em; }
+  .mkstatus.bad { color: var(--warn, #b4441c); }
+  .mkstats { margin: 0; font: 500 0.85rem/1.3 var(--mono); }
+</style>
+
+<script>
+  import "../../../scripts/print-maker.ts";
+</script>

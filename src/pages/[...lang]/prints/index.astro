@@ -1,0 +1,210 @@
+---
+// The 3D-printable parts catalog: every entry in src/data/prints.ts with its
+// thumbnail, size, print settings, the projects it is for and its downloads.
+// The meshes are built here at build time (src/lib/print/catalog.ts), the same
+// ones the /prints/<id>.3mf and .stl files are written from.
+import { localePaths } from "../../../i18n/locales";
+import Base from "../../../layouts/Base.astro";
+import { PRINTS, type PrintItem } from "../../../data/prints";
+import { PROJECTS } from "../../../data/projects";
+import { printMesh, printValues } from "../../../lib/print/catalog";
+import { estimateGrams } from "../../../lib/print/formats";
+import { defaults, partDef } from "../../../lib/print/parts";
+import { localLink } from "../../../lib/paths";
+import { reportUrl } from "../../../lib/site";
+import { translator } from "../../../i18n/t";
+import { contentTranslator } from "../../../i18n/content";
+import { PRINTS_UI, printText } from "../../../i18n/strings/prints";
+
+export const getStaticPaths = localePaths;
+
+const link = localLink(Astro.currentLocale);
+const t = translator(PRINTS_UI, Astro.currentLocale);
+const tc = contentTranslator(Astro.currentLocale);
+const num = new Intl.NumberFormat(Astro.currentLocale === "pt-br" ? "pt-BR" : (Astro.currentLocale ?? "en"), { maximumFractionDigits: 1 });
+
+/** The part maker, opened on this entry's values. */
+function makerHref(item: PrintItem): string {
+  const def = partDef(item.part)!;
+  const base = defaults(def);
+  const q = new URLSearchParams({ part: item.part });
+  for (const [k, v] of Object.entries(printValues(item))) if (v !== base[k]) q.set(k, typeof v === "boolean" ? (v ? "1" : "0") : String(v));
+  return `${link("/prints/make/")}?${q}`;
+}
+
+for (const item of PRINTS) {
+  for (const id of item.projects ?? []) if (!PROJECTS.some((p) => p.id === id)) throw new Error(`prints: ${item.id} lists an unknown project "${id}"`);
+}
+
+const cards = await Promise.all(
+  PRINTS.map(async (item) => {
+    const mesh = await printMesh(item);
+    const projects = PROJECTS.filter((p) => item.projects?.includes(p.id) || (item.forParts && p.parts.some(([, text]) => item.forParts!.test(text))));
+    return {
+      item,
+      name: printText(t, "name", item.id),
+      sum: printText(t, "sum", item.id),
+      hw: printText(t, "hw", item.id),
+      note: printText(t, "note", item.id),
+      size: t("size", { x: num.format(mesh.size[0]), y: num.format(mesh.size[1]), z: num.format(mesh.size[2]) }),
+      grams: t("grams", { g: estimateGrams(mesh.volume, item.infill) * (item.copies ?? 1) }),
+      projects: projects.map((p) => ({ name: tc(p.name), href: link(`/projects/${p.id}/`) })),
+      maker: makerHref(item),
+      group: item.part === "board-case" ? "cases" : "robots",
+    };
+  }),
+);
+
+const groups = [
+  { id: "robots", title: t("groupRobots") },
+  { id: "cases", title: t("groupCases") },
+];
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: t("title"),
+  description: t("description"),
+};
+---
+
+<Base title={t("title")} description={t("description")} current="tools" image="/og/tools/prints.png" jsonLd={jsonLd}>
+  <section class="view">
+    <a class="back" href={link("/tools/")}>{t("back")}</a>
+    <div class="stack tight">
+      <h1 class="h2">{t("h1")}</h1>
+      <p class="lede">{t("lede")}</p>
+    </div>
+
+    <div class="notice prnotice">
+      <h2 class="h3">{t("statusH")}</h2>
+      <p set:html={t("statusP")} />
+    </div>
+
+    {
+      groups.map((g) => (
+        <section class="stack tight" aria-labelledby={`pg-${g.id}`}>
+          <h2 class="h3" id={`pg-${g.id}`}>{g.title}</h2>
+          <div class="prgrid">
+            {cards
+              .filter((c) => c.group === g.id)
+              .map((c) => (
+                <article class="prcard" id={c.item.id}>
+                  <a class="prthumb" href={c.maker} aria-label={t("customise")}>
+                    <img src={link(`/prints/${c.item.id}.png`)} width="480" height="320" loading="lazy" decoding="async" alt={t("thumbAlt", { name: c.name })} />
+                  </a>
+                  <div class="prhead">
+                    <h3 class="prname">{c.name}</h3>
+                    {c.item.tested ? (
+                      <span class="tag ok">{t("tested")}</span>
+                    ) : (
+                      <span class="tag todo" title={t("draftTitle")}>
+                        {t("draft")}
+                      </span>
+                    )}
+                  </div>
+                  <p class="prsum">{c.sum}</p>
+                  <p class="prmeta">
+                    <span>{c.size}</span>
+                    <span>{c.grams}</span>
+                    {c.item.copies && c.item.copies > 1 && <span>{t("copies", { n: c.item.copies })}</span>}
+                  </p>
+                  {c.item.tested && (
+                    <p class="prtested">
+                      {t("testedOn", { date: c.item.tested.date, printer: c.item.tested.printer, material: c.item.tested.material, fitted: c.item.tested.fitted })}
+                    </p>
+                  )}
+                  <p class="prfor">
+                    <span>{t("forProjects")}</span>{" "}
+                    {c.projects.length ? (
+                      c.projects.map((p, i) => (
+                        <>
+                          {i > 0 && ", "}
+                          <a href={p.href}>{p.name}</a>
+                        </>
+                      ))
+                    ) : (
+                      <span>{t("anyProject")}</span>
+                    )}
+                  </p>
+                  <div class="row prbtns">
+                    <a class="btn sm go" href={link(`/prints/${c.item.id}.3mf`)} download>
+                      {t("download3mf")}
+                    </a>
+                    <a class="btn sm" href={link(`/prints/${c.item.id}.stl`)} download>
+                      {t("downloadStl")}
+                    </a>
+                    <a class="btn sm" href={c.maker}>
+                      {t("customise")}
+                    </a>
+                  </div>
+                  <details class="prmore">
+                    <summary>{t("settingsH")}</summary>
+                    <dl class="prset">
+                      <dt>{t("material")}</dt>
+                      <dd>{c.item.material}</dd>
+                      <dt>{t("layer")}</dt>
+                      <dd>{num.format(c.item.layer)} mm</dd>
+                      <dt>{t("infill")}</dt>
+                      <dd>{c.item.infill} %</dd>
+                      <dt>{t("walls")}</dt>
+                      <dd>{c.item.walls}</dd>
+                      <dt>{t("supports")}</dt>
+                      <dd>{t("none")}</dd>
+                    </dl>
+                    {c.hw && (
+                      <p>
+                        <strong>{t("hardwareH")}:</strong> {c.hw}
+                      </p>
+                    )}
+                    {c.note && <p>{c.note}</p>}
+                  </details>
+                </article>
+              ))}
+          </div>
+        </section>
+      ))
+    }
+
+    <section class="stack tight">
+      <h2 class="h3">{t("howH")}</h2>
+      <ul class="prose prhow">
+        <li>{t("how1")}</li>
+        <li>{t("how2")}</li>
+        <li>{t("how3")}</li>
+        <li set:html={t("how4", { report: reportUrl("message", { page: "/prints/" }) })} />
+      </ul>
+    </section>
+
+    <section class="stack tight">
+      <h2 class="h3">{t("makerH")}</h2>
+      <p class="lede">{t("makerP")}</p>
+      <p><a class="btn go" href={link("/prints/make/")}>{t("makerCta")}</a></p>
+    </section>
+  </section>
+</Base>
+
+<style>
+  .prnotice p { margin: 0; max-width: 75ch; }
+  .prnotice h2 { margin: 0 0 6px; }
+  .prgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .prcard { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--ink); scroll-margin-top: 80px; }
+  .prcard:target { border-top-color: var(--accent); box-shadow: 0 0 0 3px var(--pad-soft); }
+  .prthumb { display: block; background: #f2f5f1; border: 1px solid var(--line); }
+  .prthumb img { display: block; width: 100%; height: auto; }
+  .prhead { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+  .prname { margin: 0; font: 700 1.2rem/1.1 var(--display); text-transform: uppercase; }
+  .prsum { margin: 0; font-size: 0.92rem; color: var(--muted); flex: 1; }
+  .prmeta { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font: 500 0.78rem/1.3 var(--mono); color: var(--muted); }
+  .prtested { margin: 0; font-size: 0.85rem; color: var(--ok); }
+  .prfor { margin: 0; font-size: 0.85rem; }
+  .prfor > span:first-child { color: var(--muted); }
+  .prbtns { gap: 6px; flex-wrap: wrap; }
+  .prmore { font-size: 0.88rem; }
+  .prmore summary { cursor: pointer; color: var(--muted); }
+  .prmore p { margin: 6px 0 0; }
+  .prset { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0 0; }
+  .prset dt { color: var(--muted); }
+  .prset dd { margin: 0; }
+  .prhow li { margin-bottom: 6px; }
+</style>

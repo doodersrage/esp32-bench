@@ -40,6 +40,9 @@ const PAGES = [
   "/tools/flash/",
   "/tools/partitions/",
   "/shop/",
+  "/prints/",
+  "/prints/make/?part=board-case&board=esp32s3&oled=1",
+  "/projects/obstacle-car/",
   "/search/?q=oled",
   "/changes/",
   "/about/",
@@ -63,6 +66,8 @@ const PAGES = [
   "/pt-br/search/?q=oled",
   "/pt-br/projects/nrf24-link/",
   "/pt-br/tools/build/",
+  "/fr/prints/",
+  "/de/prints/make/",
 ];
 const TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -71,6 +76,9 @@ const TYPES = {
   ".json": "application/json",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".wasm": "application/wasm",
+  ".stl": "model/stl",
+  ".3mf": "model/3mf",
   ".woff2": "font/woff2",
   ".webmanifest": "application/manifest+json",
   ".xml": "application/xml",

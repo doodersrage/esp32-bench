@@ -13,6 +13,7 @@ A project library and a serial workbench for ESP32 boards, built as a static sit
 - **Wi-Fi radar:** the Wi-Fi scanner project's output is drawn as arches by channel and signal strength.
 - **Crash translator:** reset reasons, Guru Meditation errors and backtraces get a plain-language explanation, live or from a pasted log.
 - **Tools:** a backtrace decoder (ELF and DWARF parsed in the browser), a firmware flasher for your own .bin files (esptool-js) and a partition table builder. Tests: `node scripts/test-tools.mjs` and `node scripts/test-backtrace.mjs`.
+- **3D prints:** `/prints/` offers cases for four boards (one with a 0.96 inch OLED window) and the robot parts (a chassis plate for two TT motors, an HC-SR04 bracket, a line sensor mount, a balance bot frame) as 3MF and STL; `/prints/make/` changes any measurement and downloads the result in the browser. Every part is code (`src/lib/print/parts.ts`, built with [manifold-3d](https://github.com/elalish/manifold)) and is built at build time into `/prints/<id>.3mf`, `.stl` and a `.png` thumbnail. The catalog is `src/data/prints.ts`: an entry without `tested` is a draft, built from nominal dimensions. Test: `node --experimental-strip-types tests/prints.test.ts` builds every part across its ranges and checks that boards, lids, motors, wheels and transducers fit without colliding.
 - **Search:** a header box and `/search/` over projects, boards, single pins, errors, tools, guide sections and flames, from a build-time index (`/search-index.json`, `src/lib/search.ts`). Test: `node --experimental-strip-types scripts/test-search.mjs` after a build.
 - **Shared logs:** the bench and the crash translator make links that carry the log, compressed, in the `#fragment` (`src/lib/share.ts`). Test: `node --experimental-strip-types tests/share.test.ts`.
 - **Preview images:** a 1200x630 card per project, board, error and tool page, rendered at build time with satori and resvg (`src/lib/og.ts`, `src/pages/og/`).
@@ -53,6 +54,9 @@ src/
   data/flames.ts          Failure stories for the Flames page
   data/errors.ts          Error reference entries
   data/changes.ts         Release notes for /changes/ and the RSS feed
+  data/prints.ts          The 3D-printable parts catalog: settings, projects, test-print records
+  lib/print/              Printable parts as code (parts.ts), the manifold-3d wrapper,
+                          3MF/STL writers and the thumbnail renderer
   sketches/probeharbor/   Those sketches as .ino files, copied unchanged
   components/
     Pinout.astro          Board figure with a project's pins highlighted
@@ -97,6 +101,12 @@ Add an entry to `PROJECTS` in `src/data/projects.ts`. The `Project` type documen
 - List the parts it needs beyond the board in `needs`, using keys of `DRAWER`.
 - Record real hardware checks in `verified`. A project with none is labelled "Not hardware tested".
 - For prebuilt firmware, put the merged images and an ESP Web Tools `manifest.json` under `public/firmware/<id>/` and set `flash`.
+
+## Add or test-print a printable part
+
+Parts are functions in `src/lib/print/parts.ts`: a list of parameters with defaults and a `make` that returns a manifold-3d solid, laid out flat as it prints, with no overhangs that need support. Add a catalog entry in `src/data/prints.ts` and its name, summary, hardware and notes in `src/i18n/strings/prints.ts`, and add fit checks to `tests/prints.test.ts`.
+
+After printing a draft and fitting the real board or motor, change the defaults if anything needed adjusting, then add `tested: { date, printer, material, fitted }` to its entry. The catalog and the project pages then show it as test-printed.
 
 ## Offline
 

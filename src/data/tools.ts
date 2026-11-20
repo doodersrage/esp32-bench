@@ -51,6 +51,12 @@ export const TOOLS: Tool[] = [
     tags: ["Web Serial", "Pins"],
   },
   {
+    href: "/prints/",
+    name: "3D-printable parts",
+    sum: "Cases for the boards, and a chassis, mounts and brackets for the robots, as 3MF and STL. Change any measurement in the browser first.",
+    tags: ["3D print", "No install"],
+  },
+  {
     href: "/wire/",
     name: "Wiring checker",
     sum: "Wire parts to a board on screen and have every connection checked for boot pins, input-only pins and 5 V.",
