@@ -185,4 +185,9 @@ export const BOM = {
   rtcDs3231: "https://www.adafruit.com/product/3013",
   tftSt7789: "https://www.adafruit.com/product/4311",
   microSdBreakout: "https://www.adafruit.com/product/254",
+  tb6612: "https://www.adafruit.com/product/2448",
+  robotChassis2wd: "https://www.adafruit.com/product/2939",
+  ttMotor: "https://www.adafruit.com/product/3777",
+  aaHolder4: "https://www.adafruit.com/product/830",
+  mpu6050: "https://www.adafruit.com/product/3886",
 } as const;

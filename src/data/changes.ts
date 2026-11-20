@@ -14,6 +14,20 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-28",
+    date: "2026-11-20",
+    title: "Version 0.28: robot cars",
+    summary: "Five robot projects on one two-wheel chassis and a TB6612FNG motor driver: drive it from a phone, then with a joystick remote, let it avoid obstacles or follow a line, and finally balance it on two wheels.",
+    items: [
+      "Phone-driven robot car: the car makes its own Wi-Fi network and serves a touch joystick, and stops by itself if the phone goes quiet.",
+      "Robot car with a joystick remote: a second ESP32 talks to the car over ESP-NOW, with no router or phone.",
+      "Obstacle-avoiding and line-following robot cars, which steer themselves with an HC-SR04 or two IR line sensors.",
+      "Self-balancing robot, the library's first Advanced project: an MPU-6050 and a PID controller you tune live from the serial monitor.",
+      "A new Robot cars filter, a Build a robot car path from a DC motor to the balancing robot, and the motor driver, chassis and line sensors in the parts picker and the wiring pad.",
+    ],
+    link: "/projects/wifi-car/",
+  },
+  {
     id: "v0-27",
     date: "2026-11-15",
     title: "Version 0.27: ProbeHarbor probe firmware 1.5.2",

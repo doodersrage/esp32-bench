@@ -67,4 +67,18 @@ export const PATHS: StarterPath[] = [
       { project: "level-platform", learn: "Feedback control with a gyro" },
     ],
   },
+  {
+    id: "robot-car",
+    name: "Build a robot car",
+    blurb: "One chassis, five builds: drive it from a phone, then a remote, then let it steer itself and finally stand on two wheels.",
+    steps: [
+      { project: "auto-fan", learn: "Running a DC motor with PWM" },
+      { project: "hcsr04", learn: "Measuring distance with sound" },
+      { project: "wifi-car", learn: "A motor driver, and driving from a phone" },
+      { project: "remote-car", learn: "A radio remote with ESP-NOW" },
+      { project: "obstacle-car", learn: "A car that avoids obstacles by itself" },
+      { project: "line-follower", learn: "Steering by sensors" },
+      { project: "balance-bot", learn: "PID control on two wheels" },
+    ],
+  },
 ];

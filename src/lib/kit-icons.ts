@@ -242,6 +242,27 @@ function body(icon: IconId, p: Palette, item?: KitItem): string {
       return circle(30, 34, 22, p.metal, p.ink, 2.5) + circle(30, 34, 9, p.gold, p.ink, 2) + line(30, 34, 30, 22, p.ink, 3) + rect(6, 24, 6, 20, p.blue, p.ink, 1, 2) + path("M52 34 C 58 34, 58 50, 62 52", "none", p.accent, 2.5);
     case "stepperdrv":
       return rect(6, 10, 52, 44, p.pcb, p.ink, 3) + rect(12, 18, 20, 12, p.ink, p.ink, 1, 1) + [38, 44, 50, 56].map((x) => circle(x - 2, 20, 2.5, p.accent, "none", 0)).join("") + rect(36, 34, 18, 12, p.paper, p.ink, 1, 2) + pins(12, 44, 4, 6, p);
+    case "chassis":
+      return (
+        rect(6, 18, 52, 14, p.metal, p.ink, 3) +
+        rect(14, 32, 14, 8, p.gold, p.ink, 1, 2) +
+        rect(36, 32, 14, 8, p.gold, p.ink, 1, 2) +
+        circle(16, 44, 10, p.ink, p.ink, 0) +
+        circle(48, 44, 10, p.ink, p.ink, 0) +
+        circle(16, 44, 3.5, p.metal, "none", 0) +
+        circle(48, 44, 3.5, p.metal, "none", 0) +
+        circle(32, 12, 3, p.muted, p.ink, 2)
+      );
+    case "linesensor":
+      return (
+        rect(18, 4, 28, 56, p.blue, p.ink, 3) +
+        rect(24, 10, 16, 12, p.paper, p.ink, 1, 2) +
+        circle(32, 16, 3, p.blue, "none", 0) +
+        circle(27, 46, 5, p.ink, p.metal, 2) +
+        circle(38, 46, 5, "#3a2a4a", p.metal, 2) +
+        circle(40, 30, 2, p.accent, "none", 0) +
+        pins(22, 56, 3, 7, p)
+      );
     case "keypad":
       return rect(12, 4, 40, 44, p.ink, p.ink, 3) + Array.from({ length: 4 }, (_, r) => [0, 1, 2, 3].map((c) => rect(16 + c * 9, 8 + r * 10, 6, 6, c === 3 ? p.accent : p.paper, "none", 1, 0)).join("")).join("") + rect(26, 48, 12, 12, p.muted, p.ink, 1, 1.5);
     case "ledmatrix":
@@ -304,6 +325,6 @@ export const ALL_ICONS: IconId[] = [
   "esp32", "esp32cam", "uno", "breadboard", "wires", "usb", "usbserial", "battery", "power", "service", "hardware",
   "resistor", "led", "rgbled", "button", "pot", "encoder", "buzzer", "speaker", "oled", "lcd", "sevenseg", "neopixel",
   "epaper", "servo", "motor", "relay", "transistor", "diode", "capacitor", "ds18b20", "dht22", "i2c", "hcsr04",
-  "sharpir", "pir", "mpu6050", "joystick", "soil", "ldr", "reed", "thermocouple", "nrf24", "rfid", "irrecv", "remote", "stepper", "stepperdrv", "keypad", "ic", "module",
+  "sharpir", "pir", "mpu6050", "joystick", "soil", "ldr", "reed", "thermocouple", "nrf24", "rfid", "irrecv", "remote", "stepper", "stepperdrv", "chassis", "linesensor", "keypad", "ic", "module",
   "sharpir", "pir", "mpu6050", "joystick", "soil", "ldr", "reed", "thermocouple", "nrf24", "ledmatrix", "rtc", "tft", "sdcard", "ic", "module",
 ];

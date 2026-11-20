@@ -360,6 +360,29 @@ export const PARTS: Part[] = [
       { name: "CS", kind: "in" },
     ],
   },
+  {
+    id: "motordriver", name: "TB6612FNG motor driver",
+    pins: [
+      { name: "VCC", kind: "power3", note: "Logic supply only. The motors' battery goes to VM, never to a board pin, and its minus to GND." },
+      { name: "GND", kind: "gnd" },
+      { name: "STBY", kind: "power3", note: "Tie to 3V3 to keep the driver awake." },
+      { name: "PWMA", kind: "in", note: "Left motor speed: a PWM pin, 20 kHz so the motor does not whine." },
+      { name: "AIN1", kind: "in" },
+      { name: "AIN2", kind: "in" },
+      { name: "PWMB", kind: "in", note: "Right motor speed." },
+      { name: "BIN1", kind: "in" },
+      { name: "BIN2", kind: "in" },
+    ],
+  },
+  {
+    id: "linesensor", name: "IR line sensors (TCRT5000)",
+    pins: [
+      { name: "VCC", kind: "power3", note: "Both modules. At 3.3 V their outputs are safe for the ESP32." },
+      { name: "GND", kind: "gnd" },
+      { name: "LEFT DO", kind: "out", note: "The digital output. Turn the module's trimmer until it reads 1 over the tape and 0 over the floor." },
+      { name: "RIGHT DO", kind: "out" },
+    ],
+  },
 ];
 
 export const partById = (id: string): Part | undefined => PARTS.find((p) => p.id === id);
