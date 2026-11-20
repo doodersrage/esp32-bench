@@ -100,7 +100,7 @@ const PIN_WORDS = new Set(
     "sig", "do", "so", "anode", "cathode", "signal", "red", "brown", "black", "orange", "yellow", "white", "+", "-",
     "a", "b", "e", "k", "rs", "rw", "collector", "emitter", "base", "wiper", "middle", "+5v", "5v", "common", "side",
     "wire", "push", "output", "ground", "ser", "srclk", "rclk", "oe", "mr", "segments", "decimal", "outer", "other", "blk", "bl",
-    "plug", "socket",
+    "plug", "socket", "vm", "stby", "pwma", "pwmb", "ain1", "ain2", "bin1", "bin2", "ao1", "bo1",
   ].map((w) => w.toLowerCase()),
 );
 const PIN_PATTERN = /^(q\d|d\d|in\d|r\d|c\d)$/i;
@@ -204,9 +204,10 @@ export function parseWiring(rows: readonly WiringRow[], header: Header): Model {
     const text = `${rawFrom} → ${rawTo}`;
     if (/^Already on the board/i.test(note)) return listed.push({ row, text, why: "on-board" });
     if (/^Not (wired|used)\b/i.test(rawTo)) return listed.push({ row, text, why: "not-wired" });
-    const other = /^(Uno)\b/.exec(rawTo);
+    // Pads on a second board: "Uno 3.3V", or "Remote GPIO 34" for a second ESP32.
+    const other = /^(Uno|Remote)\b/.exec(rawTo);
     if (other) {
-      otherBoard = other[1];
+      if (other[1] === "Uno") otherBoard = other[1];
       return listed.push({ row, text, why: "other-board" });
     }
 

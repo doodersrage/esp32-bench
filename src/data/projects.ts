@@ -1,10 +1,11 @@
 import { BOARDS, buildTarget, padsOf, type BoardId } from "./boards";
 import { BOM } from "../lib/shop";
 import { PROBEHARBOR_SKETCHES } from "./probeharbor";
+import { ROBOT_PROJECTS } from "./robots";
 import { WIFI, benchSettings, type Setting } from "./bench-settings";
 export type { Setting } from "./bench-settings";
 
-export type Tag = "games" | "motion" | "no-parts" | "sensors" | "input" | "display" | "lights" | "wireless" | "logging" | "probeharbor";
+export type Tag = "games" | "motion" | "robots" | "no-parts" | "sensors" | "input" | "display" | "lights" | "wireless" | "logging" | "probeharbor";
 
 /** A check done on real hardware. `board` says which board it was done on. */
 export interface Verified {
@@ -18,7 +19,7 @@ export interface Project {
   /** Slug used in the URL: /projects/<id> */
   id: string;
   name: string;
-  level: "Starter" | "Intermediate";
+  level: "Starter" | "Intermediate" | "Advanced";
   /** Rough build time in minutes */
   mins: number;
   tags: Tag[];
@@ -120,16 +121,19 @@ export const DRAWER = {
   tft: "ST7789 colour TFT",
   sdcard: "MicroSD card module",
   esp32cam: "ESP32-CAM board",
+  motordriver: "TB6612FNG motor driver",
+  chassis: "2WD robot car chassis",
+  linesensor: "IR line sensors (TCRT5000)",
 } as const;
 export type DrawerPart = keyof typeof DRAWER;
 
 /** The drawer picker's parts, grouped. Every DRAWER part appears in exactly one group (checked at build). */
 export const DRAWER_GROUPS: [string, DrawerPart[]][] = [
   ["Basics", ["led", "rgbled", "button", "pot", "buzzer", "wires", "transistor", "shiftreg"]],
-  ["Sensors", ["dht22", "ds18b20", "i2c", "hcsr04", "sharpir", "mpu6050", "pir", "ldr", "soil", "reed", "powersense", "max31855", "max6675"]],
+  ["Sensors", ["dht22", "ds18b20", "i2c", "hcsr04", "sharpir", "mpu6050", "pir", "ldr", "soil", "reed", "powersense", "max31855", "max6675", "linesensor"]],
   ["Displays and lights", ["oled", "lcd1602", "epaper", "tft", "max7219", "sevenseg", "neopixel"]],
   ["Input", ["joystick", "encoder", "keypad", "irreceiver", "rc522"]],
-  ["Motors and switching", ["servo", "relay", "dcmotor", "stepper"]],
+  ["Motors and switching", ["servo", "relay", "dcmotor", "stepper", "motordriver", "chassis"]],
   ["Radio, time and storage", ["nrf24", "ds3231", "sdcard"]],
   ["Other boards", ["esp32cam"]],
 ];
@@ -142,6 +146,7 @@ export const TAGS: [Tag | "all", string][] = [
   ["display", "Display"],
   ["lights", "Lights"],
   ["motion", "Motors and relays"],
+  ["robots", "Robot cars"],
   ["wireless", "Wi-Fi and radio"],
   ["logging", "Clocks, logging and power"],
   ["games", "Games and toys"],
@@ -152,6 +157,7 @@ export const LEVELS: [Project["level"] | "all", string][] = [
   ["all", "Any level"],
   ["Starter", "Starter"],
   ["Intermediate", "Intermediate"],
+  ["Advanced", "Advanced"],
 ];
 
 /** How long a project keeps its New mark after `added`. */
@@ -6542,5 +6548,6 @@ void loop() {
       "light = 1102, heap_free = 252316, chip_temp_c = 38.7",
     ],
   },
+  ...ROBOT_PROJECTS,
   ...PROBEHARBOR_SKETCHES,
 ];

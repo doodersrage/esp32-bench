@@ -51,6 +51,8 @@ export type IconId =
   | "remote"
   | "stepper"
   | "stepperdrv"
+  | "chassis"
+  | "linesensor"
   | "keypad"
   | "ledmatrix"
   | "rtc"
@@ -91,7 +93,8 @@ const RULES: [RegExp, IconId][] = [
   [/battery|li-ion|lipo|coin cell|cr2032/i, "battery"],
   [/supply|power bank|adapter/i, "power"],
   [/mqtt broker|broker|server|service/i, "service"],
-  [/bracket|plate|plywood|3d print/i, "hardware"],
+  [/robot car chassis/i, "chassis"],
+  [/bracket|plate|plywood|3d print|electrical tape/i, "hardware"],
   [/breadboard/i, "breadboard"],
   [/jumper wires?|bare wires|contact pads|foil|wires\b/i, "wires"],
   [/photoresistor|light sensor|\bldr\b|photocell/i, "ldr"],
@@ -101,7 +104,9 @@ const RULES: [RegExp, IconId][] = [
   [/rc522|rfid|mfrc522/i, "rfid"],
   [/\bir receiver|vs1838|tsop\d|infrared receiver/i, "irrecv"],
   [/remote control|\bremote\b/i, "remote"],
-  [/uln2003|stepper driver/i, "stepperdrv"],
+  [/uln2003|stepper driver|tb6612|drv8833|l298n|motor driver/i, "stepperdrv"],
+  [/tcrt5000|line sensor/i, "linesensor"],
+  [/\btt (gear )?motors?\b|gear motors?\b/i, "motor"],
   [/28byj|stepper/i, "stepper"],
   [/keypad/i, "keypad"],
   [/max7219|led matrix|dot matrix/i, "ledmatrix"],
