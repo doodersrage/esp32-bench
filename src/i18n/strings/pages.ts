@@ -83,7 +83,7 @@ export const START = defineStrings({
   es: {
     title: "Primeros pasos con el ESP32",
     description:
-      "Configura un ESP32 desde cero: el cable USB correcto, los drivers para CP210x y CH340, los permisos del puerto serie en Linux, Web Serial en Chrome y Edge, y el Arduino IDE.",
+      "Configura un ESP32 desde cero: el cable USB correcto, drivers CP210x y CH340, permisos del puerto serie en Linux, Web Serial y el Arduino IDE.",
     h1: "Primeros pasos",
     lede: "De una placa en su bolsita a una placa que escribe en tu pantalla, en unos quince minutos. Casi todos los problemas del primer día son un cable, un driver o un permiso, y aquí están todos.",
     toc: "En esta página",
@@ -156,7 +156,7 @@ export const START = defineStrings({
   de: {
     title: "Erste Schritte mit dem ESP32",
     description:
-      "Einen ESP32 von null an einrichten: das richtige USB-Kabel, Treiber für CP210x und CH340, Rechte für die serielle Schnittstelle unter Linux, Web Serial in Chrome und Edge und die Arduino IDE.",
+      "Einen ESP32 von null an einrichten: das richtige USB-Kabel, Treiber für CP210x und CH340, serielle Rechte unter Linux, Web Serial und die Arduino IDE.",
     h1: "Erste Schritte",
     lede: "Vom Board in der Tüte zum Board, das auf deinen Bildschirm schreibt, in etwa fünfzehn Minuten. Die meisten Probleme am ersten Tag sind ein Kabel, ein Treiber oder eine Berechtigung, und alle stehen hier.",
     toc: "Auf dieser Seite",
@@ -229,7 +229,7 @@ export const START = defineStrings({
   fr: {
     title: "Bien démarrer avec l’ESP32",
     description:
-      "Configurer un ESP32 de zéro : le bon câble USB, les pilotes CP210x et CH340, les droits sur le port série sous Linux, Web Serial dans Chrome et Edge, et l’Arduino IDE.",
+      "Configurer un ESP32 de zéro : le bon câble USB, les pilotes CP210x et CH340, les droits du port série sous Linux, Web Serial et l’Arduino IDE.",
     h1: "Bien démarrer",
     lede: "D’une carte encore dans son sachet à une carte qui écrit sur votre écran, en une quinzaine de minutes. La plupart des problèmes du premier jour viennent d’un câble, d’un pilote ou d’une permission, et tout est expliqué ici.",
     toc: "Sur cette page",
@@ -302,7 +302,7 @@ export const START = defineStrings({
   "pt-br": {
     title: "Primeiros passos com o ESP32",
     description:
-      "Configure um ESP32 do zero: o cabo USB certo, drivers para CP210x e CH340, permissões da porta serial no Linux, Web Serial no Chrome e no Edge, e o Arduino IDE.",
+      "Configure um ESP32 do zero: o cabo USB certo, drivers para CP210x e CH340, permissões da porta serial no Linux, Web Serial e o Arduino IDE.",
     h1: "Primeiros passos",
     lede: "De uma placa no saquinho a uma placa escrevendo na sua tela, em uns quinze minutos. A maioria dos problemas do primeiro dia é um cabo, um driver ou uma permissão, e todos estão aqui.",
     toc: "Nesta página",
@@ -758,7 +758,7 @@ export const REPORT = defineStrings({
   },
   fr: {
     title: "Envoyer un rapport",
-    description: "Envoyez un rapport de montage, une correction ou un message à ESP32 Bench. Les rapports sont envoyés par e-mail au responsable du site et ne sont jamais publiés.",
+    description: "Envoyez un rapport de montage, une correction ou un message à ESP32 Bench. Les rapports sont envoyés au responsable du site et ne sont jamais publiés.",
     h1: "Envoyer un rapport",
     lede: "Vous avez monté un projet, repéré une broche erronée, ou vous voulez dire quelque chose ? Ceci part par e-mail à la personne qui gère ESP32 Bench. Rien de ce que vous envoyez ici n’est publié, et votre adresse e-mail ne sert qu’à vous répondre.",
     kindLegend: "De quoi s’agit-il ?",
@@ -895,7 +895,7 @@ export const SEARCH = defineStrings({
   },
   de: {
     title: "Suche",
-    description: "ESP32 Bench durchsuchen: Projekte, Pinbelegungen von Boards und einzelne GPIO-Pins, Fehler, Werkzeuge, die Anleitung für den Einstieg und die Hall of Flames.",
+    description: "ESP32 Bench durchsuchen: Projekte, Pinbelegungen und einzelne GPIO-Pins, Fehler, Werkzeuge, die Anleitung für den Einstieg und die Hall of Flames.",
     h1: "Suche",
     label: "ESP32 Bench durchsuchen",
     placeholder: "Probier: brownout, GPIO 34, c6, dht22, partition",

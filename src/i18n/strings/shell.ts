@@ -5,7 +5,7 @@ import { defineStrings } from "../t";
 
 export const SHELL = defineStrings({
   en: {
-    tagline: "ESP32 projects, pinouts and a serial workbench in your browser",
+    tagline: "ESP32 projects, pinouts and a serial monitor",
     description:
       "Free ESP32 project library with pinouts, wiring tables and copy-paste Arduino sketches, plus a Web Serial monitor, crash translator and browser flasher.",
     skip: "Skip to content",
@@ -66,9 +66,9 @@ export const SHELL = defineStrings({
     kindFlame: "Flame",
   },
   es: {
-    tagline: "Proyectos ESP32, diagramas de pines y un banco de trabajo serie en tu navegador",
+    tagline: "Proyectos ESP32, pines y un monitor serie",
     description:
-      "Biblioteca gratuita de proyectos ESP32 con diagramas de pines, tablas de cableado y sketches de Arduino listos para copiar, además de un monitor Web Serial, un traductor de fallos y un grabador en el navegador.",
+      "Biblioteca gratuita de proyectos ESP32 con pines, cableado y sketches de Arduino para copiar, más un monitor Web Serial y un grabador en el navegador.",
     skip: "Saltar al contenido",
     rev: "Placas: ESP32, S2, S3, C3, C6<br />Grabar y monitorizar: Web Serial",
     searchLabel: "Buscar en ESP32 Bench",
@@ -127,9 +127,9 @@ export const SHELL = defineStrings({
     kindFlame: "Fallo real",
   },
   de: {
-    tagline: "ESP32-Projekte, Pinbelegungen und eine serielle Werkbank im Browser",
+    tagline: "ESP32-Projekte, Pins und serieller Monitor",
     description:
-      "Kostenlose ESP32-Projektbibliothek mit Pinbelegungen, Verdrahtungstabellen und Arduino-Sketches zum Kopieren, dazu ein Web-Serial-Monitor, ein Absturz-Übersetzer und ein Flasher im Browser.",
+      "Kostenlose ESP32-Projektbibliothek mit Pinbelegungen, Verdrahtung und Arduino-Sketches, dazu ein Web-Serial-Monitor und ein Flasher im Browser.",
     skip: "Zum Inhalt springen",
     rev: "Boards: ESP32, S2, S3, C3, C6<br />Flashen und Monitor: Web Serial",
     searchLabel: "ESP32 Bench durchsuchen",
@@ -188,9 +188,9 @@ export const SHELL = defineStrings({
     kindFlame: "Echter Fehler",
   },
   fr: {
-    tagline: "Projets ESP32, brochages et un établi série dans votre navigateur",
+    tagline: "Projets ESP32, brochages et moniteur série",
     description:
-      "Bibliothèque gratuite de projets ESP32 avec brochages, tableaux de câblage et sketches Arduino à copier-coller, plus un moniteur Web Serial, un traducteur de plantages et un outil de flashage dans le navigateur.",
+      "Bibliothèque gratuite de projets ESP32 : brochages, câblage et sketches Arduino à copier, plus un moniteur Web Serial et un flasheur dans le navigateur.",
     skip: "Aller au contenu",
     rev: "Cartes : ESP32, S2, S3, C3, C6<br />Flash et moniteur : Web Serial",
     searchLabel: "Rechercher sur ESP32 Bench",
@@ -249,9 +249,9 @@ export const SHELL = defineStrings({
     kindFlame: "Panne réelle",
   },
   "pt-br": {
-    tagline: "Projetos ESP32, pinagens e uma bancada serial no seu navegador",
+    tagline: "Projetos ESP32, pinagens e monitor serial",
     description:
-      "Biblioteca gratuita de projetos ESP32 com pinagens, tabelas de ligação e sketches Arduino prontos para copiar, além de um monitor Web Serial, um tradutor de travamentos e um gravador no navegador.",
+      "Biblioteca gratuita de projetos ESP32 com pinagens, ligações e sketches Arduino para copiar, além de um monitor Web Serial e um gravador no navegador.",
     skip: "Pular para o conteúdo",
     rev: "Placas: ESP32, S2, S3, C3, C6<br />Gravar e monitorar: Web Serial",
     searchLabel: "Pesquisar no ESP32 Bench",

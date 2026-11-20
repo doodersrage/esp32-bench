@@ -6,7 +6,7 @@ import { DRAWER, DRAWER_GROUPS, LEVELS, PROJECTS, TAGS, bareBoard, boardsOf } fr
 import { BOARDS } from "../../data/boards";
 import { PATHS } from "../../data/paths";
 import { BADGES } from "../../scripts/progress";
-import { SITE } from "../../lib/site";
+import { SITE, absolute } from "../../lib/site";
 import { localLink } from "../../lib/paths";
 import { translator } from "../../i18n/t";
 import { contentTranslator } from "../../i18n/content";
@@ -53,17 +53,37 @@ const suggested = PROJECTS.map((p, i) => ({ p, i }))
 const boardOptions = BOARDS.map((b) => ({ id: b.id, name: b.name, count: PROJECTS.filter((p) => boardsOf(p).includes(b.id)).length }));
 
 export const getStaticPaths = localePaths;
+
+const siteDescription = translator(SHELL, Astro.currentLocale)("description");
+const person = { "@type": "Person", name: SITE.author.name, url: SITE.author.url };
 ---
 
 <Base
   current="library"
   jsonLd={{
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: SITE.name,
-    description: translator(SHELL, Astro.currentLocale)("description"),
-    url: Astro.site?.href,
-    author: { "@type": "Person", name: SITE.author.name, url: SITE.author.url },
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${Astro.site?.href}#website`,
+        name: SITE.name,
+        description: siteDescription,
+        url: Astro.site?.href,
+        author: person,
+        publisher: { "@id": `${Astro.site?.href}#organization` },
+      },
+      // The site as a named project, for search engines' site name and logo.
+      {
+        "@type": "Organization",
+        "@id": `${Astro.site?.href}#organization`,
+        name: SITE.name,
+        url: Astro.site?.href,
+        logo: absolute("/icons/icon-512.png", Astro.site),
+        description: siteDescription,
+        founder: person,
+        sameAs: [SITE.repo],
+      },
+    ],
   }}
 >
   <section class="view">

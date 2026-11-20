@@ -18,6 +18,7 @@ import { SHELL } from "../i18n/strings/shell";
 import { DESKTOP_STRINGS } from "../i18n/strings/desktop";
 import { SITE, absolute, reportUrl } from "../lib/site";
 import { amazonTags } from "../lib/shop";
+import { MAX_DESCRIPTION, MAX_TITLE } from "../lib/describe";
 
 const link = localLink(Astro.currentLocale);
 const locale = localeOf(Astro.currentLocale);
@@ -48,12 +49,26 @@ interface Props {
   image?: string;
   /** Structured data for search engines */
   jsonLd?: Record<string, unknown>;
+  /** Also describe the page as an article (guides, references), with the date it was first published if known */
+  article?: boolean | { published?: string };
   /** Keep the page out of search results, e.g. the 404 page */
   noindex?: boolean;
 }
 
-const { title, description = t("description"), current, image = "/og.png", jsonLd, noindex = false } = Astro.props;
-const pageTitle = title ? `${title} | ${SITE.name}` : `${SITE.name}: ${t("tagline")}`;
+const { title, description = t("description"), current, image = "/og.png", jsonLd, article, noindex = false } = Astro.props;
+// Search results cut descriptions at about 155 characters: keep them whole.
+if (!noindex && description.length > MAX_DESCRIPTION) {
+  throw new Error(`Meta description for ${Astro.url.pathname} is ${description.length} characters (most ${MAX_DESCRIPTION}): ${description}`);
+}
+// The site name follows the page title when both fit in a search result.
+const pageTitle = title
+  ? `${title} | ${SITE.name}`.length <= MAX_TITLE
+    ? `${title} | ${SITE.name}`
+    : title
+  : `${SITE.name}: ${t("tagline")}`;
+if (!noindex && pageTitle.length > MAX_TITLE) {
+  throw new Error(`Title for ${Astro.url.pathname} is ${pageTitle.length} characters (most ${MAX_TITLE}): ${pageTitle}`);
+}
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const sitePath = base && Astro.url.pathname.startsWith(base) ? Astro.url.pathname.slice(base.length) : Astro.url.pathname;
 const canonical = absolute(sitePath, Astro.site);
@@ -97,6 +112,25 @@ const breadcrumbLd = crumbs.length
     }
   : undefined;
 const imageUrl = absolute(image, Astro.site);
+// An article node for guides and reference pages, next to any how-to or FAQ data the page gives.
+const published = typeof article === "object" ? article.published : undefined;
+const author = { "@type": "Person", name: SITE.author.name, url: SITE.author.url };
+const articleLd =
+  article && title
+    ? {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        headline: title,
+        description,
+        image: imageUrl,
+        url: canonical,
+        mainEntityOfPage: canonical,
+        inLanguage: HTML_LANG[locale],
+        author,
+        publisher: author,
+        ...(published ? { datePublished: published } : {}),
+      }
+    : undefined;
 const correctionUrl = noindex || current === "report" ? "" : reportUrl("correction", { page: canonical });
 
 // Pages that live under another tab: that tab is marked as the current section.
@@ -148,6 +182,7 @@ const NAV: [Exclude<Section, "none" | "about">, string, string][] = [
     <meta name="theme-color" content={SITE.themeColor} />
     <link rel="alternate" type="application/rss+xml" title={`${SITE.name}: what's new`} href={link("/rss.xml")} />
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+    {articleLd && <script type="application/ld+json" set:html={JSON.stringify(articleLd)} />}
     {breadcrumbLd && <script type="application/ld+json" set:html={JSON.stringify(breadcrumbLd)} />}
     {
       import.meta.env.PROD && SITE.ahrefsKey && (

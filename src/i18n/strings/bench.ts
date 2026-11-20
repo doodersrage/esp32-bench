@@ -325,7 +325,7 @@ export const BENCH = defineStrings({
   en: {
     title: "ESP32 serial monitor in your browser",
     description:
-      "A Web Serial monitor for ESP32 boards: connect, send lines, reset, plot numbers live, map Wi-Fi networks and get crashes explained in plain language. No install.",
+      "A Web Serial monitor for ESP32 boards: send lines, reset, plot numbers live, map Wi-Fi networks and get crashes explained in plain language. No install.",
     heading: "Serial bench",
     noBoard: "No board",
     support:
@@ -415,7 +415,7 @@ export const BENCH = defineStrings({
   es: {
     title: "Monitor serie para ESP32 en tu navegador",
     description:
-      "Un monitor Web Serial para placas ESP32: conecta, envía líneas, reinicia, grafica números en vivo, mapea redes Wi-Fi y recibe explicaciones de los fallos en lenguaje sencillo. Sin instalar nada.",
+      "Un monitor Web Serial para ESP32: envía líneas, reinicia, grafica números en vivo, mapea redes Wi-Fi y entiende los fallos en lenguaje claro. Sin instalar.",
     heading: "Banco serie",
     noBoard: "Sin placa",
     support:
@@ -505,7 +505,7 @@ export const BENCH = defineStrings({
   de: {
     title: "ESP32-Seriellmonitor im Browser",
     description:
-      "Ein Web-Serial-Monitor für ESP32-Boards: verbinden, Zeilen senden, zurücksetzen, Zahlen live plotten, Wi-Fi-Netze kartieren und Abstürze in einfacher Sprache erklärt bekommen. Ohne Installation.",
+      "Ein Web-Serial-Monitor für ESP32-Boards: Zeilen senden, zurücksetzen, Zahlen live plotten, WLANs kartieren, Abstürze verständlich erklärt.",
     heading: "Serielle Werkbank",
     noBoard: "Kein Board",
     support:
@@ -595,7 +595,7 @@ export const BENCH = defineStrings({
   fr: {
     title: "Moniteur série ESP32 dans votre navigateur",
     description:
-      "Un moniteur Web Serial pour cartes ESP32 : connectez, envoyez des lignes, réinitialisez, tracez des nombres en direct, cartographiez les réseaux Wi-Fi et obtenez l’explication des plantages en langage simple. Rien à installer.",
+      "Un moniteur Web Serial pour ESP32 : envoyez des lignes, réinitialisez, tracez des nombres en direct, cartographiez le Wi-Fi et comprenez les plantages.",
     heading: "Établi série",
     noBoard: "Aucune carte",
     support:
@@ -685,7 +685,7 @@ export const BENCH = defineStrings({
   "pt-br": {
     title: "Monitor serial para ESP32 no seu navegador",
     description:
-      "Um monitor Web Serial para placas ESP32: conecte, envie linhas, reinicie, faça gráficos de números ao vivo, mapeie redes Wi-Fi e receba explicações das falhas em linguagem simples. Sem instalar nada.",
+      "Um monitor Web Serial para ESP32: envie linhas, reinicie, faça gráficos ao vivo, mapeie redes Wi-Fi e entenda as falhas em linguagem simples. Sem instalar.",
     heading: "Bancada serial",
     noBoard: "Sem placa",
     support:
@@ -781,7 +781,7 @@ export const WIRE = defineStrings({
   en: {
     title: "ESP32 wiring checker",
     description:
-      "Wire sensors and displays to an ESP32 on screen. Every wire is checked for boot pins, input-only pins, 5 V signals and clashes, and two projects can be remixed onto one board.",
+      "Wire sensors and displays to an ESP32 on screen. Every wire is checked for boot pins, input-only pins, 5 V signals and clashes.",
     heading: "Wiring pad",
     lede: "Choose a board and parts, then tap a part pin and a board pad to join them. Each wire is checked for boot pins, input-only pins, 5 V signals and pads used twice.",
     board: "Board",
@@ -843,7 +843,7 @@ export const WIRE = defineStrings({
   es: {
     title: "Comprobador de cableado para ESP32",
     description:
-      "Conecta sensores y pantallas a un ESP32 en pantalla. Cada cable se comprueba en busca de pines de arranque, pines solo de entrada, señales de 5 V y conflictos, y puedes combinar dos proyectos en una misma placa.",
+      "Conecta sensores y pantallas a un ESP32 en pantalla. Cada cable se comprueba: pines de arranque, pines solo de entrada, señales de 5 V y conflictos.",
     heading: "Mesa de cableado",
     lede: "Elige una placa y componentes, y luego toca un pin del componente y un pad de la placa para unirlos. Cada cable se comprueba en busca de pines de arranque, pines solo de entrada, señales de 5 V y pads usados dos veces.",
     board: "Placa",
@@ -904,7 +904,7 @@ export const WIRE = defineStrings({
   de: {
     title: "ESP32-Verdrahtungsprüfer",
     description:
-      "Verbinde Sensoren und Displays am Bildschirm mit einem ESP32. Jedes Kabel wird auf Boot-Pins, reine Eingangspins, 5-V-Signale und Konflikte geprüft, und zwei Projekte lassen sich auf einem Board kombinieren.",
+      "Verbinde Sensoren und Displays am Bildschirm mit einem ESP32. Jedes Kabel wird auf Boot-Pins, reine Eingangspins, 5-V-Signale und Konflikte geprüft.",
     heading: "Verdrahtungsbrett",
     lede: "Wähle ein Board und Bauteile, dann tippe auf einen Bauteil-Pin und ein Board-Pad, um sie zu verbinden. Jedes Kabel wird auf Boot-Pins, reine Eingangspins, 5-V-Signale und doppelt belegte Pads geprüft.",
     board: "Board",
@@ -965,7 +965,7 @@ export const WIRE = defineStrings({
   fr: {
     title: "Vérificateur de câblage ESP32",
     description:
-      "Câblez capteurs et écrans à un ESP32 à l’écran. Chaque fil est vérifié pour les broches de démarrage, les broches en entrée seule, les signaux 5 V et les conflits, et deux projets peuvent être combinés sur une même carte.",
+      "Câblez capteurs et écrans à un ESP32 à l’écran. Chaque fil est vérifié : broches de démarrage, broches en entrée seule, signaux 5 V et conflits.",
     heading: "Plan de câblage",
     lede: "Choisissez une carte et des composants, puis touchez une broche de composant et une pastille de la carte pour les relier. Chaque fil est vérifié pour les broches de démarrage, les broches en entrée seule, les signaux 5 V et les pastilles utilisées deux fois.",
     board: "Carte",
@@ -1026,7 +1026,7 @@ export const WIRE = defineStrings({
   "pt-br": {
     title: "Verificador de ligações para ESP32",
     description:
-      "Ligue sensores e displays a um ESP32 na tela. Cada fio é verificado quanto a pinos de boot, pinos só de entrada, sinais de 5 V e conflitos, e dois projetos podem ser combinados em uma placa.",
+      "Ligue sensores e displays a um ESP32 na tela. Cada fio é verificado quanto a pinos de boot, pinos só de entrada, sinais de 5 V e conflitos.",
     heading: "Mesa de ligações",
     lede: "Escolha uma placa e componentes, depois toque em um pino do componente e em um pad da placa para ligá-los. Cada fio é verificado quanto a pinos de boot, pinos só de entrada, sinais de 5 V e pads usados duas vezes.",
     board: "Placa",
@@ -1769,7 +1769,7 @@ export const DETECTIVE = defineStrings({
   en: {
     title: "Pin detective: find any ESP32 pad's GPIO number",
     description:
-      "Flash a helper firmware from the browser, touch a jumper from GND to any pad and see its GPIO number light up. Also reads the chip, flash size and MAC address.",
+      "Flash a helper firmware from the browser, touch a jumper from GND to any pad and see its GPIO number light up. Also reads the chip, flash size and MAC.",
     back: "← Tools",
     heading: "Pin detective",
     and: " and ",
@@ -1833,9 +1833,9 @@ export const DETECTIVE = defineStrings({
     noSerial: "This browser has no Web Serial. Use Chrome or Edge on a desktop to connect a board.",
   },
   es: {
-    title: "Detective de pines: encuentra el número GPIO de cualquier pad del ESP32",
+    title: "Detective de pines: el número GPIO de cada pad del ESP32",
     description:
-      "Graba un firmware auxiliar desde el navegador, toca cualquier pad con un cable desde GND y mira cómo se ilumina su número GPIO. También lee el chip, el tamaño de la flash y la dirección MAC.",
+      "Graba un firmware auxiliar desde el navegador, toca un pad con un cable desde GND y mira su número GPIO. También lee el chip, la flash y la MAC.",
     back: "← Herramientas",
     heading: "Detective de pines",
     and: " y ",
@@ -1901,7 +1901,7 @@ export const DETECTIVE = defineStrings({
   de: {
     title: "Pin-Detektiv: die GPIO-Nummer jedes ESP32-Pads finden",
     description:
-      "Flashe eine Hilfsfirmware aus dem Browser, tippe mit einem Kabel von GND an ein beliebiges Pad und sieh seine GPIO-Nummer aufleuchten. Liest außerdem Chip, Flash-Größe und MAC-Adresse aus.",
+      "Flashe eine Hilfsfirmware aus dem Browser, tippe mit einem GND-Kabel an ein Pad und sieh seine GPIO-Nummer. Liest auch Chip, Flash-Größe und MAC aus.",
     back: "← Werkzeuge",
     heading: "Pin-Detektiv",
     and: " und ",
@@ -1965,9 +1965,9 @@ export const DETECTIVE = defineStrings({
     noSerial: "Dieser Browser hat kein Web Serial. Nutze Chrome oder Edge auf einem Desktop-Rechner, um ein Board zu verbinden.",
   },
   fr: {
-    title: "Détective de broches : trouvez le numéro GPIO de n’importe quelle pastille d’ESP32",
+    title: "Détective de broches : le GPIO de chaque pastille d’ESP32",
     description:
-      "Flashez un firmware d’aide depuis le navigateur, touchez une pastille avec un fil relié à GND et voyez son numéro GPIO s’allumer. Lit aussi la puce, la taille de la flash et l’adresse MAC.",
+      "Flashez un firmware d’aide depuis le navigateur, touchez une pastille avec un fil relié à GND et voyez son numéro GPIO. Lit aussi la puce et la MAC.",
     back: "← Outils",
     heading: "Détective de broches",
     and: " et ",
@@ -2031,9 +2031,9 @@ export const DETECTIVE = defineStrings({
     noSerial: "Ce navigateur n’a pas Web Serial. Utilisez Chrome ou Edge sur un ordinateur pour connecter une carte.",
   },
   "pt-br": {
-    title: "Detetive de pinos: descubra o número GPIO de qualquer pad do ESP32",
+    title: "Detetive de pinos: o número GPIO de cada pad do ESP32",
     description:
-      "Grave um firmware auxiliar pelo navegador, encoste um fio do GND em qualquer pad e veja o número GPIO dele acender. Também lê o chip, o tamanho da flash e o endereço MAC.",
+      "Grave um firmware auxiliar pelo navegador, encoste um fio do GND em um pad e veja o número GPIO dele. Também lê o chip, o tamanho da flash e o MAC.",
     back: "← Ferramentas",
     heading: "Detetive de pinos",
     and: " e ",

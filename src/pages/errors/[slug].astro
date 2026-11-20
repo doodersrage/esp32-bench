@@ -6,6 +6,7 @@ import { FLAMES } from "../../data/flames";
 import { explainLog } from "../../lib/crash";
 import { checkErrors } from "../../lib/errors-check";
 import { localLink } from "../../lib/paths";
+import { MAX_DESCRIPTION, clipText, fitDescription } from "../../lib/describe";
 
 const link = localLink(Astro.currentLocale);
 
@@ -30,10 +31,16 @@ const TOOL_LINKS: Record<string, [string, string]> = {
   "decode-esp32-backtrace": ["/tools/backtrace/", "Decode a backtrace in the browser with your .elf"],
 };
 const tool = TOOL_LINKS[e.slug];
-const description = `${e.means.split(". ")[0]}. What "${e.match.length > 70 ? e.title : e.match}" means on an ESP32, and how to fix it.`;
+const subject = e.match.length > 70 ? e.title : e.match;
+// The error text matters most in a search result, so when both do not fit it goes first.
+const firstSentence = `${e.means.split(". ")[0].replace(/\.$/, "")}.`;
+const fixFirst = `How to fix "${subject}" on an ESP32: `;
+const description = fitDescription(
+  `${firstSentence} What "${subject}" means on an ESP32, and how to fix it.`,
+  `${fixFirst}${clipText(firstSentence.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()), MAX_DESCRIPTION - fixFirst.length)}`,
+);
 // Questions and answers, the way people ask about an error (and the way
 // answer engines quote a page).
-const subject = e.match.length > 70 ? e.title : e.match;
 const faqLd = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
@@ -45,7 +52,7 @@ const faqLd = {
 };
 ---
 
-<Base title={e.title} description={description} current="errors" image={`/og/errors/${e.slug}.png`} jsonLd={faqLd}>
+<Base title={e.short ?? e.title} description={description} current="errors" image={`/og/errors/${e.slug}.png`} jsonLd={faqLd} article>
   <section class="view">
     <a class="back" href={link("/errors/")}>← All errors</a>
 
