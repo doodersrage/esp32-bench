@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 import { checkReport, htmlFor, subjectFor, textFor } from "./report.ts";
 import { verifyTurnstile } from "./turnstile.ts";
 import { uploadFirmware } from "./firmware.ts";
-import { moderationPage, newToken, publicBuild, resultPage, sameHash, sha256, summarise, type BuildRow } from "./builds.ts";
+import { PRINT_PREFIX, moderationPage, newToken, printProject, publicBuild, resultPage, sameHash, sha256, summarise, type BuildRow } from "./builds.ts";
 import { checkLabRun, publicLab, tokenMatches, type LabResultRow, type LabRunRow } from "./lab.ts";
 import { checkSyncData, codeFrom, newSyncCode } from "./sync.ts";
 import {
@@ -76,7 +76,7 @@ function html(body: string, status = 200): Response {
 /** GET /builds/summary: approved build reports counted per project and board, for the compatibility table. */
 async function buildsSummary(): Promise<Response> {
 	const headers = { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300" };
-	const { results } = await config.DB.prepare("SELECT project, board, result FROM builds WHERE status = 'approved'").all<Pick<BuildRow, "project" | "board" | "result">>();
+	const { results } = await config.DB.prepare("SELECT project, board, result FROM builds WHERE status = 'approved' AND project NOT LIKE 'print-%'").all<Pick<BuildRow, "project" | "board" | "result">>();
 	return json({ cells: summarise(results) }, 200, headers);
 }
 
@@ -91,6 +91,15 @@ async function listBuilds(url: URL): Promise<Response> {
 		.bind(project)
 		.all<BuildRow>();
 	return json({ builds: results.map(publicBuild), lab: await latestLab(project) }, 200, headers);
+}
+
+/** GET /builds/prints: approved 3D print reports for every part, for the catalog's cards. */
+async function listPrintReports(): Promise<Response> {
+	const headers = { "Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=300" };
+	const { results } = await config.DB.prepare(
+		"SELECT * FROM builds WHERE project LIKE 'print-%' AND status = 'approved' ORDER BY created_at DESC LIMIT 300",
+	).all<BuildRow>();
+	return json({ reports: results.map((r) => ({ part: r.project.slice(PRINT_PREFIX.length), printer: r.board, material: r.core, fit: r.result, notes: r.notes, name: r.public_name || "Anonymous", date: r.created_at.slice(0, 10) })) }, 200, headers);
 }
 
 /** The latest hardware lab run that covered a project, shaped for the page; null when none. */
@@ -334,6 +343,12 @@ async function decide(row: BuildRow, action: string): Promise<string> {
 	if (action !== "approve" && action !== "reject") return resultPage("Nothing changed", "Choose Approve or Reject.");
 	const status = action === "approve" ? "approved" : "rejected";
 	await config.DB.prepare("UPDATE builds SET status = ?, decided_at = ? WHERE id = ?").bind(status, new Date().toISOString(), row.id).run();
+	const print = row.project.startsWith(PRINT_PREFIX);
+	if (print) {
+		return status === "approved"
+			? resultPage("Published", "The print report now shows on the part's card (allow a few minutes for caches).", `${SITE}/prints/#${row.project.slice(PRINT_PREFIX.length)}`)
+			: resultPage("Rejected", "The print report will not be published. Its moderation link still works if you change your mind.");
+	}
 	return status === "approved"
 		? resultPage("Published", "The build report now shows on the project page (allow a minute for caches).", `${SITE}/projects/${row.project}/#community`)
 		: resultPage("Rejected", "The build report will not be published. Its moderation link still works if you change your mind.");
@@ -355,6 +370,7 @@ export default {
 		if (url.pathname === "/auth/session") return signOut(request, headers);
 		if (url.pathname === "/builds/summary" && request.method === "GET") return buildsSummary();
 		if (url.pathname === "/builds" && request.method === "GET") return listBuilds(url);
+		if (url.pathname === "/builds/prints" && request.method === "GET") return listPrintReports();
 		if (url.pathname === "/lab/latest" && request.method === "GET") return labLatest();
 		if (url.pathname === "/lab/runs") {
 			if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, { Allow: "POST" });
@@ -411,19 +427,19 @@ export default {
 			country: (request.cf?.country as string | undefined) ?? "",
 			agent: request.headers.get("User-Agent") ?? "",
 		});
-		// A build report the sender agreed to publish waits in the database for approval.
+		// A build or print report the sender agreed to publish waits in the database for approval.
 		let pendingId: number | null = null;
-		if (r.kind === "build" && r.publish) {
+		if ((r.kind === "build" || r.kind === "print") && r.publish) {
 			const { token, hash } = await newToken();
 			const row = await config.DB.prepare(
 				`INSERT INTO builds (project, board, core, result, output, notes, public_name, created_at, token_hash)
 				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
 			)
-				.bind(r.projectId, r.board, r.core, r.result, r.output, r.notes, r.publicName, new Date().toISOString(), hash)
+				.bind(r.kind === "print" ? printProject(r.projectId) : r.projectId, r.board, r.core, r.result, r.output, r.notes, r.publicName, new Date().toISOString(), hash)
 				.first<{ id: number }>();
 			pendingId = row?.id ?? null;
 			if (pendingId !== null) {
-				text += `\nThe sender agreed to publish this report on the project page.\nApprove or reject it here: ${API_ORIGIN}/moderate/${pendingId}?t=${token}\n`;
+				text += `\nThe sender agreed to publish this report on the ${r.kind === "print" ? "part's card on /prints/" : "project page"}.\nApprove or reject it here: ${API_ORIGIN}/moderate/${pendingId}?t=${token}\n`;
 			}
 		}
 		try {

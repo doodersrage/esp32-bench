@@ -14,7 +14,9 @@ on:
     branches: [main]
     paths:
       - src/data/projects.ts
+      - src/data/robots.ts
       - src/data/probeharbor.ts
+      - .github/workflows/firmware-library.yml
       - scripts/build-firmware-library.mjs
       - scripts/upload-firmware-library.mjs
       - scripts/lib/sketch-build.mjs

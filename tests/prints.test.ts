@@ -9,6 +9,8 @@ import { CASE_BOARDS, FIT_TEST, PART_DEFS, balanceAxleX, caseLayout, cleanValues
 import { BED, CASE_FOR_BOARD, PRINTS } from "../src/data/prints.ts";
 import { parseStl, to3mf, toStl } from "../src/lib/print/formats.ts";
 import { renderPng } from "../src/lib/print/render.ts";
+import { HAS_ASSEMBLY, assembly } from "../src/lib/print/assembly.ts";
+import { buildAssembly } from "../src/lib/print/kernel.ts";
 import { unzipSync, strFromU8 } from "fflate";
 
 const k = await loadKernel();
@@ -52,9 +54,10 @@ for (const item of PRINTS) {
     const stl = toStl(mesh, item.id);
     const back = parseStl(stl.buffer as ArrayBuffer);
     assert.equal(back.positions.length, mesh.triangles.length * 3);
-    const files = unzipSync(to3mf(mesh, item.id));
+    const files = unzipSync(to3mf(mesh, item.id, "PLA, 0.2 mm layers & more"));
     const model = strFromU8(files["3D/3dmodel.model"]);
     assert.match(model, /unit="millimeter"/);
+    assert.match(model, /<metadata name="Description">PLA, 0.2 mm layers &amp; more<\/metadata>/);
     assert.equal((model.match(/<triangle /g) ?? []).length, mesh.triangles.length / 3);
     const png = renderPng(mesh, { width: 64, height: 40 });
     assert.deepEqual([...png.subarray(1, 4)], [80, 78, 71]);
@@ -266,6 +269,34 @@ test("radiation shield: rings stack on their posts with air between, rods pass t
       });
     }
   }
+});
+
+for (const def of PART_DEFS) {
+  test(`${def.id}: assembly picture ${HAS_ASSEMBLY.has(def.id) ? "builds" : "is not offered"}`, () => {
+    const v = defaults(def);
+    if (!HAS_ASSEMBLY.has(def.id)) {
+      assert.equal(build(k, (kk) => def.make(kk, v)).checked, undefined);
+      return;
+    }
+    const { mesh, triangleParts } = buildAssembly(k, (kk) => assembly(kk, def.id, v)!.map((p) => p.solid));
+    assert.ok(mesh.pieces >= 2, "an assembly has the part and what fits it");
+    assert.equal(triangleParts.length, mesh.triangles.length / 3);
+  });
+}
+
+test("chassis assembly: the wheels and the skid both stand on the floor", () => {
+  const v = valuesOf("chassis-plate");
+  const length = Number(v.length), width = Number(v.width);
+  build(k, (kk) => {
+    const pieces = assembly(kk, "chassis-plate", v)!;
+    const plate = pieces[0].solid;
+    const wheels = pieces.filter((p) => p.colour[0] === 52);
+    const floor = Math.min(...wheels.map((w) => w.solid.boundingBox().min[2]));
+    assert.ok(Math.abs(floor) < 0.05, `wheels bottom at ${floor}`);
+    assert.ok(Math.abs(plate.boundingBox().min[2] - floor) < 0.05, `skid bottom at ${plate.boundingBox().min[2]}, floor at ${floor}`);
+    assert.ok(length > 0 && width > 0);
+    return plate;
+  });
 });
 
 console.log(`${passed} passed, ${failures} failed`);

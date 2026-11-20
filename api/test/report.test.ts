@@ -31,7 +31,13 @@ if (pr.ok) {
   const text = textFor(pr.report, { country: "US", agent: "test" });
   assert.match(text, /Part: Robot car chassis plate\nPrinter: Prusa MK4\nMaterial: PETG\nFit: Too tight/);
   assert.match(text, /Notes:\nMotor rails/);
-  assert.equal(pr.report.publish, false, "print reports are never published");
+  assert.equal(pr.report.publish, false, "not published unless asked");
+}
+const prPub = checkReport({ ...print, publish: true, projectId: "chassis-plate", publicName: "Rob" }, now);
+assert.ok(prPub.ok && prPub.report.publish, "a print report can be published");
+if (prPub.ok) assert.match(textFor(prPub.report, { country: "", agent: "" }), /Publish: yes, as Rob/);
+assert.equal(checkReport({ ...print, publish: true }, now).ok, false, "publishing a print report needs the part id");
+{
 }
 
 r = checkReport({ ...base, project: "Evil\r\nBcc: x@y.z", notes: "<script>alert(1)</script>", output: "rst:0x1" }, now);

@@ -15,6 +15,9 @@ export interface RenderOptions {
   colour?: [number, number, number];
   background?: [number, number, number];
   padding?: number;
+  /** For an assembly: a palette index per triangle, and the palette */
+  triangleColours?: Uint8Array;
+  palette?: [number, number, number][];
 }
 
 const SS = 3; // supersampling factor
@@ -50,10 +53,13 @@ export function renderPng(mesh: MeshData, o: RenderOptions): Uint8Array {
   }
   const depth = new Float64Array(W * H).fill(-Infinity);
   const shade = new Float32Array(W * H).fill(-1);
+  const colourAt = new Uint8Array(W * H);
+  const palette = o.palette ?? [base];
   const L = [-0.45, 0.7, 0.55];
   const ll = Math.hypot(L[0], L[1], L[2]);
   for (let f = 0; f < t.length; f += 3) {
     const a = t[f], b = t[f + 1], c = t[f + 2];
+    const ci = o.triangleColours ? o.triangleColours[f / 3] : 0;
     // Screen Y points down, which flips the winding: a face toward the viewer has positive area here.
     const area = (sx[b] - sx[a]) * (sy[c] - sy[a]) - (sx[c] - sx[a]) * (sy[b] - sy[a]);
     if (area <= 0) continue;
@@ -83,6 +89,7 @@ export function renderPng(mesh: MeshData, o: RenderOptions): Uint8Array {
         if (z > depth[i]) {
           depth[i] = z;
           shade[i] = light;
+          colourAt[i] = ci;
         }
       }
     }
@@ -99,7 +106,8 @@ export function renderPng(mesh: MeshData, o: RenderOptions): Uint8Array {
           if (s < 0) {
             r += bg[0]; g += bg[1]; b += bg[2];
           } else {
-            r += base[0] * s + 20; g += base[1] * s + 20; b += base[2] * s + 20;
+            const col = palette[colourAt[i]] ?? base;
+            r += col[0] * s + 20; g += col[1] * s + 20; b += col[2] * s + 20;
           }
         }
       }
