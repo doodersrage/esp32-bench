@@ -37,7 +37,7 @@ const firstSentence = `${e.means.split(". ")[0].replace(/\.$/, "")}.`;
 const fixFirst = `How to fix "${subject}" on an ESP32: `;
 const description = fitDescription(
   `${firstSentence} What "${subject}" means on an ESP32, and how to fix it.`,
-  `${fixFirst}${clipText(firstSentence.replace(/^[A-Z](?=[a-z])/, (c) => c.toLowerCase()), MAX_DESCRIPTION - fixFirst.length)}`,
+  `${fixFirst}${clipText(firstSentence.replace(/^[A-Z](?![A-Z0-9])/, (c) => c.toLowerCase()), MAX_DESCRIPTION - fixFirst.length)}`,
 );
 // Questions and answers, the way people ask about an error (and the way
 // answer engines quote a page).
