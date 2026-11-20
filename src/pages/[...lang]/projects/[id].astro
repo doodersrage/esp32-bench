@@ -100,6 +100,11 @@ const printLinks = [
     .filter(({ id }) => id)
     .map(({ b, id }) => ({ id, text: tp("projCase", { board: b.short }), tested: Boolean(PRINTS.find((x) => x.id === id)?.tested) })),
 ].filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i);
+// A parts line a printable part can stand in for: "or print the chassis plate".
+const printFor = (text: string) => {
+  const x = PRINTS.find((x) => x.replaces?.test(text) && x.projects?.includes(p.id));
+  return x ? { href: link(`/prints/#${x.id}`), text: printText(tp, "replace", x.id) } : undefined;
+};
 // Starter paths this project is a step of, with the step after it.
 const onPaths = PATHS.flatMap((path) => {
   const at = path.steps.findIndex((s) => s.project === p.id);
@@ -229,6 +234,11 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
                         <span class="kicon" set:html={kitIconSvg(kit[i], PAGE_PALETTE, 28)} />
                         <span>{tc(what)}</span>
                       </div>
+                      {printFor(what) && (
+                        <a class="printalt" href={printFor(what)!.href}>
+                          {printFor(what)!.text}
+                        </a>
+                      )}
                     </td>
                     <td class="m">{buy[i] && <a href={buy[i].href} rel={buy[i].rel} data-amazon-q={buy[i].amazonQ} target="_blank">{buyText(buy[i].href)}</a>}</td>
                   </tr>
@@ -519,6 +529,7 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
 </Base>
 
 <style>
+  .printalt { display: block; margin: 2px 0 0 38px; font-size: 0.8rem; color: var(--accent); }
   .prints ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
   .prints .tag { font-size: 0.65rem; padding: 2px 4px; }
   .kitcard { display: block; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #f2f5f1; }

@@ -45,12 +45,6 @@ export const TOOLS: Tool[] = [
     tags: ["Web Serial", "Unlabelled boards"],
   },
   {
-    href: "/detective/",
-    name: "Pin detective",
-    sum: "Flash a helper, touch a jumper from GND to any pad, and see its GPIO number.",
-    tags: ["Web Serial", "Pins"],
-  },
-  {
     href: "/prints/",
     name: "3D-printable parts",
     sum: "Cases for the boards, and a chassis, mounts and brackets for the robots, as 3MF and STL. Change any measurement in the browser first.",

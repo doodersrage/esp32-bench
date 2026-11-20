@@ -1,6 +1,6 @@
 // Validation and formatting for report submissions. Pure functions, unit-tested.
 
-export type Kind = "build" | "correction" | "message";
+export type Kind = "build" | "correction" | "message" | "print";
 
 export interface Report {
 	kind: Kind;
@@ -58,7 +58,7 @@ export function checkReport(body: unknown, now: number): Checked {
 	}
 
 	const kind = str(b.kind);
-	if (kind !== "build" && kind !== "correction" && kind !== "message") return { ok: false, status: 400, error: "Unknown report type." };
+	if (kind !== "build" && kind !== "correction" && kind !== "message" && kind !== "print") return { ok: false, status: 400, error: "Unknown report type." };
 
 	const report = { kind } as Report;
 	for (const key of Object.keys(LIMITS) as (keyof Report)[]) {
@@ -75,25 +75,28 @@ export function checkReport(body: unknown, now: number): Checked {
 		return { ok: false, status: 400, error: "Say which project, which board and whether it worked." };
 	}
 	if (kind === "correction" && !report.notes) return { ok: false, status: 400, error: "Describe what is wrong." };
+	// A 3D print report: project is the part, board the printer, core the material, result the fit.
+	if (kind === "print" && (!report.project || !report.result)) return { ok: false, status: 400, error: "Say which part and how it fitted." };
 	if (kind === "message" && !report.notes) return { ok: false, status: 400, error: "Write a message." };
 	return { ok: true, report };
 }
 
-const TITLES: Record<Kind, string> = { build: "Build report", correction: "Correction", message: "Message" };
+const TITLES: Record<Kind, string> = { build: "Build report", correction: "Correction", message: "Message", print: "3D print report" };
 
 export function subjectFor(r: Report): string {
-	const about = r.kind === "build" ? r.project : r.kind === "correction" ? r.page : r.name || "visitor";
+	const about = r.kind === "build" || r.kind === "print" ? r.project : r.kind === "correction" ? r.page : r.name || "visitor";
 	return `[ESP32 Bench] ${TITLES[r.kind]}: ${about}`.replace(/[\r\n]+/g, " ").slice(0, 160);
 }
 
 export function textFor(r: Report, meta: { country: string; agent: string }): string {
+	const print = r.kind === "print";
 	const rows: [string, string][] = [
 		["Type", TITLES[r.kind]],
 		["Page", r.page],
-		["Project", r.project],
-		["Board", r.board],
-		["Core version", r.core],
-		["Result", r.result],
+		[print ? "Part" : "Project", r.project],
+		[print ? "Printer" : "Board", r.board],
+		[print ? "Material" : "Core version", r.core],
+		[print ? "Fit" : "Result", r.result],
 		["Publish", r.kind === "build" ? (r.publish ? `yes, as ${r.publicName || "Anonymous"}` : "no") : ""],
 		["From", [r.name, r.email].filter(Boolean).join(" ")],
 		["Country", meta.country],
@@ -101,7 +104,7 @@ export function textFor(r: Report, meta: { country: string; agent: string }): st
 	];
 	const head = rows.filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join("\n");
 	const parts = [head];
-	if (r.notes) parts.push(`${r.kind === "build" ? "Notes" : "Message"}:\n${r.notes}`);
+	if (r.notes) parts.push(`${r.kind === "build" || print ? "Notes" : "Message"}:\n${r.notes}`);
 	if (r.output) parts.push(`Serial output:\n${r.output}`);
 	return parts.join("\n\n") + "\n";
 }

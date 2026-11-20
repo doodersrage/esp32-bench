@@ -204,8 +204,8 @@ export function parseWiring(rows: readonly WiringRow[], header: Header): Model {
     const text = `${rawFrom} → ${rawTo}`;
     if (/^Already on the board/i.test(note)) return listed.push({ row, text, why: "on-board" });
     if (/^Not (wired|used)\b/i.test(rawTo)) return listed.push({ row, text, why: "not-wired" });
-    // Pads on a second board: "Uno 3.3V", or "Remote GPIO 34" for a second ESP32.
-    const other = /^(Uno|Remote)\b/.exec(rawTo);
+    // Pads on a second board: "Uno 3.3V", or "Remote GPIO 34" and "Display GPIO 21" for a second ESP32.
+    const other = /^(Uno|Remote|Display)\b/.exec(rawTo);
     if (other) {
       if (other[1] === "Uno") otherBoard = other[1];
       return listed.push({ row, text, why: "other-board" });

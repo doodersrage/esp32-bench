@@ -7,11 +7,17 @@ import { SITE } from "../../lib/site";
 import { localLink } from "../../lib/paths";
 import { REPORT } from "../../i18n/strings/pages";
 import { translator } from "../../i18n/t";
+import { PRINTS } from "../../data/prints";
+import { PRINTS_UI, printText } from "../../i18n/strings/prints";
 
 const link = localLink(Astro.currentLocale);
 const t = translator(REPORT, Astro.currentLocale);
 
 const projects = [...PROJECTS].sort((a, b) => a.name.localeCompare(b.name));
+const tp = translator(PRINTS_UI, Astro.currentLocale);
+// The value sent is the English name, so the email reads the same whatever the page language.
+const enPrint = translator(PRINTS_UI, "en");
+const prints = PRINTS.map((x) => ({ id: x.id, value: printText(enPrint, "name", x.id), label: printText(tp, "name", x.id) }));
 
 export const getStaticPaths = localePaths;
 ---
@@ -29,6 +35,7 @@ export const getStaticPaths = localePaths;
         <label><input type="radio" name="kind" value="build" checked /> {t("kindBuild")}</label>
         <label><input type="radio" name="kind" value="correction" /> {t("kindCorrection")}</label>
         <label><input type="radio" name="kind" value="message" /> {t("kindMessage")}</label>
+        <label><input type="radio" name="kind" value="print" /> {t("kindPrint")}</label>
       </fieldset>
 
       <div class="grid2" data-for="build">
@@ -83,6 +90,35 @@ export const getStaticPaths = localePaths;
         <p class="opt">{t("publishNote")}</p>
       </fieldset>
 
+      <div class="grid2" data-for="print" hidden>
+        <label class="wide">
+          {t("printPart")}
+          <select name="printPart" required>
+            <option value="">{t("choosePart")}</option>
+            {prints.map((x) => <option value={x.id} data-name={x.value}>{x.label}</option>)}
+          </select>
+        </label>
+        <label>
+          {t("printer")} <span class="opt">{t("optional")}</span>
+          <input name="printer" maxlength="80" placeholder={t("printerPh")} />
+        </label>
+        <label>
+          {t("material")} <span class="opt">{t("optional")}</span>
+          <input name="material" maxlength="40" placeholder={t("materialPh")} />
+        </label>
+        <label class="wide">
+          {t("fit")}
+          <select name="fit" required>
+            <option value="">{t("chooseOne")}</option>
+            <option value="Fits as it is">{t("fitGood")}</option>
+            <option value="Fits after a change (described below)">{t("fitChanged")}</option>
+            <option value="Too tight">{t("fitTight")}</option>
+            <option value="Too loose">{t("fitLoose")}</option>
+            <option value="Did not print well">{t("fitFailed")}</option>
+          </select>
+        </label>
+      </div>
+
       <label class="wide" data-for="correction">
         {t("page")}
         <input name="page" maxlength="300" placeholder="https://esp32bench.dev/..." />
@@ -92,6 +128,7 @@ export const getStaticPaths = localePaths;
         <span data-label="build">{t("notesBuild")} <span class="opt">{t("optional")}</span></span>
         <span data-label="correction" hidden>{t("notesCorrection")}</span>
         <span data-label="message" hidden>{t("notesMessage")}</span>
+        <span data-label="print" hidden>{t("notesPrint")} <span class="opt">{t("optional")}</span></span>
         <textarea name="notes" rows="6" maxlength="4000"></textarea>
       </label>
 

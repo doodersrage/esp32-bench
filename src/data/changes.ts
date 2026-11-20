@@ -14,6 +14,21 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-30",
+    date: "2026-11-20",
+    title: "Version 0.30: a weather station, a fit test and print reports",
+    summary: "An outdoor weather station built around a 3D-printed radiation shield, a fit test to print before anything else, a case for the robot car's joystick remote, and a way to tell us how a print fitted.",
+    items: [
+      "Outdoor weather station with indoor display: a BME280 in a printed radiation shield wakes every five minutes, sends its reading over ESP-NOW and sleeps; a second ESP32 shows it on an OLED.",
+      "The radiation shield itself: a base, a top and five rings that stack on three threaded rods, with air gaps between them.",
+      "A fit test: a 15-minute print with three lid-fit pockets and the M3, M2 and transducer holes, so you can check your printer before a whole set.",
+      "A case for the robot car's joystick remote, with posts for the joystick under the lid.",
+      "The report form takes 3D print reports: part, printer, material and how it fitted. They are how a draft part becomes test-printed.",
+      "The robot cars' parts lists and the shopping list offer the printed chassis plate in place of a chassis kit.",
+    ],
+    link: "/projects/outdoor-weather/",
+  },
+  {
     id: "v0-29",
     date: "2026-11-20",
     title: "Version 0.29: 3D-printable parts",

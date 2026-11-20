@@ -94,6 +94,7 @@ const RULES: [RegExp, IconId][] = [
   [/supply|power bank|adapter/i, "power"],
   [/mqtt broker|broker|server|service/i, "service"],
   [/robot car chassis/i, "chassis"],
+  [/threaded rods?/i, "hardware"],
   [/bracket|plate|plywood|3d print|electrical tape/i, "hardware"],
   [/breadboard/i, "breadboard"],
   [/jumper wires?|bare wires|contact pads|foil|wires\b/i, "wires"],

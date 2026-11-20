@@ -6,7 +6,7 @@ import { pageLocale, translator } from "../i18n/t";
 
 const t = translator(REPORT, pageLocale());
 
-type Kind = "build" | "correction" | "message";
+type Kind = "build" | "correction" | "message" | "print";
 
 interface Turnstile {
   render(el: HTMLElement, options: Record<string, unknown>): string;
@@ -18,7 +18,7 @@ declare global {
     turnstile?: Turnstile;
   }
 }
-const KINDS: Kind[] = ["build", "correction", "message"];
+const KINDS: Kind[] = ["build", "correction", "message", "print"];
 
 const form = document.querySelector<HTMLFormElement>("#report");
 const status = document.querySelector<HTMLElement>("#report-status");
@@ -59,7 +59,7 @@ if (form && status && thanks && send) {
     }
     for (const el of form!.querySelectorAll<HTMLElement>("[data-label]")) el.hidden = el.dataset.label !== kind;
     const notes = field<HTMLTextAreaElement>("notes");
-    if (notes) notes.required = kind !== "build";
+    if (notes) notes.required = kind === "correction" || kind === "message";
     status!.textContent = "";
   }
 
@@ -70,6 +70,10 @@ if (form && status && thanks && send) {
   if (radio) radio.checked = true;
   const project = params.get("project");
   if (project && PROJECTS.some((p) => p.id === project)) field<HTMLSelectElement>("project")!.value = project;
+  // ?kind=print&part=chassis-plate from a part's card on /prints/.
+  const part = params.get("part");
+  const partSelect = field<HTMLSelectElement>("printPart");
+  if (part && partSelect && [...partSelect.options].some((o) => o.value === part)) partSelect.value = part;
   const page = params.get("page");
   if (page) field("page")!.value = page.slice(0, 300);
   setKind(start);
@@ -120,13 +124,17 @@ if (form && status && thanks && send) {
     const projectId = value("project");
     const projectName = PROJECTS.find((p) => p.id === projectId)?.name ?? projectId;
     const board = [value("board"), value("boardDetail")].filter(Boolean).join(", ");
+    // A print report reuses the fields: the part as the project, the printer as
+    // the board, the material as the core version, the fit as the result.
+    const partOption = field<HTMLSelectElement>("printPart")?.selectedOptions[0];
+    const print = kind === "print";
     const body = {
       kind,
-      project: kind === "build" ? projectName : "",
-      page: kind === "build" && projectId ? `${location.origin}/projects/${projectId}/` : value("page"),
-      board,
-      core: value("core"),
-      result: value("result"),
+      project: kind === "build" ? projectName : print ? (partOption?.dataset.name ?? value("printPart")) : "",
+      page: kind === "build" && projectId ? `${location.origin}/projects/${projectId}/` : print ? `${location.origin}/prints/#${value("printPart")}` : value("page"),
+      board: print ? value("printer") : board,
+      core: print ? value("material") : value("core"),
+      result: print ? value("fit") : value("result"),
       output: value("output"),
       notes: value("notes"),
       name: value("name"),

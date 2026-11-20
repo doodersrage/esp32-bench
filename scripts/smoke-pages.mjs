@@ -43,6 +43,8 @@ const PAGES = [
   "/prints/",
   "/prints/make/?part=board-case&board=esp32s3&oled=1",
   "/projects/obstacle-car/",
+  "/projects/outdoor-weather/",
+  "/report/?kind=print&part=fit-test",
   "/search/?q=oled",
   "/changes/",
   "/about/",
