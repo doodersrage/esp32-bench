@@ -35,12 +35,12 @@ const safeCount = new Set(rows.filter((r) => r.verdict.level === "safe").map((r)
 
 const title = hasHeader ? `${b.name} pinout` : `${b.name} pin map`;
 const description = hasHeader
-  ? `${b.name} pinout: every header pin with its GPIO number, ADC and touch channels, boot and strapping pins, and which of its pins are safe to use.`
+  ? `${b.name} pinout: every header pin's GPIO number, ADC and touch channels, strapping pins, and which pins are safe to use.`
   : `${b.name} pin map: which GPIOs the camera, SD card and LEDs use, which pins are left for you, and how to flash it.`;
 const tone = { safe: "ok", care: "warnt", avoid: "bad", power: "" } as const;
 ---
 
-<Base title={title} description={description} current="boards" image={`/og/boards/${b.id}.png`}>
+<Base title={title} description={description} current="boards" image={`/og/boards/${b.id}.png`} article>
   <section class="view">
     <a class="back" href={link("/boards/")}>← All boards</a>
 

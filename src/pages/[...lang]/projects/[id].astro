@@ -18,6 +18,7 @@ import COMPILE from "../../../data/compile-libs.json";
 import { PROJECTS, boardsOf, forBoard, type Project } from "../../../data/projects";
 import { BOARDS, boardById, buildChoices, buildTarget, type BoardId } from "../../../data/boards";
 import { localLink } from "../../../lib/paths";
+import { MAX_DESCRIPTION, clipText } from "../../../lib/describe";
 import { DESKTOP, PROBEHARBOR, SITE, absolute, reportUrl } from "../../../lib/site";
 import { DESKTOP_STRINGS } from "../../../i18n/strings/desktop";
 import { buyFor, shopVendor } from "../../../lib/shop";
@@ -97,8 +98,13 @@ const anyVerified = (p.verified ?? []).length > 0;
 const CLIP_LINES = 26;
 const benchHref = `${link("/bench/")}?baud=${p.baud}&sample=${p.id}`;
 const boardNames = boards.map((b) => b.name).join(", ");
-const summary = sum.length > 150 ? `${sum.slice(0, sum.lastIndexOf(" ", 147))}...` : sum;
-const description = t("description", { summary, boards: boardNames });
+// The summary and the boards it runs on; with many boards, their count. The
+// summary is shortened by whole sentences if it still does not fit.
+const describe = (summary: string) =>
+  boards.length > 1 && t("description", { summary: sum, boards: boardNames }).length > MAX_DESCRIPTION
+    ? t("descriptionCount", { summary, n: boards.length })
+    : t("description", { summary, boards: boardNames });
+const description = describe(clipText(sum, MAX_DESCRIPTION - describe("").length));
 // "What it prints": only projects that need nothing attached can have a QEMU preview (scripts/emulate-firmware.mjs).
 // Structured data: the project as a how-to (parts, time, steps), on the first
 // board it supports, so search engines and answer engines can quote it.
@@ -127,7 +133,7 @@ const previewable = Boolean(labExpect && labExpect.needs === "none" && !(labExpe
 const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" || b.id === "esp32s3" || b.id === "esp32c3").map((b) => [b.id, b.name]));
 ---
 
-<Base title={t("pageTitle", { name })} description={description} current="library" image={`/og/projects/${p.id}.png`} jsonLd={howTo}>
+<Base title={t("pageTitle", { name })} description={description} current="library" image={`/og/projects/${p.id}.png`} jsonLd={howTo} article={{ published: p.added }}>
   <section class="view">
     <a class="back" href={link("/")}>{t("back")}</a>
 

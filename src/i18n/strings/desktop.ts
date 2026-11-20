@@ -5,7 +5,7 @@ import { defineStrings } from "../t";
 export const DESKTOP_STRINGS = defineStrings({
   en: {
     title: "Desktop app for Linux",
-    description: "ESP32 Bench as a desktop app for Linux (Arch, Debian, Ubuntu and Fedora): build, flash, monitor and simulate the project library's sketches on your computer.",
+    description: "ESP32 Bench as a desktop app for Linux (Arch, Debian, Ubuntu and Fedora): build, flash, monitor and simulate the project library's sketches on your PC.",
     h1: "ESP32 Bench for Linux",
     lede: "The same project library as a desktop app: build, flash and simulate projects on your computer, without a browser. It is new, and for Linux: Arch, Debian, Ubuntu and Fedora.",
     doesH: "What it does",
@@ -38,7 +38,7 @@ export const DESKTOP_STRINGS = defineStrings({
   },
   es: {
     title: "App de escritorio para Linux",
-    description: "ESP32 Bench como app de escritorio para Linux (Arch, Debian, Ubuntu y Fedora): compila, graba, monitoriza y simula los sketches de la biblioteca de proyectos en tu ordenador.",
+    description: "ESP32 Bench como app de escritorio para Linux (Arch, Debian, Ubuntu y Fedora): compila, graba, monitoriza y simula los sketches en tu ordenador.",
     h1: "ESP32 Bench para Linux",
     lede: "La misma biblioteca de proyectos como app de escritorio: compila, graba y simula proyectos en tu ordenador, sin navegador. Es nueva y es para Linux: Arch, Debian, Ubuntu y Fedora.",
     doesH: "Qué hace",
@@ -71,7 +71,7 @@ export const DESKTOP_STRINGS = defineStrings({
   },
   de: {
     title: "Desktop-App für Linux",
-    description: "ESP32 Bench als Desktop-App für Linux (Arch, Debian, Ubuntu und Fedora): Sketches der Projektbibliothek auf deinem Rechner kompilieren, flashen, überwachen und simulieren.",
+    description: "ESP32 Bench als Desktop-App für Linux (Arch, Debian, Ubuntu, Fedora): Sketches der Projektbibliothek kompilieren, flashen, überwachen und simulieren.",
     h1: "ESP32 Bench für Linux",
     lede: "Dieselbe Projektbibliothek als Desktop-App: Projekte auf deinem Rechner kompilieren, flashen und simulieren, ohne Browser. Sie ist neu und für Linux: Arch, Debian, Ubuntu und Fedora.",
     doesH: "Was sie kann",
@@ -104,7 +104,7 @@ export const DESKTOP_STRINGS = defineStrings({
   },
   fr: {
     title: "Application de bureau pour Linux",
-    description: "ESP32 Bench en application de bureau pour Linux (Arch, Debian, Ubuntu et Fedora) : compilez, flashez, surveillez et simulez les sketches de la bibliothèque de projets sur votre ordinateur.",
+    description: "ESP32 Bench en application de bureau pour Linux (Arch, Debian, Ubuntu, Fedora) : compilez, flashez, surveillez et simulez les sketches sur votre PC.",
     h1: "ESP32 Bench pour Linux",
     lede: "La même bibliothèque de projets en application de bureau : compilez, flashez et simulez des projets sur votre ordinateur, sans navigateur. Elle est nouvelle et fonctionne sous Linux : Arch, Debian, Ubuntu et Fedora.",
     doesH: "Ce qu'elle fait",
@@ -137,7 +137,7 @@ export const DESKTOP_STRINGS = defineStrings({
   },
   "pt-br": {
     title: "App de desktop para Linux",
-    description: "ESP32 Bench como app de desktop para Linux (Arch, Debian, Ubuntu e Fedora): compile, grave, monitore e simule os sketches da biblioteca de projetos no seu computador.",
+    description: "ESP32 Bench como app de desktop para Linux (Arch, Debian, Ubuntu e Fedora): compile, grave, monitore e simule os sketches no seu computador.",
     h1: "ESP32 Bench para Linux",
     lede: "A mesma biblioteca de projetos como app de desktop: compile, grave e simule projetos no seu computador, sem navegador. Ele é novo e é para Linux: Arch, Debian, Ubuntu e Fedora.",
     doesH: "O que ele faz",

@@ -22,16 +22,16 @@ export const TOOLS_UI = defineStrings({
     // /tools/
     indexTitle: "ESP32 tools in your browser",
     indexDescription:
-      "Free ESP32 tools that run in the browser: backtrace decoder, web flasher, partition table builder, serial monitor, pin finder and wiring checker. Nothing to install, nothing uploaded.",
+      "Free ESP32 tools in your browser: backtrace decoder, web flasher, partition builder, serial monitor, pin finder and wiring checker. Nothing to install.",
     indexH1: "Tools",
     indexLede:
       "Everything here runs in this page. Files you open and data from your board stay on your computer. The tools that talk to a board need Chrome, Edge or Opera on a desktop.",
     toolNo: "Tool {n}",
 
     // /tools/build/
-    buildTitle: "Build an ESP32 sketch online: compile and flash without the Arduino IDE",
+    buildTitle: "Build an ESP32 sketch online, no Arduino IDE",
     buildDescription:
-      "Paste an Arduino sketch, pick an ESP32, S2, S3, C3 or C6 board and the libraries it uses, compile it online with the Arduino-ESP32 core, see errors by line, and flash it from Chrome or Edge.",
+      "Paste an Arduino sketch, pick an ESP32, S2, S3, C3 or C6 board and its libraries, compile it online, see errors by line, and flash it from Chrome or Edge.",
     buildH1: "Build a sketch",
     buildLede:
       "Paste or write an Arduino sketch, pick your board and the libraries it includes, and press Build. The compiler answers with errors pointing at the line, or with firmware you can flash from this page or download. Every project in the library has the same editor under its sketch.",
@@ -39,7 +39,7 @@ export const TOOLS_UI = defineStrings({
     // /tools/backtrace/
     btTitle: "ESP32 backtrace decoder: crash addresses to file and line",
     btDescription:
-      "Decode an ESP32 Guru Meditation backtrace in your browser. Drop in the firmware .elf, paste the crash, and get function names and source lines for ESP32, S3, C3 and C6. Nothing is uploaded.",
+      "Decode an ESP32 Guru Meditation backtrace in your browser: drop in the .elf, paste the crash, get function names and source lines. Nothing is uploaded.",
     btH1: "Backtrace decoder",
     btLede:
       "Turns the addresses in an ESP32 crash into function names and source lines, like the exception decoder in the old Arduino IDE or <code>addr2line</code>, without installing anything. Works with Xtensa chips (ESP32, S2, S3) and RISC-V chips (C3, C6, H2). Your files stay in this browser.",
@@ -97,7 +97,7 @@ export const TOOLS_UI = defineStrings({
     // /tools/flash/
     flTitle: "ESP32 web flasher: flash your own .bin from the browser",
     flDescription:
-      "Flash your own ESP32 firmware .bin files from Chrome or Edge with no install: merged images or bootloader, partitions and app at the right offsets for ESP32, S2, S3, C3 and C6. Erase the flash and read the chip, MAC and flash size.",
+      "Flash your own ESP32 firmware .bin files from Chrome or Edge with no install: a merged image, or bootloader, partitions and app at the right offsets.",
     flH1: "Flash your own firmware",
     flLede:
       "Write .bin files to an ESP32 straight from the browser, the way <code>esptool.py write_flash</code> does. Your files go from this page to the board over USB and nowhere else.",
@@ -162,7 +162,7 @@ export const TOOLS_UI = defineStrings({
     // /tools/partitions/
     ptTitle: "ESP32 partition table builder: make partitions.csv",
     ptDescription:
-      "Build an ESP32 partitions.csv in the browser: start from the Arduino default, Huge APP or Minimal SPIFFS layouts, resize the app, SPIFFS or LittleFS, check alignment and overlaps, then copy or download it.",
+      "Build an ESP32 partitions.csv in the browser: start from an Arduino layout, resize the app, SPIFFS or LittleFS, check for overlaps, then download it.",
     ptH1: "Partition table builder",
     ptLede:
       "A partition table splits the flash chip into the app, its settings (nvs), over-the-air update slots and a file system. Start from an Arduino layout, change sizes, and this page keeps every offset aligned and warns about mistakes before the board does.",
@@ -248,22 +248,22 @@ export const TOOLS_UI = defineStrings({
 
     indexTitle: "Herramientas ESP32 en tu navegador",
     indexDescription:
-      "Herramientas ESP32 gratuitas que funcionan en el navegador: decodificador de backtrace, grabador web, editor de tablas de particiones, monitor serie, buscador de pines y comprobador de cableado. Nada que instalar, nada que subir.",
+      "Herramientas ESP32 gratuitas en el navegador: decodificador de backtrace, grabador web, tablas de particiones, monitor serie, buscador de pines y más.",
     indexH1: "Herramientas",
     indexLede:
       "Todo aquí funciona dentro de esta página. Los archivos que abres y los datos de tu placa se quedan en tu computadora. Las herramientas que hablan con una placa necesitan Chrome, Edge u Opera en un equipo de escritorio.",
     toolNo: "Herramienta {n}",
 
-    buildTitle: "Compila un sketch de ESP32 en línea: compila y graba sin el Arduino IDE",
+    buildTitle: "Compila un sketch ESP32 en línea, sin Arduino IDE",
     buildDescription:
-      "Pega un sketch de Arduino, elige una placa ESP32, S2, S3, C3 o C6 y las bibliotecas que usa, compílalo en línea con el core Arduino-ESP32, mira los errores por línea y grábalo desde Chrome o Edge.",
+      "Pega un sketch de Arduino, elige una placa ESP32, S2, S3, C3 o C6 y sus bibliotecas, compílalo en línea, mira los errores por línea y grábalo desde Chrome.",
     buildH1: "Compilar un sketch",
     buildLede:
       "Pega o escribe un sketch de Arduino, elige tu placa y las bibliotecas que incluye, y pulsa Build. El compilador responde con errores que señalan la línea, o con un firmware que puedes grabar desde esta página o descargar. Cada proyecto de la biblioteca tiene el mismo editor debajo de su sketch.",
 
-    btTitle: "Decodificador de backtrace ESP32: de direcciones del fallo a archivo y línea",
+    btTitle: "Decodificador de backtrace ESP32: fallo a archivo y línea",
     btDescription:
-      "Decodifica un backtrace de Guru Meditation de ESP32 en tu navegador. Suelta el .elf del firmware, pega el fallo y obtén nombres de funciones y líneas de código para ESP32, S3, C3 y C6. No se sube nada.",
+      "Decodifica un backtrace de Guru Meditation de ESP32 en el navegador: suelta el .elf, pega el fallo y obtén funciones y líneas de código. No se sube nada.",
     btH1: "Decodificador de backtrace",
     btLede:
       "Convierte las direcciones de un fallo de ESP32 en nombres de funciones y líneas de código, como el decodificador de excepciones del antiguo Arduino IDE o <code>addr2line</code>, sin instalar nada. Funciona con chips Xtensa (ESP32, S2, S3) y RISC-V (C3, C6, H2). Tus archivos se quedan en este navegador.",
@@ -318,9 +318,9 @@ export const TOOLS_UI = defineStrings({
     btDecodedMany: "{n} direcciones decodificadas con {name}.",
     btUnknownFrames: "{n} no aparecen en él: puede que el .elf sea de otra compilación.",
 
-    flTitle: "Grabador web para ESP32: graba tu propio .bin desde el navegador",
+    flTitle: "Grabador web para ESP32: graba tu .bin desde el navegador",
     flDescription:
-      "Graba tus propios archivos .bin de firmware ESP32 desde Chrome o Edge sin instalar nada: imágenes fusionadas o bootloader, particiones y app en los offsets correctos para ESP32, S2, S3, C3 y C6. Borra la flash y lee el chip, la MAC y el tamaño de la flash.",
+      "Graba tus .bin de firmware ESP32 desde Chrome o Edge sin instalar nada: una imagen fusionada, o bootloader, particiones y app en los offsets correctos.",
     flH1: "Graba tu propio firmware",
     flLede:
       "Escribe archivos .bin en un ESP32 directamente desde el navegador, como hace <code>esptool.py write_flash</code>. Tus archivos van de esta página a la placa por USB y a ningún otro sitio.",
@@ -384,7 +384,7 @@ export const TOOLS_UI = defineStrings({
 
     ptTitle: "Editor de tablas de particiones ESP32: crea partitions.csv",
     ptDescription:
-      "Crea un partitions.csv para ESP32 en el navegador: parte de los esquemas de Arduino default, Huge APP o Minimal SPIFFS, cambia el tamaño de la app, SPIFFS o LittleFS, comprueba alineación y solapamientos, y luego cópialo o descárgalo.",
+      "Crea un partitions.csv para ESP32 en el navegador: parte de un esquema de Arduino, ajusta la app, SPIFFS o LittleFS, comprueba solapamientos y descárgalo.",
     ptH1: "Editor de tablas de particiones",
     ptLede:
       "Una tabla de particiones divide el chip de flash en la app, su configuración (nvs), las ranuras de actualización por aire (OTA) y un sistema de archivos. Parte de un esquema de Arduino, cambia los tamaños y esta página mantiene cada offset alineado y te avisa de los errores antes que la placa.",
@@ -470,22 +470,22 @@ export const TOOLS_UI = defineStrings({
 
     indexTitle: "ESP32-Werkzeuge im Browser",
     indexDescription:
-      "Kostenlose ESP32-Werkzeuge, die im Browser laufen: Backtrace-Decoder, Web-Flasher, Partitionstabellen-Editor, serieller Monitor, Pin-Finder und Verdrahtungsprüfung. Nichts zu installieren, nichts wird hochgeladen.",
+      "Kostenlose ESP32-Werkzeuge im Browser: Backtrace-Decoder, Web-Flasher, Partitionstabellen-Editor, serieller Monitor, Pin-Finder und Verdrahtungsprüfung.",
     indexH1: "Werkzeuge",
     indexLede:
       "Alles hier läuft in dieser Seite. Dateien, die du öffnest, und Daten von deinem Board bleiben auf deinem Computer. Die Werkzeuge, die mit einem Board sprechen, brauchen Chrome, Edge oder Opera auf einem Desktop-Rechner.",
     toolNo: "Werkzeug {n}",
 
-    buildTitle: "ESP32-Sketch online bauen: kompilieren und flashen ohne Arduino IDE",
+    buildTitle: "ESP32-Sketch online kompilieren, ohne Arduino IDE",
     buildDescription:
-      "Füge einen Arduino-Sketch ein, wähle ein ESP32-, S2-, S3-, C3- oder C6-Board und die Bibliotheken, die er nutzt, kompiliere ihn online mit dem Arduino-ESP32-Core, sieh Fehler nach Zeile und flashe ihn aus Chrome oder Edge.",
+      "Füge einen Arduino-Sketch ein, wähle ein ESP32-, S2-, S3-, C3- oder C6-Board und Bibliotheken, kompiliere online, sieh Fehler nach Zeile und flashe ihn.",
     buildH1: "Sketch bauen",
     buildLede:
       "Füge einen Arduino-Sketch ein oder schreib einen, wähle dein Board und die Bibliotheken, die er einbindet, und drück auf Build. Der Compiler antwortet mit Fehlern samt Zeile oder mit Firmware, die du von dieser Seite flashen oder herunterladen kannst. Jedes Projekt in der Bibliothek hat denselben Editor unter seinem Sketch.",
 
     btTitle: "ESP32-Backtrace-Decoder: Absturzadressen zu Datei und Zeile",
     btDescription:
-      "Entschlüssle einen ESP32-Guru-Meditation-Backtrace im Browser. Zieh die .elf der Firmware hinein, füge den Absturz ein und erhalte Funktionsnamen und Quellzeilen für ESP32, S3, C3 und C6. Nichts wird hochgeladen.",
+      "Entschlüssle einen ESP32-Guru-Meditation-Backtrace im Browser: .elf hineinziehen, Absturz einfügen, Funktionen und Quellzeilen sehen. Kein Upload.",
     btH1: "Backtrace-Decoder",
     btLede:
       "Macht aus den Adressen eines ESP32-Absturzes Funktionsnamen und Quellzeilen, wie der Exception Decoder der alten Arduino IDE oder <code>addr2line</code>, ohne etwas zu installieren. Funktioniert mit Xtensa-Chips (ESP32, S2, S3) und RISC-V-Chips (C3, C6, H2). Deine Dateien bleiben in diesem Browser.",
@@ -542,7 +542,7 @@ export const TOOLS_UI = defineStrings({
 
     flTitle: "ESP32-Web-Flasher: deine eigene .bin aus dem Browser flashen",
     flDescription:
-      "Flashe deine eigenen ESP32-Firmware-.bin-Dateien aus Chrome oder Edge ohne Installation: zusammengeführte Images oder Bootloader, Partitionen und App an den richtigen Offsets für ESP32, S2, S3, C3 und C6. Lösche den Flash und lies Chip, MAC und Flash-Größe aus.",
+      "Flashe eigene ESP32-.bin-Dateien aus Chrome oder Edge ohne Installation: ein Gesamt-Image oder Bootloader, Partitionen und App an den richtigen Offsets.",
     flH1: "Eigene Firmware flashen",
     flLede:
       "Schreib .bin-Dateien direkt aus dem Browser auf einen ESP32, so wie <code>esptool.py write_flash</code>. Deine Dateien gehen von dieser Seite über USB zum Board und nirgendwo sonst hin.",
@@ -606,7 +606,7 @@ export const TOOLS_UI = defineStrings({
 
     ptTitle: "ESP32-Partitionstabellen-Editor: partitions.csv erstellen",
     ptDescription:
-      "Erstelle eine ESP32-partitions.csv im Browser: Starte mit den Arduino-Layouts default, Huge APP oder Minimal SPIFFS, ändere die Größe von App, SPIFFS oder LittleFS, prüfe Ausrichtung und Überlappungen, und kopiere oder lade sie herunter.",
+      "Erstelle eine ESP32-partitions.csv im Browser: Starte mit einem Arduino-Layout, ändere App, SPIFFS oder LittleFS, prüfe Überlappungen, lade sie herunter.",
     ptH1: "Partitionstabellen-Editor",
     ptLede:
       "Eine Partitionstabelle teilt den Flash-Chip in die App, ihre Einstellungen (nvs), Slots für Updates über die Luft (OTA) und ein Dateisystem auf. Starte mit einem Arduino-Layout, ändere Größen, und diese Seite hält jeden Offset ausgerichtet und warnt vor Fehlern, bevor das Board es tut.",
@@ -692,22 +692,22 @@ export const TOOLS_UI = defineStrings({
 
     indexTitle: "Outils ESP32 dans votre navigateur",
     indexDescription:
-      "Outils ESP32 gratuits qui fonctionnent dans le navigateur : décodeur de backtrace, flasheur web, éditeur de table de partitions, moniteur série, détecteur de broches et vérificateur de câblage. Rien à installer, rien n’est envoyé.",
+      "Outils ESP32 gratuits dans le navigateur : décodeur de backtrace, flasheur, partitions, moniteur série, détecteur de broches. Rien à installer.",
     indexH1: "Outils",
     indexLede:
       "Tout ici fonctionne dans cette page. Les fichiers que vous ouvrez et les données de votre carte restent sur votre ordinateur. Les outils qui communiquent avec une carte nécessitent Chrome, Edge ou Opera sur un ordinateur de bureau.",
     toolNo: "Outil {n}",
 
-    buildTitle: "Compiler un sketch ESP32 en ligne : compiler et flasher sans l’IDE Arduino",
+    buildTitle: "Compiler un sketch ESP32 en ligne, sans IDE Arduino",
     buildDescription:
-      "Collez un sketch Arduino, choisissez une carte ESP32, S2, S3, C3 ou C6 et les bibliothèques qu’il utilise, compilez-le en ligne avec le core Arduino-ESP32, voyez les erreurs par ligne et flashez-le depuis Chrome ou Edge.",
+      "Collez un sketch Arduino, choisissez une carte ESP32, S2, S3, C3 ou C6 et ses bibliothèques, compilez en ligne, voyez les erreurs par ligne et flashez-le.",
     buildH1: "Compiler un sketch",
     buildLede:
       "Collez ou écrivez un sketch Arduino, choisissez votre carte et les bibliothèques qu’il inclut, puis appuyez sur Build. Le compilateur répond avec des erreurs qui indiquent la ligne, ou avec un firmware que vous pouvez flasher depuis cette page ou télécharger. Chaque projet de la bibliothèque a le même éditeur sous son sketch.",
 
-    btTitle: "Décodeur de backtrace ESP32 : des adresses du plantage au fichier et à la ligne",
+    btTitle: "Décodeur de backtrace ESP32 : plantage vers fichier et ligne",
     btDescription:
-      "Décodez un backtrace Guru Meditation d’ESP32 dans votre navigateur. Déposez le .elf du firmware, collez le plantage et obtenez les noms de fonctions et les lignes de code pour ESP32, S3, C3 et C6. Rien n’est envoyé.",
+      "Décodez un backtrace Guru Meditation d’ESP32 dans le navigateur : déposez le .elf, collez le plantage, obtenez fonctions et lignes. Rien n’est envoyé.",
     btH1: "Décodeur de backtrace",
     btLede:
       "Transforme les adresses d’un plantage d’ESP32 en noms de fonctions et en lignes de code, comme le décodeur d’exceptions de l’ancien IDE Arduino ou <code>addr2line</code>, sans rien installer. Fonctionne avec les puces Xtensa (ESP32, S2, S3) et RISC-V (C3, C6, H2). Vos fichiers restent dans ce navigateur.",
@@ -762,9 +762,9 @@ export const TOOLS_UI = defineStrings({
     btDecodedMany: "{n} adresses décodées avec {name}.",
     btUnknownFrames: "{n} introuvables dedans : le .elf vient peut-être d’une autre compilation.",
 
-    flTitle: "Flasheur web ESP32 : flashez votre propre .bin depuis le navigateur",
+    flTitle: "Flasheur web ESP32 : flashez votre .bin depuis le navigateur",
     flDescription:
-      "Flashez vos propres fichiers .bin de firmware ESP32 depuis Chrome ou Edge sans rien installer : images fusionnées ou bootloader, partitions et app aux bons offsets pour ESP32, S2, S3, C3 et C6. Effacez la flash et lisez la puce, l’adresse MAC et la taille de la flash.",
+      "Flashez vos fichiers .bin ESP32 depuis Chrome ou Edge sans rien installer : une image fusionnée, ou bootloader, partitions et app aux bons offsets.",
     flH1: "Flasher votre propre firmware",
     flLede:
       "Écrivez des fichiers .bin sur un ESP32 directement depuis le navigateur, comme le fait <code>esptool.py write_flash</code>. Vos fichiers vont de cette page à la carte par USB, et nulle part ailleurs.",
@@ -828,7 +828,7 @@ export const TOOLS_UI = defineStrings({
 
     ptTitle: "Éditeur de table de partitions ESP32 : créer partitions.csv",
     ptDescription:
-      "Créez un partitions.csv pour ESP32 dans le navigateur : partez des schémas Arduino default, Huge APP ou Minimal SPIFFS, redimensionnez l’app, SPIFFS ou LittleFS, vérifiez l’alignement et les chevauchements, puis copiez-le ou téléchargez-le.",
+      "Créez un partitions.csv pour ESP32 dans le navigateur : partez d’un schéma Arduino, redimensionnez l’app, SPIFFS ou LittleFS, vérifiez puis téléchargez.",
     ptH1: "Éditeur de table de partitions",
     ptLede:
       "Une table de partitions découpe la puce flash entre l’app, ses réglages (nvs), les emplacements de mise à jour à distance (OTA) et un système de fichiers. Partez d’un schéma Arduino, modifiez les tailles, et cette page garde chaque offset aligné et signale les erreurs avant la carte.",
@@ -914,22 +914,22 @@ export const TOOLS_UI = defineStrings({
 
     indexTitle: "Ferramentas ESP32 no seu navegador",
     indexDescription:
-      "Ferramentas ESP32 gratuitas que rodam no navegador: decodificador de backtrace, gravador web, editor de tabela de partições, monitor serial, localizador de pinos e verificador de ligações. Nada para instalar, nada é enviado.",
+      "Ferramentas ESP32 gratuitas no navegador: decodificador de backtrace, gravador web, tabela de partições, monitor serial, localizador de pinos e mais.",
     indexH1: "Ferramentas",
     indexLede:
       "Tudo aqui roda dentro desta página. Os arquivos que você abre e os dados da sua placa ficam no seu computador. As ferramentas que conversam com uma placa precisam do Chrome, Edge ou Opera em um computador desktop.",
     toolNo: "Ferramenta {n}",
 
-    buildTitle: "Compile um sketch ESP32 online: compile e grave sem a Arduino IDE",
+    buildTitle: "Compile um sketch ESP32 online, sem a Arduino IDE",
     buildDescription:
-      "Cole um sketch Arduino, escolha uma placa ESP32, S2, S3, C3 ou C6 e as bibliotecas que ele usa, compile online com o core Arduino-ESP32, veja os erros por linha e grave pelo Chrome ou Edge.",
+      "Cole um sketch Arduino, escolha uma placa ESP32, S2, S3, C3 ou C6 e as bibliotecas, compile online, veja os erros por linha e grave pelo Chrome ou Edge.",
     buildH1: "Compilar um sketch",
     buildLede:
       "Cole ou escreva um sketch Arduino, escolha sua placa e as bibliotecas que ele inclui e clique em Build. O compilador responde com erros apontando a linha, ou com um firmware que você pode gravar por esta página ou baixar. Todo projeto da biblioteca tem o mesmo editor abaixo do sketch.",
 
-    btTitle: "Decodificador de backtrace ESP32: dos endereços do travamento ao arquivo e linha",
+    btTitle: "Decodificador de backtrace do ESP32, com arquivo e linha",
     btDescription:
-      "Decodifique um backtrace de Guru Meditation do ESP32 no navegador. Solte o .elf do firmware, cole o travamento e veja nomes de funções e linhas de código para ESP32, S3, C3 e C6. Nada é enviado.",
+      "Decodifique um backtrace de Guru Meditation do ESP32 no navegador: solte o .elf, cole o travamento e veja funções e linhas de código. Nada é enviado.",
     btH1: "Decodificador de backtrace",
     btLede:
       "Transforma os endereços de um travamento do ESP32 em nomes de funções e linhas de código, como o decodificador de exceções da antiga Arduino IDE ou o <code>addr2line</code>, sem instalar nada. Funciona com chips Xtensa (ESP32, S2, S3) e RISC-V (C3, C6, H2). Seus arquivos ficam neste navegador.",
@@ -984,9 +984,9 @@ export const TOOLS_UI = defineStrings({
     btDecodedMany: "{n} endereços decodificados com {name}.",
     btUnknownFrames: "{n} não encontrados nele: o .elf pode ser de outra compilação.",
 
-    flTitle: "Gravador web para ESP32: grave seu próprio .bin pelo navegador",
+    flTitle: "Gravador web para ESP32: grave seu .bin pelo navegador",
     flDescription:
-      "Grave seus próprios arquivos .bin de firmware ESP32 pelo Chrome ou Edge sem instalar nada: imagens mescladas ou bootloader, partições e app nos offsets certos para ESP32, S2, S3, C3 e C6. Apague a flash e leia o chip, o MAC e o tamanho da flash.",
+      "Grave seus arquivos .bin de firmware ESP32 pelo Chrome ou Edge sem instalar nada: uma imagem mesclada, ou bootloader, partições e app nos offsets certos.",
     flH1: "Grave seu próprio firmware",
     flLede:
       "Grave arquivos .bin em um ESP32 direto do navegador, como faz o <code>esptool.py write_flash</code>. Seus arquivos vão desta página para a placa pelo USB e para nenhum outro lugar.",
@@ -1050,7 +1050,7 @@ export const TOOLS_UI = defineStrings({
 
     ptTitle: "Editor de tabela de partições ESP32: crie o partitions.csv",
     ptDescription:
-      "Crie um partitions.csv para ESP32 no navegador: comece pelos layouts Arduino default, Huge APP ou Minimal SPIFFS, redimensione o app, SPIFFS ou LittleFS, confira alinhamento e sobreposições e depois copie ou baixe.",
+      "Crie um partitions.csv para ESP32 no navegador: comece por um layout Arduino, redimensione o app, SPIFFS ou LittleFS, confira sobreposições e baixe.",
     ptH1: "Editor de tabela de partições",
     ptLede:
       "Uma tabela de partições divide o chip de flash entre o app, suas configurações (nvs), slots de atualização pelo ar (OTA) e um sistema de arquivos. Comece por um layout do Arduino, mude os tamanhos, e esta página mantém cada offset alinhado e avisa dos erros antes da placa.",

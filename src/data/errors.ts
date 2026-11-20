@@ -17,6 +17,8 @@ export interface ErrorEntry {
   slug: string;
   /** The error as people search for it */
   title: string;
+  /** A shorter page title, when the error is too long for a search result */
+  short?: string;
   group: ErrorGroup;
   /** The exact text it appears as in the serial output or upload log */
   match: string;
@@ -93,6 +95,7 @@ export const ERRORS: ErrorEntry[] = [
   {
     slug: "guru-meditation-instrfetchprohibited",
     title: "Guru Meditation Error: Core 1 panic'ed (InstrFetchProhibited)",
+    short: "Guru Meditation Error: InstrFetchProhibited on ESP32",
     group: "crash",
     match: "Guru Meditation Error: Core  1 panic'ed (InstrFetchProhibited). Exception was unhandled.",
     example: [
@@ -186,6 +189,7 @@ export const ERRORS: ErrorEntry[] = [
   {
     slug: "interrupt-wdt-timeout",
     title: "Guru Meditation Error: Core 0 panic'ed (Interrupt wdt timeout on CPU0)",
+    short: "Guru Meditation Error: Interrupt wdt timeout on CPU0",
     group: "crash",
     match: "Guru Meditation Error: Core  0 panic'ed (Interrupt wdt timeout on CPU0).",
     example: ["Guru Meditation Error: Core  0 panic'ed (Interrupt wdt timeout on CPU0)."],
@@ -228,6 +232,7 @@ export const ERRORS: ErrorEntry[] = [
   {
     slug: "task-watchdog-got-triggered",
     title: "Task watchdog got triggered. The following tasks did not reset the watchdog in time",
+    short: "Task watchdog got triggered on ESP32",
     group: "crash",
     match: "E (10321) task_wdt: Task watchdog got triggered. The following tasks did not reset the watchdog in time:",
     example: [
@@ -552,6 +557,7 @@ export const ERRORS: ErrorEntry[] = [
   {
     slug: "failed-to-connect-no-serial-data-received",
     title: "A fatal error occurred: Failed to connect to ESP32: No serial data received",
+    short: "Failed to connect to ESP32: No serial data received",
     group: "upload",
     match: "A fatal error occurred: Failed to connect to ESP32: No serial data received.",
     example: [
@@ -581,6 +587,7 @@ export const ERRORS: ErrorEntry[] = [
   {
     slug: "timed-out-waiting-for-packet-header",
     title: "Failed to connect to ESP32: Timed out waiting for packet header",
+    short: "Failed to connect: Timed out waiting for packet header",
     group: "upload",
     match: "A fatal error occurred: Failed to connect to ESP32: Timed out waiting for packet header",
     example: [
@@ -604,6 +611,7 @@ export const ERRORS: ErrorEntry[] = [
   {
     slug: "could-not-open-port",
     title: "Could not open /dev/ttyUSB0, the port is busy or doesn't exist",
+    short: "Could not open /dev/ttyUSB0: port busy or doesn't exist",
     group: "upload",
     match: "A fatal error occurred: Could not open /dev/ttyUSB0, the port is busy or doesn't exist.",
     example: [
@@ -629,6 +637,7 @@ export const ERRORS: ErrorEntry[] = [
   {
     slug: "sketch-too-big",
     title: "Sketch too big: text section exceeds available space in board",
+    short: "Sketch too big: text section exceeds available space",
     group: "upload",
     match: "Sketch too big; see https://support.arduino.cc/hc/en-us/articles/360013825179 for tips on reducing it.",
     example: [
