@@ -5,7 +5,7 @@
 //   node --experimental-strip-types tests/prints.test.ts
 import assert from "node:assert/strict";
 import { build, loadKernel, type Kernel, type Manifold } from "../src/lib/print/kernel.ts";
-import { CASE_BOARDS, PART_DEFS, balanceAxleX, caseLayout, cleanValues, defaults, lineLayout, motorLayout, partDef, sonarLayout, type Values } from "../src/lib/print/parts.ts";
+import { CASE_BOARDS, FIT_TEST, PART_DEFS, balanceAxleX, caseLayout, cleanValues, defaults, fitPocketX, lineLayout, motorLayout, partDef, shieldLayout, sonarLayout, type Values } from "../src/lib/print/parts.ts";
 import { BED, CASE_FOR_BOARD, PRINTS } from "../src/data/prints.ts";
 import { parseStl, to3mf, toStl } from "../src/lib/print/formats.ts";
 import { renderPng } from "../src/lib/print/render.ts";
@@ -47,7 +47,7 @@ for (const item of PRINTS) {
     const { mesh } = build(k, (k) => def.make(k, cleanValues(def, { ...defaults(def), ...item.values })));
     assert.ok(mesh.volume > 1000, `volume ${mesh.volume}`);
     assert.ok(mesh.size[0] <= BED.x && mesh.size[1] <= BED.y && mesh.size[2] <= BED.z, `too big for the bed: ${mesh.size.join(" x ")}`);
-    assert.equal(mesh.pieces, item.part === "board-case" ? 2 : 1, "pieces on the bed");
+    assert.equal(mesh.pieces, item.part === "board-case" || item.part === "fit-test" ? 2 : 1, "pieces on the bed");
     // Formats round-trip.
     const stl = toStl(mesh, item.id);
     const back = parseStl(stl.buffer as ArrayBuffer);
@@ -113,11 +113,11 @@ test("cleanValues clamps numbers and ignores unknown choices", () => {
 // --- Fit: board cases ----------------------------------------------------------------
 
 for (const board of Object.keys(CASE_BOARDS)) {
-  for (const extra of [{}, { oled: true, button: 12, tabs: true }] as Values[]) {
+  for (const extra of [{}, { oled: true, button: 12, tabs: true }, { joystick: true, oled: true }] as Values[]) {
     const shape = CASE_BOARDS[board];
     const v = valuesOf("board-case", { board, length: shape.length, width: shape.width, rows: shape.rows, ...extra });
     const L = caseLayout(v);
-    test(`case for ${board}${extra.oled ? " with display and button" : ""}: board, plug and lid fit`, () => {
+    test(`case for ${board} ${JSON.stringify(extra)}: board, plug and lid fit`, () => {
       build(k, (kk) => partDef("board-case")!.make(kk, v), (solid) => {
         const [base, lid] = solid.decompose().sort((a, b) => a.boundingBox().min[1] - b.boundingBox().min[1]);
         // The board, and the header pins and plugs under its edges, sit in free space.
@@ -135,6 +135,16 @@ for (const board of Object.keys(CASE_BOARDS)) {
         const fb = flipped.boundingBox();
         const placed = flipped.translate([0, -fb.min[1], L.height + 2 - fb.max[2]]);
         assert.ok(overlap(base, placed) < 0.01, `the lid collides with the base: ${overlap(base, placed).toFixed(2)} mm³`);
+        // Nothing under the lid (joystick posts) reaches the board or what stands on it.
+        assert.ok(overlap(placed, cube(k, L.boardX, L.boardY, L.boardZ, L.length, L.width, 1.6 + 5)) < 0.01, "the lid's posts hit the board");
+        if (L.stick) {
+          // The joystick's board fits under its posts, clear of the lip and the walls.
+          const jb = cube(k, L.stickX - 20, L.outerW / 2 - 13.5, L.height - L.stickDrop - 1.6, 40, 27, 1.6);
+          assert.ok(overlap(placed, jb) < 0.01 && overlap(base, jb) < 0.01, "the joystick board does not fit under the lid");
+          assert.ok(overlap(placed, cube(k, L.stickX - 20, L.outerW / 2 - 13.5, L.height - L.stickDrop, 40, 27, 0.3)) > 0.5, "the posts do not reach the joystick board");
+          // The stick's hole is open.
+          assert.ok(overlap(placed, k.Manifold.cylinder(10, 8, 8, 32).translate([L.stickX, L.outerW / 2, L.height - 2])) < 0.01, "the stick's hole is blocked");
+        }
         // And it is snug: the lip is no more than the fit clearance away from the walls.
         const grown = placed.translate([L.fit + 0.15, 0, 0]);
         assert.ok(overlap(base, grown) > 0.01, "the lid is loose");
@@ -213,6 +223,49 @@ test("line sensor mount: bolts on the grid, slots run down each tab", () => {
     }
     return null;
   });
+});
+
+test("fit test: the peg slides into every pocket, which are 0.1, 0.2 and 0.3 mm bigger each side", () => {
+  build(k, (kk) => partDef("fit-test")!.make(kk, {}), (solid) => {
+    const [plate, peg] = solid.decompose().sort((a, b) => a.boundingBox().min[1] - b.boundingBox().min[1]);
+    const pb = peg.boundingBox();
+    assert.ok(Math.abs(pb.max[0] - pb.min[0] - FIT_TEST.peg) < 0.01, "peg size");
+    FIT_TEST.gaps.forEach((g, i) => {
+      const inPocket = peg.translate([fitPocketX(i) - (pb.min[0] + pb.max[0]) / 2, 14 - (pb.min[1] + pb.max[1]) / 2, 0]);
+      assert.ok(overlap(plate, inPocket) < 0.01, `the peg does not fit pocket ${i + 1}`);
+      // ...and it is the stated gap: a peg 2 x (gap + 0.05) bigger would not.
+      const bigger = k.Manifold.cube([FIT_TEST.peg + 2 * g + 0.1, FIT_TEST.peg + 2 * g + 0.1, 2]).translate([fitPocketX(i) - FIT_TEST.peg / 2 - g - 0.05, 14 - FIT_TEST.peg / 2 - g - 0.05, 0.5]);
+      assert.ok(overlap(plate, bigger) > 0.01, `pocket ${i + 1} is bigger than ${g} mm each side`);
+    });
+    return null;
+  });
+});
+
+test("radiation shield: rings stack on their posts with air between, rods pass through every piece", () => {
+  for (const extra of [{}, { gap: 10, skirt: 24 }, { diameter: 150, opening: 100 }] as Values[]) {
+    const v = valuesOf("shield-plate", extra);
+    const S = shieldLayout(v);
+    for (const id of ["shield-plate", "shield-top", "shield-base"]) {
+      build(k, (kk) => partDef(id)!.make(kk, v), (m) => {
+        // Turned over as used: posts and skirt point down. Keep a copy beyond the free.
+        const turned = m.rotate([180, 0, 0]);
+        const tb = turned.boundingBox();
+        // Rest the turned piece on z = 0, then on another ring.
+        const ring = turned.translate([0, 0, -tb.min[2]]);
+        const below = ring; // a second ring under it
+        const above = ring.translate([0, 0, S.gap + S.t]);
+        assert.ok(overlap(below, above) < 0.01, `${id}: stacked pieces overlap`);
+        // Air between the skirt above and the ring below it: at least 3 mm over the lower ring's top.
+        const airLayer = k.CrossSection.circle(S.D / 2 - 0.5, 64).subtract(k.CrossSection.circle(S.D / 2 - 3, 64)).extrude(3).translate([0, 0, S.gap + S.t + 0.01]);
+        if (id !== "shield-base") assert.ok(overlap(below.add(above), airLayer) < 0.01, `${id}: no air gap under the skirt`);
+        for (const [x, y] of S.posts) {
+          const rod = k.Manifold.cylinder(200, 1.5, 1.5, 24).translate([x, -y, -50]);
+          assert.ok(overlap(turned, rod) < 0.01, `${id}: no hole for the rod at ${x.toFixed(1)}, ${y.toFixed(1)}`);
+        }
+        return null;
+      });
+    }
+  }
 });
 
 console.log(`${passed} passed, ${failures} failed`);

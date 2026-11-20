@@ -112,6 +112,12 @@ const PCB = 1.6;
 const USB_H = 7.5;
 /** 0.96 inch SSD1306 module: board size, window over the glass, screw hole spacing. */
 const OLED = { board: 28, window: [25, 14] as [number, number], windowOffset: 2.5, holes: [23.4, 23.8] as [number, number], hole: 2.3 };
+/**
+ * KY-023 style thumb joystick: its board (with the header) and the M3 holes,
+ * which sellers give as about 27 x 20 mm apart. It hangs under the lid on four
+ * posts, with the stick up through a round hole.
+ */
+const STICK = { board: [40, 27] as [number, number], holes: [27, 20] as [number, number] };
 const LIP = 1.6;
 const LIP_H = 4;
 
@@ -126,14 +132,21 @@ export function caseLayout(v: Values) {
   const fit = num(v, "fit");
   const oled = on(v, "oled");
   const button = num(v, "button");
+  const stick = on(v, "joystick");
+  const stickDrop = num(v, "stickDrop");
   const under = num(v, "under");
   // Room above the board: at least 10 mm so the lid's lip clears the header pins,
-  // 24 with a display (its pins and plugs hang under the lid), 20 with a panel button.
-  const above = Math.max(num(v, "above"), 10, oled ? 24 : 0, button > 0 ? 20 : 0);
-  // Room on the lid for the display and the button, inside the lid's lip.
-  const lidNeed = (oled ? OLED.board + 2 : 0) + (button > 0 ? button + 8 : 0);
+  // 24 with a display (its pins and plugs hang under the lid), 20 with a panel
+  // button, and with a joystick its posts and board plus 5 mm over the ESP32's parts.
+  const above = Math.max(num(v, "above"), 10, oled ? 24 : 0, button > 0 ? 20 : 0, stick ? stickDrop + PCB + 5 : 0);
+  // Lid features in a row from the USB end, each with the length and width it needs.
+  const slots: { kind: "oled" | "stick" | "button"; len: number; wid: number }[] = [];
+  if (oled) slots.push({ kind: "oled", len: OLED.board + 2, wid: OLED.board + 2 });
+  if (stick) slots.push({ kind: "stick", len: STICK.board[0] + 2, wid: STICK.board[1] + 2 });
+  if (button > 0) slots.push({ kind: "button", len: button + 8, wid: button + 6 });
+  const lidNeed = slots.reduce((sum, x) => sum + x.len, 0);
   const innerL = Math.max(length + 2 * c, lidNeed + 2 * (LIP + fit) + 2);
-  const innerW = Math.max(width + 2 * c, (oled ? OLED.board + 2 : button > 0 ? button + 6 : 0) + 2 * (LIP + fit) + 1);
+  const innerW = Math.max(width + 2 * c, Math.max(0, ...slots.map((x) => x.wid)) + 2 * (LIP + fit) + 1);
   const outerL = innerL + 2 * wall;
   const outerW = innerW + 2 * wall;
   const height = floor + under + PCB + above;
@@ -143,10 +156,19 @@ export function caseLayout(v: Values) {
   // The rail the board rests on: between the header rows, clear of the plastic under each row.
   const railW = Math.max(4, rows - 2 * (1.27 + 1.0));
   const lidZ = height; // the lid's inner face sits here
-  // Lid features along the length, from the USB end.
-  const oledX = oled ? wall + LIP + fit + 1 + (OLED.board + 2) / 2 : 0;
-  const buttonX = button > 0 ? outerL - wall - LIP - fit - 1 - (button + 8) / 2 : 0;
-  return { length, width, rows, c, wall, floor, fit, oled, button, under, above, innerL, innerW, outerL, outerW, height, boardX, boardY, boardZ, railW, lidZ, oledX, buttonX };
+  // Lid features along the length: spread the slots evenly inside the lip.
+  const free = innerL - 2 * (LIP + fit) - lidNeed;
+  const gap = free / (slots.length + 1);
+  const centres: Record<string, number> = {};
+  let x = wall + LIP + fit + gap;
+  for (const sl of slots) {
+    centres[sl.kind] = x + sl.len / 2;
+    x += sl.len + gap;
+  }
+  const oledX = centres.oled ?? 0;
+  const stickX = centres.stick ?? 0;
+  const buttonX = centres.button ?? 0;
+  return { length, width, rows, c, wall, floor, fit, oled, button, stick, stickDrop, under, above, innerL, innerW, outerL, outerW, height, boardX, boardY, boardZ, railW, lidZ, oledX, stickX, buttonX };
 }
 
 function boardCase(k: Kernel, v: Values): Manifold {
@@ -214,6 +236,18 @@ function boardCase(k: Kernel, v: Values): Manifold {
     for (const sx of [-1, 1]) for (const sy of [-1, 1]) lid = lid.subtract(zHole(k, L.oledX + (sx * OLED.holes[1]) / 2, L.outerW / 2 + (sy * OLED.holes[0]) / 2, OLED.hole));
   }
   if (L.button > 0) lid = lid.subtract(k.Manifold.cylinder(10, L.button / 2, L.button / 2, SEG).translate([L.buttonX, L.outerW / 2, -1]));
+  if (L.stick) {
+    // Four posts for the joystick's board, holes for M3 screws to cut their own thread, and the stick's hole.
+    const posts: Manifold[] = [];
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+      const [px, py] = [L.stickX + (sx * STICK.holes[0]) / 2, L.outerW / 2 + (sy * STICK.holes[1]) / 2];
+      posts.push(k.Manifold.cylinder(L.stickDrop + 0.01, 3, 3, SEG).translate([px, py, 2 - 0.01]));
+    }
+    lid = lid.add(k.Manifold.union(posts));
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) lid = lid.subtract(zHole(k, L.stickX + (sx * STICK.holes[0]) / 2, L.outerW / 2 + (sy * STICK.holes[1]) / 2, 2.6, 0.6));
+    const d = num(v, "stickHole");
+    lid = lid.subtract(k.Manifold.cylinder(10, d / 2, d / 2, SEG).translate([L.stickX, L.outerW / 2, -1]));
+  }
   parts.push(lid.translate([0, ly, 0]));
   return k.Manifold.union(parts);
 }
@@ -369,6 +403,81 @@ export const balanceAxleX = (v: Values) => {
   return Math.max(-length / 2 + num(v, "axleInset") + 4, num(v, "axleInset") - num(v, "motorLength") / 2);
 };
 
+// --- Fit test -------------------------------------------------------------------
+
+/**
+ * One small print that checks a printer's tolerances before a whole set: a peg
+ * and three square pockets 0.1, 0.2 and 0.3 mm bigger each side (the case
+ * lid's "fit" setting), marked with one, two and three dots; M3 holes for a
+ * bolt (3.4 mm) and for a screw to cut its thread (2.6 mm), an M2 hole for the
+ * display screws, and the 16.6 mm transducer hole.
+ */
+export const FIT_TEST = { peg: 10, gaps: [0.1, 0.2, 0.3], t: 3, w: 76, h: 44, pegH: 8 };
+export const fitPocketX = (i: number) => 12 + i * 15;
+
+function fitTest(k: Kernel): Manifold {
+  const F = FIT_TEST;
+  let plate = roundedRect(k, 0, 0, F.w, F.h, 3).extrude(F.t);
+  F.gaps.forEach((g, i) => {
+    const side = F.peg + 2 * g;
+    plate = plate.subtract(roundedRect(k, fitPocketX(i) - side / 2, 14 - side / 2, side, side, 0.5).extrude(F.t + 2).translate([0, 0, -1]));
+    for (let d = 0; d <= i; d++) plate = plate.subtract(k.Manifold.cylinder(1, 0.8, 0.8, 16).translate([fitPocketX(i) - i * 1.5 + d * 3, 4, F.t - 0.8]));
+  });
+  plate = plate.subtract(zHole(k, 54, 10, 3.4));
+  plate = plate.subtract(zHole(k, 54, 22, 2.6));
+  plate = plate.subtract(zHole(k, 64, 10, 2.3));
+  plate = plate.subtract(k.Manifold.cylinder(F.t + 2, 8.3, 8.3, 64).translate([62, 32, -1]));
+  // The peg, beside the plate.
+  const peg = roundedRect(k, fitPocketX(0) - F.peg / 2, F.h + 6, F.peg, F.peg, 0.5).extrude(F.pegH);
+  return plate.add(peg);
+}
+
+// --- Weather radiation shield --------------------------------------------------------
+
+/**
+ * A stack of rings that shades a temperature sensor from the sun and rain
+ * while air flows through, like a small Stevenson screen. Every piece prints
+ * flat with its skirt and posts up; in use they point down, each ring resting
+ * on the posts of the one above, all held by three M3 threaded rods.
+ */
+export function shieldLayout(v: Values) {
+  const D = num(v, "diameter");
+  const opening = Math.min(num(v, "opening"), D - 30);
+  const gap = num(v, "gap");
+  const skirt = Math.min(num(v, "skirt"), gap - 4);
+  const t = 2;
+  const postR = (opening / 2 + D / 2) / 2;
+  const posts = [90, 210, 330].map((a) => [postR * Math.cos((a * Math.PI) / 180), postR * Math.sin((a * Math.PI) / 180)] as [number, number]);
+  return { D, opening, gap, skirt, t, posts };
+}
+
+function shieldPiece(k: Kernel, v: Values, kind: "plate" | "top" | "base"): Manifold {
+  const S = shieldLayout(v);
+  const R = S.D / 2;
+  if (kind === "base") {
+    const t = S.t + 2;
+    let base = k.CrossSection.circle(R, 96).extrude(t);
+    // A tab to screw it to a post or a wall, with two holes for 4 mm wood screws.
+    base = base.add(roundedRect(k, -20, -R - 32, 40, 40, 4).extrude(t));
+    base = base.subtract(zHole(k, -10, -R - 20, 4.5)).subtract(zHole(k, 10, -R - 20, 4.5));
+    base = base.subtract(zHole(k, 0, 0, 10)); // the sensor's cable
+    for (const [x, y] of S.posts) base = base.subtract(zHole(k, x, y, 3.4));
+    return base;
+  }
+  let piece = (kind === "top" ? k.CrossSection.circle(R, 96) : k.CrossSection.circle(R, 96).subtract(k.CrossSection.circle(S.opening / 2, 96))).extrude(S.t);
+  piece = piece.add(k.CrossSection.circle(R, 96).subtract(k.CrossSection.circle(R - 1.6, 96)).extrude(S.skirt + 0.01).translate([0, 0, S.t - 0.01]));
+  for (const [x, y] of S.posts) piece = piece.add(k.Manifold.cylinder(S.gap + 0.01, 4.5, 4.5, SEG).translate([x, y, S.t - 0.01]));
+  for (const [x, y] of S.posts) piece = piece.subtract(zHole(k, x, y, 3.4));
+  return piece;
+}
+
+const shieldParams = (): Param[] => [
+  { key: "diameter", kind: "number", value: 100, min: 70, max: 150, step: 1 },
+  { key: "opening", kind: "number", value: 50, min: 30, max: 100, step: 1 },
+  { key: "gap", kind: "number", value: 16, min: 10, max: 30, step: 0.5 },
+  { key: "skirt", kind: "number", value: 10, min: 4, max: 24, step: 0.5 },
+];
+
 // --- The parts -------------------------------------------------------------------
 
 export const PART_DEFS: PartDef[] = [
@@ -392,6 +501,9 @@ export const PART_DEFS: PartDef[] = [
       { key: "fit", kind: "number", value: 0.2, min: 0, max: 0.6, step: 0.05 },
       { key: "oled", kind: "bool", value: false },
       { key: "button", kind: "number", value: 0, min: 0, max: 16, step: 0.5 },
+      { key: "joystick", kind: "bool", value: false },
+      { key: "stickHole", kind: "number", value: 24, min: 18, max: 26, step: 0.5 },
+      { key: "stickDrop", kind: "number", value: 10, min: 4, max: 20, step: 0.5 },
       { key: "wireSlot", kind: "bool", value: true },
       { key: "vents", kind: "bool", value: true },
       { key: "tabs", kind: "bool", value: false },
@@ -466,6 +578,10 @@ export const PART_DEFS: PartDef[] = [
       return plate.subtract(k.Manifold.union(cut));
     },
   },
+  { id: "shield-plate", params: shieldParams(), make: (k, v) => shieldPiece(k, v, "plate") },
+  { id: "shield-top", params: shieldParams(), make: (k, v) => shieldPiece(k, v, "top") },
+  { id: "shield-base", params: shieldParams(), make: (k, v) => shieldPiece(k, v, "base") },
+  { id: "fit-test", params: [], make: (k) => fitTest(k) },
 ];
 
 export const partDef = (id: string): PartDef | undefined => PART_DEFS.find((d) => d.id === id);

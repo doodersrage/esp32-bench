@@ -5,7 +5,7 @@
 // ones the /prints/<id>.3mf and .stl files are written from.
 import { localePaths } from "../../../i18n/locales";
 import Base from "../../../layouts/Base.astro";
-import { PRINTS, type PrintItem } from "../../../data/prints";
+import { PRINTS, printGroup, type PrintItem } from "../../../data/prints";
 import { PROJECTS } from "../../../data/projects";
 import { printMesh, printValues } from "../../../lib/print/catalog";
 import { estimateGrams } from "../../../lib/print/formats";
@@ -50,13 +50,16 @@ const cards = await Promise.all(
       grams: t("grams", { g: estimateGrams(mesh.volume, item.infill) * (item.copies ?? 1) }),
       projects: projects.map((p) => ({ name: tc(p.name), href: link(`/projects/${p.id}/`) })),
       maker: makerHref(item),
-      group: item.part === "board-case" ? "cases" : "robots",
+      group: printGroup(item),
+      report: reportUrl("print", { part: item.id }),
     };
   }),
 );
 
 const groups = [
+  { id: "start", title: t("groupStart") },
   { id: "robots", title: t("groupRobots") },
+  { id: "weather", title: t("groupWeather") },
   { id: "cases", title: t("groupCases") },
 ];
 
@@ -114,6 +117,7 @@ const jsonLd = {
                       {t("testedOn", { date: c.item.tested.date, printer: c.item.tested.printer, material: c.item.tested.material, fitted: c.item.tested.fitted })}
                     </p>
                   )}
+                  {(c.projects.length > 0 || c.item.part === "board-case") && (
                   <p class="prfor">
                     <span>{t("forProjects")}</span>{" "}
                     {c.projects.length ? (
@@ -127,6 +131,7 @@ const jsonLd = {
                       <span>{t("anyProject")}</span>
                     )}
                   </p>
+                  )}
                   <div class="row prbtns">
                     <a class="btn sm go" href={link(`/prints/${c.item.id}.3mf`)} download>
                       {t("download3mf")}
@@ -159,6 +164,7 @@ const jsonLd = {
                     )}
                     {c.note && <p>{c.note}</p>}
                   </details>
+                  <a class="prreport" href={c.report}>{t("reportPrint")}</a>
                 </article>
               ))}
           </div>
@@ -172,7 +178,7 @@ const jsonLd = {
         <li>{t("how1")}</li>
         <li>{t("how2")}</li>
         <li>{t("how3")}</li>
-        <li set:html={t("how4", { report: reportUrl("message", { page: "/prints/" }) })} />
+        <li set:html={t("how4", { report: reportUrl("print") })} />
       </ul>
     </section>
 
@@ -201,6 +207,8 @@ const jsonLd = {
   .prfor > span:first-child { color: var(--muted); }
   .prbtns { gap: 6px; flex-wrap: wrap; }
   .prmore { font-size: 0.88rem; }
+  .prreport { font-size: 0.82rem; color: var(--muted); }
+  #pg-start + .prgrid .prcard { border-top-color: var(--accent); }
   .prmore summary { cursor: pointer; color: var(--muted); }
   .prmore p { margin: 6px 0 0; }
   .prset { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0 0; }

@@ -10,10 +10,13 @@ import { localLink } from "../../lib/paths";
 import { translator } from "../../i18n/t";
 import { contentTranslator } from "../../i18n/content";
 import { SHOP } from "../../i18n/strings/home";
+import { PRINTS } from "../../data/prints";
+import { PRINTS_UI, printText } from "../../i18n/strings/prints";
 
 const link = localLink(Astro.currentLocale);
 const t = translator(SHOP, Astro.currentLocale);
 const tc = contentTranslator(Astro.currentLocale);
+const tp = translator(PRINTS_UI, Astro.currentLocale);
 
 const data = PROJECTS.map((p) => {
   const kit = kitFor(p.parts);
@@ -23,6 +26,7 @@ const data = PROJECTS.map((p) => {
     url: link(`/projects/${p.id}/`),
     items: p.parts.map(([qty, text], i) => {
       const buy = buyFor(p.parts[i], Astro.currentLocale);
+      const alt = PRINTS.find((x) => x.replaces?.test(text) && x.projects?.includes(p.id));
       return {
         // Parts merge by their English name; `label` is what the page shows.
         key: kit[i].label.toLowerCase(),
@@ -36,6 +40,8 @@ const data = PROJECTS.map((p) => {
         buy: buy?.text ?? "",
         search: buy?.search ?? false,
         amazonQ: buy?.amazonQ ?? "",
+        printHref: alt ? link(`/prints/#${alt.id}`) : "",
+        printText: alt ? printText(tp, "replace", alt.id) : "",
       };
     }),
   };
@@ -111,6 +117,7 @@ export const getStaticPaths = localePaths;
   #shop-rows .opt { font: 500 0.7rem/1 var(--mono); color: var(--muted); text-transform: uppercase; margin-left: 8px; }
   #shop-rows .for { font-size: 0.82rem; color: var(--muted); }
   #shop-rows a { color: var(--accent); white-space: nowrap; }
+  #shop-rows a.printalt { display: block; white-space: normal; font-size: 0.8rem; margin-top: 2px; }
   @media print {
     #shop-add, #shop-clear, #shop-copy, #shop-print, #shop-phone, .shopmode, #shop-projects button { display: none !important; }
   }

@@ -1594,6 +1594,207 @@ void loop() {
     ],
   },
   {
+    id: "outdoor-weather", needs: [["i2c"], ["oled"]], name: "Outdoor weather station with indoor display", level: "Intermediate", mins: 60, tags: ["sensors", "wireless", "display"], added: "2026-11-20",
+    sum: "A BME280 outside in a 3D-printed radiation shield wakes every five minutes, sends temperature, humidity and pressure over ESP-NOW and sleeps again. A second ESP32 indoors shows the latest reading on an OLED.",
+    boards: ["esp32", "esp32s3", "esp32c3"],
+    vars: { esp32: { SDA: "21", SCL: "22" }, esp32s3: { SDA: "8", SCL: "9" }, esp32c3: { SDA: "6", SCL: "7" } },
+    pins: ["3V3", "GND", "%SDA%", "%SCL%"], libs: ["Adafruit BME280 Library", "Adafruit Unified Sensor", "Adafruit SSD1306", "Adafruit GFX Library", "WiFi (built in)", "esp_now (built in)"], baud: 115200,
+    parts: [
+      [1, "ESP32 dev board", BOM.esp32DevKit],
+      [1, "Second ESP32 board for the indoor display, any of the boards listed above"],
+      [1, "BME280 breakout, I2C", BOM.bme280],
+      [1, "0.96 inch SSD1306 OLED, I2C, address 0x3C"],
+      [1, "Radiation shield: 3D print one from the parts page, or a white louvred screen"],
+      [3, "M3 threaded rods, about 120 mm, with 12 nuts"],
+      [1, "4-core cable up to 2 m for the sensor, or long jumper wires"],
+      [1, "USB charger and long cable for the station, or a power bank that stays on at low current"],
+      [8, "Jumper wires"],
+    ],
+    wiring: [
+      ["BME280 VIN or VCC", "3V3", "On the station board. Up to 2 m of cable works at I2C's default speed"],
+      ["BME280 GND", "GND", ""],
+      ["BME280 SDA or SDI", "GPIO %SDA%", ""],
+      ["BME280 SCL or SCK", "GPIO %SCL%", ""],
+      ["Display: OLED VCC", "Display 3V3", "On the second board"],
+      ["Display: OLED GND", "Display GND", ""],
+      ["Display: OLED SDA", "Display GPIO %SDA%", ""],
+      ["Display: OLED SCL", "Display GPIO %SCL%", ""],
+    ],
+    code: R`// Outdoor weather station with an indoor display. Flash this sketch to both
+// boards: the station as it is, the display with IS_DISPLAY set to true. The
+// station wakes every few minutes, reads the BME280, broadcasts the reading over
+// ESP-NOW and goes back to deep sleep. The display shows the latest reading.
+#include <WiFi.h>
+#include <esp_now.h>
+#include <esp_wifi.h>
+#include <Wire.h>
+#include <Adafruit_BME280.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+const bool IS_DISPLAY = false;  // true on the board with the OLED
+const int CHANNEL = 1;          // both boards must use the same Wi-Fi channel
+const uint8_t GROUP = 7;        // your own number, 1 to 255, so two stations nearby do not mix
+const int SLEEP_MINUTES = 5;    // between readings
+const uint8_t BROADCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+struct __attribute__((packed)) Reading {
+  char magic[2];        // "WX": ignore other ESP-NOW traffic
+  uint8_t group;
+  int16_t tempC100;     // degrees C x 100
+  uint16_t humidity10;  // percent x 10
+  uint16_t pressure10;  // hPa x 10
+  uint16_t seq;
+};
+
+// ---- station ----
+RTC_DATA_ATTR uint16_t seq = 0;  // kept through deep sleep
+Adafruit_BME280 bme;
+
+void station() {
+  Wire.begin(%SDA%, %SCL%);
+  if (!bme.begin(0x76, &Wire) && !bme.begin(0x77, &Wire)) {
+    Serial.println("BME280 not found at 0x76 or 0x77: check wiring, or it may be a BMP280");
+  } else {
+    // Forced mode: one measurement when asked, and the sensor sleeps in between,
+    // so it does not warm itself up.
+    bme.setSampling(Adafruit_BME280::MODE_FORCED, Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::SAMPLING_X1,
+                    Adafruit_BME280::SAMPLING_X1, Adafruit_BME280::FILTER_OFF);
+    bme.takeForcedMeasurement();
+    const float t = bme.readTemperature();
+    const float h = bme.readHumidity();
+    const float p = bme.readPressure() / 100.0f;
+    Reading r = {{'W', 'X'}, GROUP, (int16_t)lroundf(t * 100), (uint16_t)lroundf(h * 10), (uint16_t)lroundf(p * 10), ++seq};
+    // A broadcast is never acknowledged, so send it twice, a moment apart.
+    for (int i = 0; i < 2; i++) {
+      esp_now_send(BROADCAST, (const uint8_t*)&r, sizeof r);
+      delay(30);
+    }
+    Serial.printf("sent #%u: temp_c = %.2f  humidity = %.1f  pressure_hpa = %.1f\n", seq, t, h, p);
+  }
+  Serial.printf("sleeping %d min\n", SLEEP_MINUTES);
+  Serial.flush();
+  esp_sleep_enable_timer_wakeup((uint64_t)SLEEP_MINUTES * 60 * 1000000ULL);
+  esp_deep_sleep_start();
+}
+
+// ---- display ----
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+portMUX_TYPE lock = portMUX_INITIALIZER_UNLOCKED;
+Reading latest = {};
+bool fresh = false;
+unsigned long heardAt = 0;
+uint16_t lastSeq = 0;
+
+void onReceive(const esp_now_recv_info_t* info, const uint8_t* data, int len) {
+  if (len != sizeof(Reading)) return;
+  Reading r;
+  memcpy(&r, data, sizeof r);
+  if (r.magic[0] != 'W' || r.magic[1] != 'X' || r.group != GROUP) return;
+  portENTER_CRITICAL(&lock);
+  latest = r;
+  fresh = true;
+  portEXIT_CRITICAL(&lock);
+}
+
+void draw(const Reading& r) {
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.print("Outside");
+  if (heardAt == 0) {
+    display.setCursor(0, 28);
+    display.print("waiting for the");
+    display.setCursor(0, 40);
+    display.print("station...");
+    display.display();
+    return;
+  }
+  const unsigned long mins = (millis() - heardAt) / 60000;
+  display.setCursor(64, 0);
+  display.printf("%lu min ago", mins);
+  display.setTextSize(3);
+  display.setCursor(0, 14);
+  display.printf("%.1f", r.tempC100 / 100.0);
+  display.setTextSize(1);
+  display.print(" C");
+  display.setCursor(0, 44);
+  display.printf("%.0f %%  %.0f hPa", r.humidity10 / 10.0, r.pressure10 / 10.0);
+  if (mins > 3 * SLEEP_MINUTES) {
+    display.setCursor(0, 56);
+    display.print("station quiet: check it");
+  }
+  display.display();
+}
+
+void displayLoop() {
+  portENTER_CRITICAL(&lock);
+  const bool isNew = fresh;
+  const Reading r = latest;
+  fresh = false;
+  portEXIT_CRITICAL(&lock);
+  // Each reading arrives twice; count it once.
+  if (isNew && r.seq != lastSeq) {
+    lastSeq = r.seq;
+    heardAt = millis();
+    Serial.printf("reading #%u: temp_c = %.2f  humidity = %.1f  pressure_hpa = %.1f\n", r.seq, r.tempC100 / 100.0, r.humidity10 / 10.0, r.pressure10 / 10.0);
+  }
+  static unsigned long drawnAt = 0;
+  if (isNew || millis() - drawnAt > 10000) {
+    drawnAt = millis();
+    draw(r);
+  }
+  delay(50);
+}
+
+void setup() {
+  Serial.begin(115200);
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  esp_wifi_set_channel(CHANNEL, WIFI_SECOND_CHAN_NONE);
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("esp-now init failed");
+    while (true) delay(1000);
+  }
+  if (IS_DISPLAY) {
+    Wire.begin(%SDA%, %SCL%);
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) Serial.println("OLED not found at 0x3C: check wiring");
+    esp_now_register_recv_cb(onReceive);
+    Serial.printf("display ready on channel %d, group %d: waiting for the station\n", CHANNEL, GROUP);
+    draw(latest);
+  } else {
+    esp_now_peer_info_t peer = {};
+    memcpy(peer.peer_addr, BROADCAST, 6);
+    peer.channel = CHANNEL;
+    peer.ifidx = WIFI_IF_STA;
+    esp_now_add_peer(&peer);
+    station();  // never returns: the station sleeps until the next reading
+  }
+}
+
+void loop() {
+  displayLoop();
+}`,
+    open: ["Not tested on hardware yet. Compiles for every board listed with Arduino-ESP32 core 3.3.12."],
+    notes: [
+      "One sketch, two boards. Flash it to the station unchanged, then set IS_DISPLAY to true and flash the display. Pick each board on this page before copying, so the I2C pins are right for it.",
+      "Put the sensor in the radiation shield, not the board: the stack of rings keeps sun and rain off while air flows past. Mount it about 1.5 m up, away from walls that warm in the sun. The 3D-printable parts page has the rings, the top and the base.",
+      "The station's board can sit indoors or in a sheltered box, with only the cable going out to the shield. Up to 2 m of cable works; for longer runs, lower the I2C speed.",
+      "The station spends almost all its time in deep sleep and the BME280 in forced mode measures only when asked, so neither warms the reading.",
+      "Many power banks switch off when the board sleeps because it draws so little. Use a USB charger, or a power bank with an always-on or low-current mode. A dev board still draws several mA asleep through its USB chip and LED; a bare module or a C3 SuperMini lasts far longer on batteries.",
+      "On an S3 or C3 on its native USB port the serial monitor drops each time the station sleeps, so output can be missed. Watch the display, or use the USB-serial port.",
+      "Two stations nearby? Give each pair its own GROUP number. ESP-NOW reaches about as far as Wi-Fi, tens of metres through a wall or two.",
+      "Pressure is at your altitude, not corrected to sea level as weather reports are.",
+    ],
+    sample: [
+      "sent #1: temp_c = 8.42  humidity = 87.3  pressure_hpa = 1004.6",
+      "sleeping 5 min",
+      "sent #2: temp_c = 8.37  humidity = 87.6  pressure_hpa = 1004.5",
+      "sleeping 5 min",
+    ],
+  },
+  {
     id: "wifi-portal", needs: [], name: "Wi-Fi setup portal", level: "Intermediate", mins: 20, tags: ["no-parts", "wireless"],
     sum: "No passwords in the sketch: the board opens its own setup network with a page to pick your Wi-Fi, saves it, and joins it from then on.",
     boards: ["esp32", "esp32s3", "esp32c3"],

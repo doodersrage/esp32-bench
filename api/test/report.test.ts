@@ -20,6 +20,20 @@ assert.equal(checkReport({ kind: "correction", page: "/boards/", notes: "", t: n
 assert.ok(checkReport({ kind: "message", notes: "Love the site", t: now - 9000 }, now).ok, "message passes");
 assert.equal(checkReport(null, now).ok, false);
 
+// 3D print reports: the part and the fit are required; the email names them as such.
+const print = { kind: "print", project: "Robot car chassis plate", board: "Prusa MK4", core: "PETG", result: "Too tight", page: "https://esp32bench.dev/prints/#chassis-plate", notes: "Motor rails 0.3 mm tight", t: now - 9000 };
+assert.equal(checkReport({ ...print, result: "" }, now).ok, false, "print needs a fit");
+assert.equal(checkReport({ ...print, project: "" }, now).ok, false, "print needs a part");
+const pr = checkReport(print, now);
+assert.ok(pr.ok, "print report passes");
+if (pr.ok) {
+  assert.equal(subjectFor(pr.report), "[ESP32 Bench] 3D print report: Robot car chassis plate");
+  const text = textFor(pr.report, { country: "US", agent: "test" });
+  assert.match(text, /Part: Robot car chassis plate\nPrinter: Prusa MK4\nMaterial: PETG\nFit: Too tight/);
+  assert.match(text, /Notes:\nMotor rails/);
+  assert.equal(pr.report.publish, false, "print reports are never published");
+}
+
 r = checkReport({ ...base, project: "Evil\r\nBcc: x@y.z", notes: "<script>alert(1)</script>", output: "rst:0x1" }, now);
 assert.ok(r.ok);
 if (r.ok) {

@@ -81,7 +81,7 @@ export function absolute(path: string, site: URL | undefined): string {
 }
 
 /** The on-site report form, pre-filled. Reports are emailed to the site owner, never published. */
-export function reportUrl(kind: "build" | "correction" | "message", fields: Record<string, string> = {}): string {
+export function reportUrl(kind: "build" | "correction" | "message" | "print", fields: Record<string, string> = {}): string {
   const params = new URLSearchParams({ kind, ...fields });
   return `${link("/report/")}?${params}`;
 }
