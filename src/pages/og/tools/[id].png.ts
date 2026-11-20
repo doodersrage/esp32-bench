@@ -23,6 +23,11 @@ export const TOOL_CARDS: Record<string, { name: string; sum: string; meta: Tag[]
     sum: "Paste an Arduino sketch, compile it for your board in the cloud, see errors by line, flash it from the browser.",
     meta: [{ text: "No Arduino IDE", tone: "ok" }, { text: "Arduino-ESP32 core 3" }, { text: "ESP32 · S2 · S3 · C3 · C6" }],
   },
+  prints: {
+    name: "3D-printable parts for ESP32 projects",
+    sum: "Board cases, a robot car chassis, sensor mounts and a balance bot frame. Change any measurement, then download 3MF or STL.",
+    meta: [{ text: "3MF + STL", tone: "ink" }, { text: "Made from code", tone: "ok" }, { text: "Customise in the browser" }],
+  },
   partitions: {
     name: "ESP32 partition table builder",
     sum: "Start from an Arduino layout, resize the app and file system, check it fits, export partitions.csv.",

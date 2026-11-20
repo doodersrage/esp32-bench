@@ -14,6 +14,20 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-29",
+    date: "2026-11-20",
+    title: "Version 0.29: 3D-printable parts",
+    summary: "Cases for four boards and the plates, mounts and brackets the robot projects need, as 3MF and STL, plus a part maker that changes any measurement in the browser.",
+    items: [
+      "Board cases for the ESP32-DevKitC, the 30-pin DOIT board, the ESP32-S3-DevKitC-1 and the ESP32-C3 SuperMini, with room for jumper plugs, a wire slot, vents and an opening for the USB plug. One version has a window for a 0.96 inch OLED.",
+      "A robot car chassis plate for two TT motors, with wheel wells, a skid and a 10 mm grid of M3 holes, plus an HC-SR04 bracket, a line sensor mount and a three-deck balance bot frame.",
+      "A part maker: pick a part, change its measurements, turn it in 3D and download it. It runs in the page; nothing is uploaded.",
+      "Every part is built from code at build time and tested for fit: the board, the lid, the motors, the wheels and the transducers are modelled and must not collide. Parts are marked draft until someone prints one and reports back.",
+      "Project pages list the parts to print for that project and a case for each of its boards.",
+    ],
+    link: "/prints/",
+  },
+  {
     id: "v0-28",
     date: "2026-11-20",
     title: "Version 0.28: robot cars",

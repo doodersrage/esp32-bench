@@ -92,6 +92,7 @@ const SECTION_OF: Record<string, [string, string]> = {
   boards: [t("navBoards"), "/boards/"],
   errors: [t("navErrors"), "/errors/"],
   tools: [t("navTools"), "/tools/"],
+  prints: [t("navTools"), "/tools/"],
 };
 const segments = englishPath.split("/").filter(Boolean);
 const section = segments.length >= 2 ? SECTION_OF[segments[0]] : undefined;
