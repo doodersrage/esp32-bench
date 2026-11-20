@@ -4,6 +4,9 @@
 // a reader could misread). Per-board pins, wiring and code are filled in here with
 // forBoard(), so the app never re-implements the %VAR% substitution.
 import type { APIRoute } from "astro";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { BOARDS } from "../data/boards";
 import { PROJECTS, boardsOf, forBoard } from "../data/projects";
 import { LAB_EXPECT } from "../data/lab-expect";
@@ -11,8 +14,35 @@ import COMPILE from "../data/compile-libs.json";
 
 const REGISTRY: Record<string, string> = COMPILE.libs;
 
-export const MANIFEST_VERSION = "1.0.0";
+export const MANIFEST_VERSION = "1.1.0";
 const SITE = "https://esp32bench.dev";
+
+// The esp-web-tools chip family of each chip, as the browser flasher's manifests name them.
+const FAMILY: Record<string, string> = {
+  esp32: "ESP32",
+  esp32s2: "ESP32-S2",
+  esp32s3: "ESP32-S3",
+  esp32c3: "ESP32-C3",
+  esp32c6: "ESP32-C6",
+};
+
+// Prebuilt firmware for a board, from the browser flasher's manifest in public/: the
+// app downloads it, checks its SHA-256 and size, then runs it in its simulator or
+// flashes it. Only a single image written at offset 0 (a merged image) is offered.
+function prebuiltImage(manifestPath: string | undefined, chip: string) {
+  if (!manifestPath) return undefined;
+  const file = join("public", manifestPath);
+  const flasher = JSON.parse(readFileSync(file, "utf8"));
+  const build = flasher.builds?.find((b: any) => b.chipFamily === FAMILY[chip]);
+  if (!build || build.parts?.length !== 1 || build.parts[0].offset !== 0) return undefined;
+  const bin = join(dirname(file), build.parts[0].path);
+  const bytes = readFileSync(bin);
+  return {
+    url: `${SITE}${dirname(manifestPath)}/${build.parts[0].path}`,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    size: bytes.length,
+  };
+}
 
 const omitEmpty = <T,>(xs: T[] | undefined): T[] | undefined => (xs && xs.length > 0 ? xs : undefined);
 
@@ -72,6 +102,10 @@ export function desktopManifest(generated = new Date().toISOString()) {
             wiring: b.wiring.map(([from, to, note]) => ({ from, to, note })),
             code: b.code,
             sample: b.sample,
+            image:
+              p.code === undefined
+                ? prebuiltImage(p.flash?.manifest, BOARDS.find((x) => x.id === board)?.chip ?? "")
+                : undefined,
           };
         }),
       };

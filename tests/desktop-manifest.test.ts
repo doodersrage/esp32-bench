@@ -3,6 +3,7 @@
 // format is defined in the esp32-desktop repository (schema/project-manifest/);
 // these are the invariants the app relies on.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 
 const path = "dist/desktop-manifest.json";
@@ -55,6 +56,16 @@ for (const p of m.projects) {
     seen.add(b.board);
     if (p.firmware === "sketch") assert.ok(typeof b.code === "string" && b.code.length > 0, `${p.id}/${b.board}: code`);
     else assert.equal(b.code, undefined, `${p.id}/${b.board}: prebuilt firmware has no code`);
+    if (b.image !== undefined) {
+      // Prebuilt firmware the app downloads: on this site, with the file's real hash.
+      assert.equal(p.firmware, "prebuilt", `${p.id}/${b.board}: only prebuilt firmware has an image`);
+      assert.match(b.image.url, /^https:\/\/esp32bench\.dev\/firmware\//, `${p.id}/${b.board}: image url`);
+      assert.match(b.image.sha256, /^[0-9a-f]{64}$/, `${p.id}/${b.board}: image sha256`);
+      const local = "dist" + new URL(b.image.url).pathname;
+      const bytes = readFileSync(local);
+      assert.equal(bytes.length, b.image.size, `${p.id}/${b.board}: image size`);
+      assert.equal(createHash("sha256").update(bytes).digest("hex"), b.image.sha256, `${p.id}/${b.board}: image hash`);
+    }
     const text = [b.code ?? "", ...b.pins, ...b.sample, ...b.wiring.flatMap((w: any) => [w.from, w.to, w.note])].join("\n");
     assert.doesNotMatch(text, unfilled, `${p.id}/${b.board}: a %VAR% was left unfilled`);
   }
