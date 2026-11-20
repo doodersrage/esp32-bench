@@ -14,6 +14,19 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-31",
+    date: "2026-11-20",
+    title: "Version 0.31: assembly pictures and published fit reports",
+    summary: "Each printable part shows how it goes together, fit reports can be published on the parts page, and the phone-driven robot car's prebuilt firmware builds again.",
+    items: [
+      "\"How it goes together\" pictures for every printed part: the chassis with its motors and wheels, the balance bot's three decks on standoffs, the radiation shield stacked on its rods, the cases opened up with the board inside.",
+      "A 3D print report can now be published on the part's card, after a check, like build reports on project pages.",
+      "The 3MF downloads carry their print settings in the file's description.",
+      "Fixed: the prebuilt firmware for the phone-driven robot car did not build, because the web page's JavaScript confused the firmware builder. Its firmware, and the other robot cars', is back in the library.",
+    ],
+    link: "/prints/",
+  },
+  {
     id: "v0-30",
     date: "2026-11-20",
     title: "Version 0.30: a weather station, a fit test and print reports",

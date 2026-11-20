@@ -34,6 +34,14 @@ export function sameHash(a: string, b: string): boolean {
 }
 
 /** What the public sees: no ids, tokens, emails or exact times. */
+/**
+ * Print reports share the builds table and its moderation: their project is
+ * "print-" and the part id, the board is the printer, the core the material,
+ * and the result the fit. They are kept out of the compatibility table.
+ */
+export const PRINT_PREFIX = "print-";
+export const printProject = (partId: string) => `${PRINT_PREFIX}${partId}`;
+
 /** A report worked unless its result starts with "No". */
 const worked = (result: string) => !/^no\b/i.test(result);
 
