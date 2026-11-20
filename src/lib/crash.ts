@@ -7,7 +7,7 @@ export interface Explanation {
   text: string;
 }
 
-const PANICS: [RegExp, string, string][] = [
+export const PANICS: [RegExp, string, string][] = [
   [/LoadProhibited|Load access fault/, "load", "The code read from an address it may not touch. Usually a null or dangling pointer, or an object used before it was set up."],
   [/StoreProhibited|Store access fault/, "store", "The code wrote to an address it may not touch. Usually a null pointer, or writing past the end of an array."],
   [/InstrFetchProhibited|Instruction access fault/, "fetch", "The CPU jumped to an address with no code. Usually a corrupted function pointer or a stack that was overwritten."],
@@ -18,7 +18,7 @@ const PANICS: [RegExp, string, string][] = [
   [/Cache disabled but cached memory region accessed/, "cache", "An interrupt handler touched code or data in flash while flash was busy. Mark the handler and what it uses IRAM_ATTR."],
 ];
 
-const LINES: [RegExp, string, string][] = [
+export const LINES: [RegExp, string, string][] = [
   [/Task watchdog got triggered/, "taskwdt", "A task ran too long without yielding. Add a delay() or yield() inside long loops."],
   [/Brownout detector was triggered/, "brownout", "The supply voltage dipped below the safe level. Try a shorter USB cable, a powered hub, or a capacitor across 3V3 and GND. Wi-Fi start-up is the usual trigger."],
   [/abort\(\) was called/, "abort", "The firmware stopped itself on purpose, usually from a failed check in a library. The line just above the abort normally says which."],
@@ -37,7 +37,7 @@ const LINES: [RegExp, string, string][] = [
   [/^SETUP\twaiting$/, "bench-setup-window", "The board is waiting a moment for settings from the project page before it starts. Nothing to do if it already has them."],
 ];
 
-const RESETS: Record<string, string> = {
+export const RESETS: Record<string, string> = {
   POWERON_RESET: "Normal start after power-up or the EN button.",
   SW_CPU_RESET: "The firmware restarted itself, either with ESP.restart() or after a crash. Look just above for a panic.",
   SW_RESET: "The firmware restarted itself.",

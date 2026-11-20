@@ -11,6 +11,8 @@ import { BOARDS } from "../data/boards";
 import { PROJECTS, boardsOf, forBoard } from "../data/projects";
 import { LAB_EXPECT } from "../data/lab-expect";
 import COMPILE from "../data/compile-libs.json";
+import { ERRORS } from "../data/errors";
+import { LINES, PANICS, RESETS } from "../lib/crash";
 
 const REGISTRY: Record<string, string> = COMPILE.libs;
 
@@ -44,6 +46,45 @@ function prebuiltImage(manifestPath: string | undefined, chip: string) {
   };
 }
 
+// What the app tells the user about a line of output, from the same rules as the bench
+// and the paste box (src/lib/crash.ts), with the error page that goes into it. A
+// "problem" is shown prominently; "info" is a quiet note (a normal reset, say).
+// Patterns are JavaScript regular expressions in the subset Rust's regex crate reads
+// too (no lookaround or backreferences); flags: "i" or none.
+const UPLOAD: [RegExp, string, string, string][] = [
+  [/Failed to connect to ESP32/, "connect", "The computer could not talk to the chip's bootloader. Hold BOOT while the upload starts, or try another USB cable (some carry power only).", "failed-to-connect-no-serial-data-received"],
+  [/Timed out waiting for packet header/, "packet-header", "The bootloader stopped answering. Hold BOOT, lower the upload speed, or try another cable.", "timed-out-waiting-for-packet-header"],
+  [/the port is busy or doesn't exist/, "port-busy", "Another program has the port open, such as a serial monitor, or the board was unplugged.", "could-not-open-port"],
+  [/Sketch too big/, "too-big", "The firmware does not fit in the app partition. Remove unused libraries, or choose a partition scheme with a bigger app.", "sketch-too-big"],
+];
+const INFO = new Set(["backtrace", "rst-POWERON_RESET", "rst-EXT_CPU_RESET", "rst-DEEPSLEEP_RESET", "rst-USB_UART_CHIP_RESET", "rst-SW_RESET", "download", "tt-setup", "bench-setting", "bench-setup-window"]);
+
+export function explainRules() {
+  // The error page a finding belongs to: the entry that lists it first.
+  const page = (key: string) => ERRORS.find((e) => e.keys?.[0] === key)?.slug ?? ERRORS.find((e) => e.keys?.includes(key))?.slug;
+  const rule = (key: string, pattern: RegExp, text: string, slug = page(key)) => ({
+    key,
+    pattern: pattern.source,
+    flags: pattern.flags.includes("i") ? "i" : undefined,
+    text,
+    level: INFO.has(key) ? "info" : "problem",
+    url: slug ? `${SITE}/errors/${slug}/` : undefined,
+  });
+  const rules = [
+    ...PANICS.map(([p, k, text]) =>
+      rule(`panic-${k}`, new RegExp(`Guru Meditation Error: Core\\s+\\d panic'ed \\((?:${p.source})`), text),
+    ),
+    ...Object.entries(RESETS).map(([name, text]) =>
+      rule(`rst-${name}`, new RegExp(`rst:0x[0-9a-fA-F]+ \\(${name}\\)`), `${name}: ${text}`),
+    ),
+    rule("backtrace", /^\s*Backtrace:(?:\s+0x[0-9a-fA-F]{8}:0x[0-9a-fA-F]{8})+/, "Backtrace: these addresses name the functions that were running. Turning them into file and line numbers needs the firmware's .elf file (addr2line)."),
+    ...LINES.map(([p, k, text]) => rule(k, p, text)),
+    ...UPLOAD.map(([p, k, text, slug]) => rule(k, p, text, slug)),
+  ];
+  // A finding listed twice in crash.ts (a reset that is also a line rule): the first.
+  return rules.filter((r, i) => rules.findIndex((x) => x.key === r.key) === i);
+}
+
 const omitEmpty = <T,>(xs: T[] | undefined): T[] | undefined => (xs && xs.length > 0 ? xs : undefined);
 
 export function desktopManifest(generated = new Date().toISOString()) {
@@ -62,6 +103,7 @@ export function desktopManifest(generated = new Date().toISOString()) {
       variantOf: b.variantOf,
       buildAs: b.buildAs,
     })),
+    explain: explainRules(),
     projects: PROJECTS.map((p) => {
       const expect = LAB_EXPECT[p.id];
       return {

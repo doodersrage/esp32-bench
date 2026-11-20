@@ -70,4 +70,17 @@ for (const p of m.projects) {
     assert.doesNotMatch(text, unfilled, `${p.id}/${b.board}: a %VAR% was left unfilled`);
   }
 }
+// The output explanations: each pattern compiles, keys are unique, pages are the site's.
+const keys = new Set<string>();
+for (const r of m.explain ?? []) {
+  new RegExp(r.pattern, r.flags ?? "");
+  assert.ok(!keys.has(r.key), `explain ${r.key} twice`);
+  keys.add(r.key);
+  assert.ok(["problem", "info"].includes(r.level), `explain ${r.key}: level`);
+  if (r.url) assert.match(r.url, /^https:\/\/esp32bench\.dev\/errors\/[a-z0-9-]+\/$/, `explain ${r.key}: url`);
+  // No lookaround or backreferences: the app reads these with Rust's regex crate.
+  assert.doesNotMatch(r.pattern, /\(\?[=!<]|\\[1-9]/, `explain ${r.key}: a pattern the app cannot read`);
+}
+assert.ok(keys.has("panic-load") && keys.has("brownout"), "explain: crash rules are there");
+
 console.log(`desktop manifest ${m.version}: ${m.projects.length} projects, ${m.boards.length} boards valid`);
