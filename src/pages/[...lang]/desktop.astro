@@ -12,6 +12,8 @@ const pick = (distro: string) => DESKTOP.packages.find((p) => p.distro === distr
 const arch = pick("Arch Linux");
 const ubuntu = pick("Ubuntu 26.04 LTS");
 const fedora = pick("Fedora 45");
+// A download link to one of the release's files, for the Windows and macOS paragraphs.
+const file = (name: string) => `<a href="${DESKTOP.download}${name}"><code>${name}</code></a>`;
 
 // The desktop app: what it is, who it is for, how to install it. Linked from the
 // footer and from "Open in the desktop app" on project pages.
@@ -42,6 +44,12 @@ export const getStaticPaths = localePaths;
 
     <h2>{t("installH")}</h2>
     <p set:html={t("install", { version: `<a href="${DESKTOP.release}">${DESKTOP.version}</a>` })} />
+    <h3>Windows</h3>
+    <p set:html={t("installWindows", { installer: file(DESKTOP.windows.installer), zip: file(DESKTOP.windows.zip) })} />
+    <h3>macOS</h3>
+    <p set:html={t("installMac", { dmg: file(DESKTOP.macos) })} />
+    <h3>Linux</h3>
+    <p>{t("installLinux")}</p>
     <ul>
       {DESKTOP.packages.map((p) => <li>{p.distro}: <a href={DESKTOP.download + p.file}><code>{p.file}</code></a></li>)}
     </ul>
