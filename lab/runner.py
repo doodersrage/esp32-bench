@@ -54,6 +54,7 @@ class Board:
     label: str
     port: str
     board: str  # board id on the site, e.g. "esp32c3"
+    rig: str = ""  # "standard" when the lab rig's parts are wired to this board (see README)
 
 
 @dataclass
@@ -66,6 +67,10 @@ class Result:
     matched: list[str] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
     output: str = ""
+    check: str = "boot"  # "full" when the rig's patterns were used
+
+
+RIGS = {"standard"}
 
 
 @dataclass
@@ -85,7 +90,10 @@ class Config:
     def load(path: Path) -> "Config":
         with path.open("rb") as f:
             raw = tomllib.load(f)
-        boards = [Board(label=b["label"], port=b["port"], board=b["board"]) for b in raw.get("boards", [])]
+        boards = [Board(label=b["label"], port=b["port"], board=b["board"], rig=str(b.get("rig", ""))) for b in raw.get("boards", [])]
+        for b in boards:
+            if b.rig and b.rig not in RIGS:
+                raise ValueError(f"board {b.label}: unknown rig {b.rig!r} (known: {', '.join(sorted(RIGS))})")
         return Config(
             api_url=raw.get("api_url", "https://api.esp32bench.dev").rstrip("/"),
             lab_token=raw.get("lab_token", ""),
@@ -170,6 +178,20 @@ def plan(manifest: dict[str, Any], index: dict[str, Any], boards: list[Board], s
             if board.board in info.get("boards", []) and board.board in built_boards:
                 jobs.append((project_id, board))
     return jobs
+
+
+def expectation(info: dict[str, Any], board: Board) -> tuple[list[str], int, list[str], str]:
+    """Patterns, seconds, setting keys and check kind for one project on one board.
+
+    A board with the rig wired gets the project's full check when it has one;
+    every other case gets the bare-board check.
+    """
+    expect = info.get("expect") or {}
+    rig = expect.get("rig") if board.rig else None
+    if rig:
+        return (list(rig.get("patterns", [])), int(rig.get("seconds", expect.get("seconds", 10))),
+                list(rig.get("settings", info.get("settings", []))), "full")
+    return list(expect.get("patterns", [])), int(expect.get("seconds", 10)), list(info.get("settings", [])), "boot"
 
 
 def build_report(runner: str, started: dt.datetime, finished: dt.datetime, index: dict[str, Any],
@@ -301,10 +323,8 @@ class Runner:
 
     def run_one(self, project: str, board: Board, info: dict[str, Any]) -> Result:
         chip = info.get("chips", {}).get(board.board, board.board)
-        expect = info.get("expect") or {}
-        patterns = list(expect.get("patterns", []))
-        seconds = int(expect.get("seconds", 10))
-        result = Result(project=project, board=board.board, chip=chip)
+        patterns, seconds, setting_keys, check = expectation(info, board)
+        result = Result(project=project, board=board.board, chip=chip, check=check)
         try:
             image = self.image_for(project, board.board)
         except Exception as e:  # noqa: BLE001
@@ -323,7 +343,7 @@ class Runner:
             result.output = tail_lines(flash_out)
             return result
         try:
-            setup = settings_lines(list(info.get("settings", [])), self.config.settings)
+            setup = settings_lines(setting_keys, self.config.settings)
         except ValueError as e:
             result.status = STATUS_SKIPPED
             result.output = str(e)
@@ -354,12 +374,13 @@ class Runner:
                 break
             info = manifest["projects"][project]
             if dry_run:
-                log.info("would flash %s onto %s (%s) and watch %ss", project, board.label, board.board, (info.get("expect") or {}).get("seconds"))
+                _, secs, _, check = expectation(info, board)
+                log.info("would flash %s onto %s (%s) and watch %ss (%s check)", project, board.label, board.board, secs, check)
                 continue
             log.info("%s on %s (%s)", project, board.label, board.board)
             r = self.run_one(project, board, info)
             results.append(r)
-            log.info("  %s%s", r.status, f", missing {r.missing}" if r.missing else "")
+            log.info("  %s%s%s", r.status, " (full check)" if r.check == "full" else "", f", missing {r.missing}" if r.missing else "")
         finished = dt.datetime.now(dt.timezone.utc)
         report = build_report(self.config.runner, started, finished, index, results)
         if dry_run or not results:

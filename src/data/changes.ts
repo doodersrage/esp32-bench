@@ -14,6 +14,18 @@ export interface Change {
 
 export const CHANGES: Change[] = [
   {
+    id: "v0-32",
+    date: "2026-11-20",
+    title: "Version 0.32: full lab checks with real parts",
+    summary: "The hardware lab can now test sketches with their parts wired, not only that the firmware boots, and project pages say which boards had the full check.",
+    items: [
+      "A standard lab rig: an OLED, a BME280 and an MPU-6050 on one I2C bus. On a board with it wired, 11 projects get a full check, such as the OLED sketch having to find its display and the weather station having to send a real reading.",
+      "Project pages mark each board's result as a full check or a boot check.",
+      "The lab now emails when it has stopped running, so a missed week does not go unnoticed.",
+    ],
+    link: "/projects/oled/",
+  },
+  {
     id: "v0-31",
     date: "2026-11-20",
     title: "Version 0.31: assembly pictures and published fit reports",

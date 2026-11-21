@@ -1,6 +1,8 @@
 // Hardware lab runs: validation of what the runner posts, and the public shape.
 
 export type LabStatus = "passed" | "failed" | "flash_failed" | "skipped";
+/** "full": the lab rig's parts were wired and the patterns needed them; "boot": a bare-board check. */
+export type LabCheck = "boot" | "full";
 const STATUSES: LabStatus[] = ["passed", "failed", "flash_failed", "skipped"];
 
 export interface LabResultIn {
@@ -12,6 +14,7 @@ export interface LabResultIn {
 	matched: string[];
 	missing: string[];
 	output: string;
+	check: LabCheck;
 }
 
 export interface LabRunIn {
@@ -72,7 +75,10 @@ export function checkLabRun(body: unknown): LabChecked {
 		const missing = strings(r.missing ?? [], 300, 50);
 		if (!matched || !missing) return { ok: false, error: `matched and missing must be arrays of patterns for ${project}.` };
 		const output = typeof r.output === "string" ? r.output.replace(/\r\n?/g, "\n").slice(-MAX_OUTPUT) : "";
-		results.push({ project, board, chip, status: r.status as LabStatus, seconds: Math.round(seconds), matched, missing, output });
+		// Older runners send no check: theirs were all bare-board checks.
+		const check = r.check ?? "boot";
+		if (check !== "boot" && check !== "full") return { ok: false, error: `Bad check for ${project}.` };
+		results.push({ project, board, chip, status: r.status as LabStatus, seconds: Math.round(seconds), matched, missing, output, check });
 	}
 	return { ok: true, run: { runner, started_at: started, finished_at: finished, core, firmware_built_at: built, results } };
 }
@@ -96,6 +102,7 @@ export interface LabResultRow {
 	matched: string;
 	missing: string;
 	output: string;
+	checked: LabCheck;
 }
 
 export interface LabRunRow {
@@ -129,8 +136,42 @@ export function publicLab(run: LabRunRow, rows: LabResultRow[]) {
 			chip: r.chip,
 			status: r.status,
 			seconds: r.seconds,
+			check: r.checked === "full" ? "full" : "boot",
 			missing: parseList(r.missing),
 			output: tail(r.output),
 		})),
+	};
+}
+
+// --- The quiet-lab email --------------------------------------------------------
+
+const DAY = 86_400_000;
+/** Weekly runs leave a 7-day gap; a day of slack before saying anything. */
+export const QUIET_AFTER_DAYS = 8;
+
+/**
+ * The email to send when the lab has gone quiet, or null. Checked once a day by
+ * the Worker's cron; it fires on day 8 after the last run and every 7 days after
+ * that, so a lab left off sends one email a week, not one a day, with nothing
+ * stored. No run ever posted means the lab was never set up: no email.
+ */
+export function quietLabNotice(lastFinishedAt: string | null, now: number): { subject: string; text: string } | null {
+	if (!lastFinishedAt) return null;
+	const last = Date.parse(lastFinishedAt);
+	if (!Number.isFinite(last)) return null;
+	const days = Math.floor((now - last) / DAY);
+	if (days < QUIET_AFTER_DAYS || (days - QUIET_AFTER_DAYS) % 7 !== 0) return null;
+	const date = new Date(last).toISOString().slice(0, 10);
+	return {
+		subject: `ESP32 Bench lab: no run for ${days} days`,
+		text: [
+			`The hardware lab has not posted a run since ${date} (${days} days ago).`,
+			"",
+			"On the Pi, check the timer and the last log:",
+			"  systemctl --user list-timers esp32-bench-lab.timer",
+			"  journalctl --user -u esp32-bench-lab.service -n 50",
+			"",
+			"If the timer is missing, see \"Weekly runs\" in lab/README.md. This email repeats weekly until a run comes in.",
+		].join("\n"),
 	};
 }

@@ -100,7 +100,32 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(r["started_at"], "2026-11-12T20:00:00Z")
         self.assertEqual(r["core"], "3.3.12")
         self.assertEqual(r["results"][0]["status"], "passed")
-        self.assertEqual(set(r["results"][0]), {"project", "board", "chip", "status", "seconds", "matched", "missing", "output"})
+        self.assertEqual(set(r["results"][0]), {"project", "board", "chip", "status", "seconds", "matched", "missing", "output", "check"})
+        self.assertEqual(r["results"][0]["check"], "boot")
+
+    def test_expectation_uses_the_rig_check_only_on_a_rig_board(self):
+        info = {"expect": {"patterns": ["(Display ready|SSD1306 not found)"], "seconds": 10,
+                           "rig": {"patterns": ["Display ready"], "seconds": 20, "settings": ["wifi_ssid"]}},
+                "settings": []}
+        bare = lab.Board("devkit", "/dev/fake0", "esp32")
+        rig = lab.Board("rig", "/dev/fake2", "esp32", rig="standard")
+        self.assertEqual(lab.expectation(info, bare), (["(Display ready|SSD1306 not found)"], 10, [], "boot"))
+        self.assertEqual(lab.expectation(info, rig), (["Display ready"], 20, ["wifi_ssid"], "full"))
+        # A project with no full check gets the bare-board check on the rig too.
+        plain = {"expect": {"patterns": ["tick"], "seconds": 8}, "settings": ["wifi_ssid"]}
+        self.assertEqual(lab.expectation(plain, rig), (["tick"], 8, ["wifi_ssid"], "boot"))
+        # The rig check keeps the project's settings and seconds when it names none.
+        short = {"expect": {"patterns": ["x"], "seconds": 9, "rig": {"patterns": ["y"]}}, "settings": ["wifi_pass"]}
+        self.assertEqual(lab.expectation(short, rig), (["y"], 9, ["wifi_pass"], "full"))
+
+    def test_unknown_rig_in_config_is_refused(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as f:
+            f.write('[[boards]]\nlabel = "a"\nport = "/dev/x"\nboard = "esp32"\nrig = "deluxe"\n')
+        try:
+            with self.assertRaises(ValueError):
+                lab.Config.load(Path(f.name))
+        finally:
+            os.unlink(f.name)
 
 
 class FakeSerial:

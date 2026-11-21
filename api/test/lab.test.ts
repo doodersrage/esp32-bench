@@ -1,6 +1,6 @@
 // Run: node --experimental-strip-types test/lab.test.ts
 import assert from "node:assert/strict";
-import { checkLabRun, publicLab, tail, tokenMatches, MAX_OUTPUT } from "../src/lab.ts";
+import { checkLabRun, publicLab, quietLabNotice, tail, tokenMatches, MAX_OUTPUT } from "../src/lab.ts";
 
 const result = { project: "blink", board: "esp32", chip: "esp32", status: "passed", seconds: 8, matched: ["tick \\d+ ms"], missing: [], output: "tick 1000 ms\ntick 2000 ms" };
 const run = { runner: "garage-pi", started_at: "2026-11-12T20:00:00Z", finished_at: "2026-11-12T20:30:00Z", core: "3.3.12", firmware_built_at: "2026-11-12T07:00:00Z", results: [result] };
@@ -20,6 +20,11 @@ assert.ok(c.ok && c.run.results[0].output.length === MAX_OUTPUT, "output is trim
 c = checkLabRun({ ...run, results: [{ ...result, output: "a\r\nb\rc" }] });
 assert.ok(c.ok && c.run.results[0].output === "a\nb\nc", "line endings normalised");
 assert.equal(checkLabRun({ ...run, runner: "x".repeat(61) }).ok, false, "runner length");
+c = checkLabRun(run);
+assert.ok(c.ok && c.run.results[0].check === "boot", "an older runner's results are bare-board checks");
+c = checkLabRun({ ...run, results: [{ ...result, check: "full" }] });
+assert.ok(c.ok && c.run.results[0].check === "full", "a full check is kept");
+assert.equal(checkLabRun({ ...run, results: [{ ...result, check: "thorough" }] }).ok, false, "check enum");
 
 assert.ok(tokenMatches("abc", "abc"));
 assert.ok(!tokenMatches("abc", "abd"));
@@ -31,12 +36,30 @@ assert.equal(tail("only", 20), "only");
 
 const pub = publicLab(
 	{ id: 7, finished_at: "2026-11-12T20:30:00Z", core: "3.3.12", firmware_built_at: "2026-11-12T07:00:00Z" },
-	[{ project: "blink", board: "esp32", chip: "esp32", status: "failed", seconds: 8, matched: "[\"a\"]", missing: "[\"tick \\\\d+ ms\"]", output: Array.from({ length: 30 }, (_, i) => `line ${i}`).join("\n") }],
+	[{ project: "blink", board: "esp32", chip: "esp32", status: "failed", seconds: 8, matched: "[\"a\"]", missing: "[\"tick \\\\d+ ms\"]", output: Array.from({ length: 30 }, (_, i) => `line ${i}`).join("\n"), checked: "full" }],
 );
 assert.deepEqual(Object.keys(pub.run).sort(), ["core", "finished_at", "firmware_built_at"]);
 assert.ok(!("id" in pub.run), "no run id");
-assert.deepEqual(Object.keys(pub.results[0]).sort(), ["board", "chip", "missing", "output", "seconds", "status"]);
+assert.deepEqual(Object.keys(pub.results[0]).sort(), ["board", "check", "chip", "missing", "output", "seconds", "status"]);
+assert.equal(pub.results[0].check, "full");
 assert.equal(pub.results[0].output.split("\n").length, 20, "only the last 20 lines");
 assert.deepEqual(pub.results[0].missing, ["tick \\d+ ms"]);
 assert.ok(!JSON.stringify(pub).includes("garage"), "no runner details");
+
+// The quiet-lab email: day 8, then weekly; never when no run exists.
+{
+	const last = "2026-11-14T15:56:16Z";
+	const at = (days: number, hours = 0) => Date.parse(last) + days * 86_400_000 + hours * 3_600_000;
+	assert.equal(quietLabNotice(null, at(30)), null, "no runs ever: lab not set up");
+	assert.equal(quietLabNotice("garbage", at(30)), null);
+	assert.equal(quietLabNotice(last, at(7, 23)), null, "a normal weekly gap is quiet");
+	const n = quietLabNotice(last, at(8, 1));
+	assert.ok(n && n.subject.includes("8 days") && n.text.includes("2026-11-14"), "day 8 sends");
+	assert.equal(quietLabNotice(last, at(9)), null, "not daily");
+	assert.ok(quietLabNotice(last, at(15)), "repeats a week later");
+	assert.equal(quietLabNotice(last, at(16)), null);
+	let sent = 0;
+	for (let d = 0; d < 60; d++) if (quietLabNotice(last, at(d, 5))) sent++;
+	assert.equal(sent, 8, "days 8, 15, ..., 57");
+}
 console.log("lab runs: all checks pass");
