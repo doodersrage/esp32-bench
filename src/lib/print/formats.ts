@@ -29,8 +29,11 @@ export function toStl(mesh: MeshData, name: string): Uint8Array {
   return out;
 }
 
-/** 3MF: a zip holding one mesh object, in millimetres. */
-export function to3mf(mesh: MeshData, name: string): Uint8Array {
+/**
+ * 3MF: a zip holding one mesh object, in millimetres. `description` goes in the
+ * standard Description metadata, which slicers show in the model's info.
+ */
+export function to3mf(mesh: MeshData, name: string, description = ""): Uint8Array {
   const p = mesh.positions;
   const verts: string[] = [];
   for (let i = 0; i < p.length; i += 3) verts.push(`<vertex x="${num(p[i])}" y="${num(p[i + 1])}" z="${num(p[i + 2])}"/>`);
@@ -41,6 +44,7 @@ export function to3mf(mesh: MeshData, name: string): Uint8Array {
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">\n` +
     `<metadata name="Title">${escapeXml(name)}</metadata>\n<metadata name="Designer">ESP32 Bench</metadata>\n` +
+    (description ? `<metadata name="Description">${escapeXml(description)}</metadata>\n` : "") +
     `<resources><object id="1" type="model" name="${escapeXml(name)}"><mesh><vertices>${verts.join("")}</vertices>` +
     `<triangles>${tris.join("")}</triangles></mesh></object></resources>\n` +
     `<build><item objectid="1"/></build>\n</model>\n`;

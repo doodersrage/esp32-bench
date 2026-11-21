@@ -9,9 +9,11 @@ import { PRINTS, printGroup, type PrintItem } from "../../../data/prints";
 import { PROJECTS } from "../../../data/projects";
 import { printMesh, printValues } from "../../../lib/print/catalog";
 import { estimateGrams } from "../../../lib/print/formats";
+import { HAS_ASSEMBLY } from "../../../lib/print/assembly";
 import { defaults, partDef } from "../../../lib/print/parts";
 import { localLink } from "../../../lib/paths";
-import { reportUrl } from "../../../lib/site";
+import { SITE, reportUrl } from "../../../lib/site";
+import { REPORT } from "../../../i18n/strings/pages";
 import { translator } from "../../../i18n/t";
 import { contentTranslator } from "../../../i18n/content";
 import { PRINTS_UI, printText } from "../../../i18n/strings/prints";
@@ -51,10 +53,26 @@ const cards = await Promise.all(
       projects: projects.map((p) => ({ name: tc(p.name), href: link(`/projects/${p.id}/`) })),
       maker: makerHref(item),
       group: printGroup(item),
+      assembly: HAS_ASSEMBLY.has(item.part),
       report: reportUrl("print", { part: item.id }),
     };
   }),
 );
+
+// For src/scripts/print-reports.ts: the fit values as the form sends them, in this language.
+const tr = translator(REPORT, Astro.currentLocale);
+const reportUi = {
+  api: `${SITE.buildsApi}/prints`,
+  heading: t("reportsH"),
+  line: t("reportLine"),
+  fits: {
+    "Fits as it is": tr("fitGood"),
+    "Fits after a change (described below)": tr("fitChanged"),
+    "Too tight": tr("fitTight"),
+    "Too loose": tr("fitLoose"),
+    "Did not print well": tr("fitFailed"),
+  },
+};
 
 const groups = [
   { id: "start", title: t("groupStart") },
@@ -143,6 +161,12 @@ const jsonLd = {
                       {t("customise")}
                     </a>
                   </div>
+                  {c.assembly && (
+                    <details class="prmore">
+                      <summary>{t("assemblyH")}</summary>
+                      <img class="prasm" src={link(`/prints/${c.item.id}-assembly.png`)} width="480" height="320" loading="lazy" decoding="async" alt={t("assemblyAlt", { name: c.name })} />
+                    </details>
+                  )}
                   <details class="prmore">
                     <summary>{t("settingsH")}</summary>
                     <dl class="prset">
@@ -164,6 +188,7 @@ const jsonLd = {
                     )}
                     {c.note && <p>{c.note}</p>}
                   </details>
+                  <div data-print-reports={c.item.id} hidden />
                   <a class="prreport" href={c.report}>{t("reportPrint")}</a>
                 </article>
               ))}
@@ -190,6 +215,11 @@ const jsonLd = {
   </section>
 </Base>
 
+<script id="print-reports-ui" type="application/json" set:html={JSON.stringify(reportUi)} />
+<script>
+  import "../../../scripts/print-reports.ts";
+</script>
+
 <style>
   .prnotice p { margin: 0; max-width: 75ch; }
   .prnotice h2 { margin: 0 0 6px; }
@@ -207,6 +237,9 @@ const jsonLd = {
   .prfor > span:first-child { color: var(--muted); }
   .prbtns { gap: 6px; flex-wrap: wrap; }
   .prmore { font-size: 0.88rem; }
+  .prasm { display: block; width: 100%; height: auto; margin-top: 6px; border: 1px solid var(--line); background: #f2f5f1; }
+  :global(.prreports) { margin: 6px 0 0; padding-left: 18px; }
+  :global(.prreports .prnote) { display: block; color: var(--muted); }
   .prreport { font-size: 0.82rem; color: var(--muted); }
   #pg-start + .prgrid .prcard { border-top-color: var(--accent); }
   .prmore summary { cursor: pointer; color: var(--muted); }

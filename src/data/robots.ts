@@ -160,11 +160,11 @@ body{margin:0;font:16px system-ui;background:#111;color:#eee;text-align:center;t
 <script>
 var pad=document.getElementById('pad'),knob=document.getElementById('knob'),s=document.getElementById('s');
 var x=0,y=0,down=false,busy=false;
-function place(dx,dy){knob.style.left=(38+dx*38)+'%';knob.style.top=(38-dy*38)+'%'}
-function move(e){var r=pad.getBoundingClientRect(),h=r.width/2;
+var place=(dx,dy)=>{knob.style.left=(38+dx*38)+'%';knob.style.top=(38-dy*38)+'%'};
+var move=e=>{var r=pad.getBoundingClientRect(),h=r.width/2;
  var dx=(e.clientX-r.left-h)/h,dy=(r.top+h-e.clientY)/h,m=Math.hypot(dx,dy);
  if(m>1){dx/=m;dy/=m}
- x=Math.round(dx*100);y=Math.round(dy*100);place(dx,dy)}
+ x=Math.round(dx*100);y=Math.round(dy*100);place(dx,dy)};
 pad.onpointerdown=function(e){down=true;pad.setPointerCapture(e.pointerId);move(e)};
 pad.onpointermove=function(e){if(down)move(e)};
 pad.onpointerup=pad.onpointercancel=function(){down=false;x=0;y=0;place(0,0)};

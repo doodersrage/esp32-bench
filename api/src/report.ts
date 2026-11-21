@@ -13,9 +13,9 @@ export interface Report {
 	notes: string;
 	name: string;
 	email: string;
-	/** Project id from the site, e.g. "dht22"; build reports only */
+	/** Project id from the site, e.g. "dht22", for build reports; the part id, e.g. "chassis-plate", for print reports */
 	projectId: string;
-	/** The sender agreed to publish this build report on the project page */
+	/** The sender agreed to publish this report: a build report on the project page, a print report on the part's card */
 	publish: boolean;
 	/** Name to show with a published report; "" shows as Anonymous */
 	publicName: string;
@@ -67,9 +67,9 @@ export function checkReport(body: unknown, now: number): Checked {
 		if (value.length > LIMITS[key]) return { ok: false, status: 400, error: `The ${key} field is too long.` };
 		(report as unknown as Record<string, string>)[key] = value;
 	}
-	report.publish = kind === "build" && b.publish === true;
+	report.publish = (kind === "build" || kind === "print") && b.publish === true;
 	if (report.projectId && !/^[a-z0-9-]{1,60}$/.test(report.projectId)) return { ok: false, status: 400, error: "Unknown project." };
-	if (report.publish && !report.projectId) return { ok: false, status: 400, error: "Choose a project to publish a build report." };
+	if (report.publish && !report.projectId) return { ok: false, status: 400, error: kind === "print" ? "Choose a part to publish a print report." : "Choose a project to publish a build report." };
 	if (report.email && !EMAIL_RE.test(report.email)) return { ok: false, status: 400, error: "That email address does not look right." };
 	if (kind === "build" && (!report.project || !report.board || !report.result)) {
 		return { ok: false, status: 400, error: "Say which project, which board and whether it worked." };
@@ -97,7 +97,7 @@ export function textFor(r: Report, meta: { country: string; agent: string }): st
 		[print ? "Printer" : "Board", r.board],
 		[print ? "Material" : "Core version", r.core],
 		[print ? "Fit" : "Result", r.result],
-		["Publish", r.kind === "build" ? (r.publish ? `yes, as ${r.publicName || "Anonymous"}` : "no") : ""],
+		["Publish", r.kind === "build" || print ? (r.publish ? `yes, as ${r.publicName || "Anonymous"}` : "no") : ""],
 		["From", [r.name, r.email].filter(Boolean).join(" ")],
 		["Country", meta.country],
 		["Browser", meta.agent.slice(0, 200)],

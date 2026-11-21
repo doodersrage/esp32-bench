@@ -114,4 +114,39 @@ export function build<T = void>(k: Kernel, make: (k: Kernel) => Manifold, inspec
   }
 }
 
+/**
+ * Build several solids that belong together (an assembly picture) into one
+ * mesh, with the index of the solid each triangle came from. They keep their
+ * relative positions; the whole lot is lifted to rest on Z = 0.
+ */
+export function buildAssembly(k: Kernel, make: (k: Kernel) => Manifold[]): { mesh: MeshData; triangleParts: Uint8Array } {
+  try {
+    const solids = make(k);
+    const minZ = Math.min(...solids.map((s) => s.boundingBox().min[2]));
+    const positions: number[] = [];
+    const triangles: number[] = [];
+    const parts: number[] = [];
+    let volume = 0;
+    solids.forEach((solid, idx) => {
+      const mesh = solid.getMesh();
+      const base = positions.length / 3;
+      for (let v = 0; v < mesh.numVert; v++) {
+        positions.push(mesh.vertProperties[v * mesh.numProp], mesh.vertProperties[v * mesh.numProp + 1], mesh.vertProperties[v * mesh.numProp + 2] - minZ);
+      }
+      for (const i of mesh.triVerts) triangles.push(base + i);
+      for (let tri = 0; tri < mesh.triVerts.length / 3; tri++) parts.push(idx);
+      volume += solid.volume();
+    });
+    const pos = Float32Array.from(positions);
+    const size = [0, 1, 2].map((a) => {
+      let lo = Infinity, hi = -Infinity;
+      for (let i = a; i < pos.length; i += 3) (lo = Math.min(lo, pos[i])), (hi = Math.max(hi, pos[i]));
+      return round(hi - lo);
+    }) as [number, number, number];
+    return { mesh: { positions: pos, triangles: Uint32Array.from(triangles), size, volume, pieces: solids.length }, triangleParts: Uint8Array.from(parts) };
+  } finally {
+    freeAll();
+  }
+}
+
 const round = (n: number) => Math.round(n * 10) / 10;

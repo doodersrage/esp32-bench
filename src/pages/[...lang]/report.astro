@@ -119,6 +119,19 @@ export const getStaticPaths = localePaths;
         </label>
       </div>
 
+      <fieldset class="publish" data-for="print" hidden>
+        <legend>{t("publishLegend")}</legend>
+        <label class="check">
+          <input type="checkbox" name="printPublish" />
+          {t("printPublishCheck")}
+        </label>
+        <label>
+          {t("publicName")} <span class="opt">{t("publicNameOpt")}</span>
+          <input name="printPublicName" maxlength="40" autocomplete="nickname" />
+        </label>
+        <p class="opt">{t("printPublishNote")}</p>
+      </fieldset>
+
       <label class="wide" data-for="correction">
         {t("page")}
         <input name="page" maxlength="300" placeholder="https://esp32bench.dev/..." />
