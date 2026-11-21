@@ -82,5 +82,10 @@ for (const r of m.explain ?? []) {
   assert.doesNotMatch(r.pattern, /\(\?[=!<]|\\[1-9]/, `explain ${r.key}: a pattern the app cannot read`);
 }
 assert.ok(keys.has("panic-load") && keys.has("brownout"), "explain: crash rules are there");
+// The app's latest release, which older apps offer: the version /desktop/ links to.
+assert.match(m.desktop.version, /^[0-9]+\.[0-9]+\.[0-9]+$/, "desktop: version");
+const offered = /export const DESKTOP = \{\s*version: "([^"]+)"/.exec(readFileSync("src/lib/site.ts", "utf8"))?.[1];
+assert.equal(m.desktop.version, offered, "desktop: the release /desktop/ offers");
+assert.equal(m.desktop.url, "https://esp32bench.dev/desktop/", "desktop: url");
 
 console.log(`desktop manifest ${m.version}: ${m.projects.length} projects, ${m.boards.length} boards valid`);

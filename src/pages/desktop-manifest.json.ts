@@ -13,10 +13,11 @@ import { LAB_EXPECT } from "../data/lab-expect";
 import COMPILE from "../data/compile-libs.json";
 import { ERRORS } from "../data/errors";
 import { LINES, PANICS, RESETS } from "../lib/crash";
+import { DESKTOP } from "../lib/site";
 
 const REGISTRY: Record<string, string> = COMPILE.libs;
 
-export const MANIFEST_VERSION = "1.1.0";
+export const MANIFEST_VERSION = "1.2.0";
 const SITE = "https://esp32bench.dev";
 
 // The esp-web-tools chip family of each chip, as the browser flasher's manifests name them.
@@ -104,6 +105,8 @@ export function desktopManifest(generated = new Date().toISOString()) {
       buildAs: b.buildAs,
     })),
     explain: explainRules(),
+    // The app's latest release (1.2), so older apps can say a newer one is out.
+    desktop: { version: DESKTOP.version, url: `${SITE}/desktop/` },
     projects: PROJECTS.map((p) => {
       const expect = LAB_EXPECT[p.id];
       return {
