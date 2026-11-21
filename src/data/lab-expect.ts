@@ -21,7 +21,30 @@ export interface LabExpect {
   settings?: string[];
   /** What a pass proves, and what it does not */
   notes?: string;
+  /**
+   * The full check, used instead of the above on a board that has the standard
+   * rig wired (LAB_RIG): patterns that need the parts to be there.
+   */
+  rig?: { patterns: string[]; seconds?: number; settings?: string[] };
 }
+
+/**
+ * The standard lab rig: three I2C breakouts on one bus, wired to one board for
+ * good. Every project that uses one of them on the ESP32 DevKit uses GPIO 21
+ * and 22 and these addresses, so one rig gives each of them a full check. The
+ * DS3231 (rtc-clock) is left off: it answers at 0x68 like the MPU-6050.
+ */
+export const LAB_RIG = {
+  id: "standard",
+  board: "esp32",
+  bus: { SDA: "21", SCL: "22" },
+  parts: [
+    { part: "SSD1306 0.96 inch OLED, I2C", address: "0x3C" },
+    { part: "BME280 breakout (not BMP280), SDO to GND", address: "0x76" },
+    { part: "MPU-6050 breakout (GY-521), AD0 to GND", address: "0x68" },
+  ],
+} as const;
+
 
 const BOOT_ONLY = "Only the boot banner is checked: a pass proves the firmware boots and the sketch starts.";
 const WIFI_FROM_LAB = "The lab sends its Wi-Fi name and password over USB first.";
@@ -29,9 +52,9 @@ const WIFI_FROM_LAB = "The lab sends its Wi-Fi name and password over USB first.
 export const LAB_EXPECT: Record<string, LabExpect> = {
   blink: { patterns: ["tick \\d+ ms"], seconds: 8, needs: "none" },
   "wifi-scan": { patterns: ["\\d+ networks?"], seconds: 25, needs: "none", notes: "A scan runs without credentials; zero networks still counts." },
-  "i2c-scan": { patterns: ["\\d+ device\\(s\\) found"], seconds: 15, needs: "none", notes: "A bare board reports 0 devices, which is correct." },
+  "i2c-scan": { patterns: ["\\d+ device\\(s\\) found"], seconds: 15, needs: "none", notes: "A bare board reports 0 devices, which is correct.", rig: { patterns: ["Device at 0x3C", "Device at 0x68", "Device at 0x7[67]", "3 device\\(s\\) found"] } },
   dht22: { patterns: ["(Sensor read failed, check wiring|-?\\d+\\.\\d C  \\d+\\.\\d %RH)"], seconds: 15, needs: "parts", notes: "Without a DHT22 the sketch reports a failed read; with one wired it prints readings." },
-  oled: { patterns: ["(Display ready|SSD1306 not found at 0x3C)"], seconds: 10, needs: "parts", notes: "Without the OLED the sketch stops after SSD1306 not found." },
+  oled: { patterns: ["(Display ready|SSD1306 not found at 0x3C)"], seconds: 10, needs: "parts", notes: "Without the OLED the sketch stops after SSD1306 not found.", rig: { patterns: ["Display ready"] } },
   hcsr04: { patterns: ["(No echo|\\d+\\.\\d cm)"], seconds: 15, needs: "parts", notes: "Without the sensor every reading is No echo." },
   "deep-sleep": { patterns: ["Boot \\d+, wake cause \\d+", "Sleeping\\. Press the button to wake\\."], seconds: 15, needs: "none" },
   "web-led": { patterns: ["Open http://\\d+\\.\\d+\\.\\d+\\.\\d+"], seconds: 45, needs: "wifi", settings: ["wifi_ssid", "wifi_pass"], notes: WIFI_FROM_LAB },
@@ -49,28 +72,29 @@ export const LAB_EXPECT: Record<string, LabExpect> = {
   },
   "relay-servo": { patterns: ["relay off", "ready: type angle 0 to 180"], seconds: 10, needs: "none", notes: "The servo and relay are not checked, only that the command prompt comes up." },
   epaper: { patterns: ["(temp -?\\d+\\.\\d+ C|no probe: check the data wire)"], seconds: 20, needs: "parts", notes: "Without the probe the sketch prints no probe; the panel is not checked." },
-  "bme280-serial": { patterns: ["(temp_c = -?\\d+\\.\\d+|BME280 not found at 0x76 or 0x77)"], seconds: 12, needs: "parts", notes: "Without the sensor the sketch stops after BME280 not found; with it wired, a reading line every two seconds." },
-  "bme280-web": { patterns: ["(wifi joining|BME280 not found at 0x76 or 0x77)"], seconds: 20, needs: "parts", notes: "Without the sensor the sketch stops after BME280 not found; with it wired, the lab's Wi-Fi is needed for the dashboard line." },
+  "bme280-serial": { patterns: ["(temp_c = -?\\d+\\.\\d+|BME280 not found at 0x76 or 0x77)"], seconds: 12, needs: "parts", notes: "Without the sensor the sketch stops after BME280 not found; with it wired, a reading line every two seconds.", rig: { patterns: ["BME280 found", "temp_c = -?\\d+\\.\\d+  humidity = \\d+\\.\\d  pressure_hpa = \\d+\\.\\d+"] } },
+  "bme280-web": { patterns: ["(wifi joining|BME280 not found at 0x76 or 0x77)"], seconds: 20, needs: "parts", notes: "Without the sensor the sketch stops after BME280 not found; with it wired, the lab's Wi-Fi is needed for the dashboard line.", rig: { patterns: ["wifi joining", "dashboard at http://\\d+\\.\\d+\\.\\d+\\.\\d+/", "t -?\\d+\\.\\d+ C  h \\d+\\.\\d %  p \\d+\\.\\d hPa"], seconds: 45, settings: ["wifi_ssid", "wifi_pass"] } },
   "wifi-portal": { patterns: ["hold BOOT now to forget the saved network", "(portal up: join|wifi joining)"], seconds: 20, needs: "none", notes: "A bare board opens its own setup network, which needs no credentials." },
   "esp32-cam-stream": { patterns: ["(Camera ready|Camera init failed)"], seconds: 20, needs: "parts", notes: "Needs an ESP32-CAM; without a working camera the sketch reports the init error." },
   "reaction-timer": { patterns: ["Reaction timer\\. Press BOOT when the LED lights\\.", "get ready\\.\\.\\."], seconds: 12, needs: "none" },
   "morse-decoder": { patterns: ["Morse decoder\\. Key with the BOOT button"], seconds: 5, needs: "none", notes: BOOT_ONLY },
   simon: { patterns: ["Simon\\. Press any button to start\\."], seconds: 5, needs: "parts", notes: BOOT_ONLY },
   theremin: { patterns: ["Theremin ready", "distance_cm=\\d+\\.\\d, freq=\\d+"], seconds: 10, needs: "none", notes: "Without the sensor the distance reads 0; the buzzer is not checked." },
-  "oled-pong": { patterns: ["(Pong ready|SSD1306 not found at 0x3C)"], seconds: 10, needs: "parts", notes: "Without the OLED the sketch stops after SSD1306 not found." },
-  dice: { patterns: ["(Dice ready|SSD1306 not found at 0x3C)"], seconds: 10, needs: "parts", notes: "Without the OLED the sketch stops after SSD1306 not found." },
+  "oled-pong": { patterns: ["(Pong ready|SSD1306 not found at 0x3C)"], seconds: 10, needs: "parts", notes: "Without the OLED the sketch stops after SSD1306 not found.", rig: { patterns: ["Pong ready"] } },
+  dice: { patterns: ["(Dice ready|SSD1306 not found at 0x3C)"], seconds: 10, needs: "parts", notes: "Without the OLED the sketch stops after SSD1306 not found.", rig: { patterns: ["Dice ready\\. Press the button to roll\\."] } },
   "ntp-clock": {
     patterns: ["(wifi joining|SSD1306 not found at 0x3C)"],
     seconds: 20,
     needs: "parts",
     settings: ["wifi_ssid", "wifi_pass"],
     notes: `Without the OLED the sketch stops after SSD1306 not found. With one wired, ${WIFI_FROM_LAB.toLowerCase()}`,
+    rig: { patterns: ["wifi ok \\d+\\.\\d+\\.\\d+\\.\\d+", "time synced: "], seconds: 45 },
   },
   "fire-lamp": { patterns: ["\\d+ LEDs on GPIO \\d+", "mode: fire", "fps=\\d+"], seconds: 12, needs: "none", notes: "The strip itself is not checked." },
   "talking-plant": { patterns: ["Talking plant\\. Calibrate", "moisture=\\d+% raw=\\d+"], seconds: 10, needs: "none", notes: "A bare analog pin gives a reading; the value means nothing without the sensor." },
   "ir-sweep": { patterns: ["IR sweep ready", "angle = \\d+, cm = \\d+\\.\\d"], seconds: 15, needs: "none", notes: "The servo and sensor are not checked, only the sweep loop." },
-  "level-platform": { patterns: ["(Calibrating: keep the base still and level|MPU-6050 not found at 0x68)"], seconds: 10, needs: "parts", notes: "Without the MPU-6050 the sketch stops after MPU-6050 not found." },
-  "joystick-turret": { patterns: ["Turret ready\\. MPU-6050 (found|not found)", "pan = \\d+, tilt = \\d+"], seconds: 10, needs: "none", notes: "The servos are not checked; a floating stick still prints angles." },
+  "level-platform": { patterns: ["(Calibrating: keep the base still and level|MPU-6050 not found at 0x68)"], seconds: 10, needs: "parts", notes: "Without the MPU-6050 the sketch stops after MPU-6050 not found.", rig: { patterns: ["Calibrating: keep the base still and level", "pitch = -?\\d+\\.\\d, roll = -?\\d+\\.\\d"], seconds: 15 } },
+  "joystick-turret": { patterns: ["Turret ready\\. MPU-6050 (found|not found)", "pan = \\d+, tilt = \\d+"], seconds: 10, needs: "none", notes: "The servos are not checked; a floating stick still prints angles.", rig: { patterns: ["Turret ready\\. MPU-6050 found"] } },
   "visitor-counter": { patterns: ["Visitor counter\\. Warming up the PIR for \\d+ s\\.", "Counting\\."], seconds: 40, needs: "parts", notes: "Counting starts after the 30 s warm-up even with no PIR; counts need one." },
   "auto-fan": { patterns: ["Auto fan: following the (light|temperature)", "light = \\d+%, duty = \\d+%"], seconds: 10, needs: "none", notes: "In light mode a bare analog pin gives a reading; the motor is not checked." },
   "rfid-reader": { patterns: ["(RC522 ready, chip version 0x[0-9A-F]{2}|RC522 not found: check 3V3, GND and the SPI wires)", "Tap a card"], seconds: 10, needs: "parts", notes: "Without the reader the sketch reports RC522 not found; reading cards needs a reader and a card." },
@@ -104,11 +128,11 @@ export const LAB_EXPECT: Record<string, LabExpect> = {
   "tft-display": { patterns: ["TFT ready: \\d+x\\d+ ST7789", "fps = \\d+\\.\\d"], seconds: 10, needs: "none", notes: "The sketch draws with or without a screen attached; the panel itself is not checked." },
   "sd-logger": { patterns: ["(SD card not found|logging to /log\\d{3}\\.csv)"], seconds: 15, needs: "parts", notes: "Without a card module the sketch reports SD card not found and retries; with one, it logs a row every 5 s." },
   "wifi-car": { patterns: ["Car Wi-Fi: join ESP32-Car \\(password \\S+\\), then open http://\\d+\\.\\d+\\.\\d+\\.\\d+/", "motors stopped"], seconds: 10, needs: "none", notes: "The car makes its own network, so no credentials are needed. Driving needs a phone and the motors; neither is checked." },
-  "outdoor-weather": { patterns: ["(sent #\\d+|BME280 not found at 0x76 or 0x77)", "sleeping \\d+ min"], seconds: 15, needs: "none", notes: "Flashed as the station. Without the BME280 it says so and goes to sleep; the display board is not checked." },
+  "outdoor-weather": { patterns: ["(sent #\\d+|BME280 not found at 0x76 or 0x77)", "sleeping \\d+ min"], seconds: 15, needs: "none", notes: "Flashed as the station. Without the BME280 it says so and goes to sleep; the display board is not checked.", rig: { patterns: ["sent #\\d+: temp_c = -?\\d+\\.\\d+  humidity = \\d+\\.\\d  pressure_hpa = \\d+\\.\\d", "sleeping \\d+ min"] } },
   "remote-car": { patterns: ["car ready on channel \\d+, group \\d+: waiting for the remote"], seconds: 10, needs: "none", notes: "Flashed as the car. Driving needs a second board flashed as the remote, and the motors; neither is checked." },
   "obstacle-car": { patterns: ["Obstacle car ready\\. Press BOOT to start", "(no echo|distance_cm = \\d+)"], seconds: 10, needs: "none", notes: "The car waits for BOOT, so the motors never run in the lab. Without the sensor every reading is no echo." },
   "line-follower": { patterns: ["Line follower ready", "left = [01], right = [01], steer = \\w+"], seconds: 10, needs: "none", notes: "The car waits for BOOT, so the motors never run in the lab. Bare sensor pins still print a reading." },
-  "balance-bot": { patterns: ["(Calibrating gyro: lay the robot down and keep it still|MPU-6050 not found at 0x68)"], seconds: 10, needs: "parts", notes: "Without the MPU-6050 the sketch stops after MPU-6050 not found, before the motors are used." },
+  "balance-bot": { patterns: ["(Calibrating gyro: lay the robot down and keep it still|MPU-6050 not found at 0x68)"], seconds: 10, needs: "parts", notes: "Without the MPU-6050 the sketch stops after MPU-6050 not found, before the motors are used.", rig: { patterns: ["Calibrating gyro", "(Hold the robot upright to start|balancing)"], seconds: 15 } },
   "ph-ds18b20": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in, which the lab cannot set; only the boot line is checked." },
   "ph-ds18b20-portal": { patterns: ["(Starting Web Portal|WiFi ok)"], seconds: 10, needs: "wifi", notes: "With no Wi-Fi saved it opens its setup portal (ProbeHarbor-Setup); that is what is checked." },
   "ph-door": { patterns: ["WiFi"], seconds: 10, needs: "wifi", notes: "ProbeHarbor's sketch has its Wi-Fi compiled in; only the boot line is checked." },

@@ -33,6 +33,7 @@ skip = ["esp32-cam-stream"]
 label = "esp32-devkit"
 port = "/dev/serial/by-id/usb-Silicon_Labs_CP2102N_USB_to_UART_Bridge_Controller_XXXX-if00-port0"
 board = "esp32"
+# rig = "standard"   # uncomment on the board with the lab rig's OLED, BME280 and MPU-6050 wired (see README)
 
 [[boards]]
 label = "c3-devkit"

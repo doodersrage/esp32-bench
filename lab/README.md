@@ -47,6 +47,31 @@ Boards with two USB ports (S3, C6): use the UART bridge port (the one labelled
 UART or COM), not the chip's native USB port, so the auto-reset works and the
 output does not vanish while the board restarts.
 
+### The standard rig (optional)
+
+A bare board proves the firmware boots. To check that sketches really talk to
+their parts, wire three I2C breakouts to one ESP32 DevKit for good, on one bus:
+
+| Part | Address | Wiring |
+| --- | --- | --- |
+| SSD1306 0.96" OLED (I2C, 4 pins) | 0x3C | VCC 3V3, GND, SDA GPIO 21, SCL GPIO 22 |
+| BME280 breakout (not a BMP280) | 0x76 | the same four; SDO to GND (most boards do this already) |
+| MPU-6050 breakout (GY-521) | 0x68 | the same four; AD0 to GND or left open |
+
+A half-size breadboard holds all three. Every project on the site that uses
+one of these parts uses GPIO 21 and 22 on the DevKit, so the rig gives each
+one a full check: i2c-scan, oled, oled-pong, dice, ntp-clock, bme280-serial,
+bme280-web, outdoor-weather, level-platform, joystick-turret and balance-bot.
+Leave the DS3231 off: it answers at 0x68 like the MPU-6050. Nothing else needs
+to come off for other projects; sketches that use GPIO 21 or 22 for something
+else only drive the bus lines, which the breakouts treat as inputs.
+
+Mark that board with `rig = "standard"` in `config.toml`. On it, projects with
+a full check (`rig` in `src/data/lab-expect.ts`) use patterns that need the
+parts: oled must print `Display ready`, where a bare board may print `SSD1306
+not found` and still pass. The rest get the usual check. Project pages say which boards had the
+full check.
+
 ### Configure
 
 ```sh
@@ -147,7 +172,11 @@ systemctl --user list-timers
   expander, and a "Lab tested" tag in the page header when at least one board
   passed.
 - `GET https://api.esp32bench.dev/lab/latest` summarises the latest run across
-  all projects.
+  all projects, with `check` (`full` or `boot`) per result.
+- If no run comes in for 8 days, the API emails the owner (the `REPORT_TO`
+  address), and again every 7 days until one does: a daily cron on the API
+  Worker, `quietLabNotice` in `api/src/lab.ts`. It stays silent until the first
+  run is ever posted.
 
 Results are kept per run and the history stays in the database. Pages show the
 newest result for each project and board, from whichever run had it, so a run

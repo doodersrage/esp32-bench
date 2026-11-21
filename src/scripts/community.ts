@@ -21,6 +21,8 @@ interface LabResult {
   chip: string;
   status: "passed" | "failed" | "flash_failed" | "skipped";
   seconds: number;
+  /** "full" when the lab rig's parts were wired; absent from older runs */
+  check?: "boot" | "full";
   missing: string[];
   output: string;
 }
@@ -112,9 +114,11 @@ function showLab(lab: Lab): void {
   const date = lab.run.finished_at.slice(0, 10);
 
   const head = el("div", "labhead");
-  head.append(el("span", "tag ok", t("lab")), ...lab.results.map((r) => el("span", `tag ${STATUS_CLASS[r.status]}`, `${name(r.board)}: ${statusWord(r.status)}`)), el("span", "labwhen", date));
+  head.append(el("span", "tag ok", t("lab")), ...lab.results.map((r) => el("span", `tag ${STATUS_CLASS[r.status]}`, `${name(r.board)}: ${statusWord(r.status)}${r.check === "full" ? `, ${t("fullCheck")}` : ""}`)), el("span", "labwhen", date));
   const results = parts.join(", ");
   const line = el("p", "", lab.run.core ? t("labLineCore", { date, core: lab.run.core, results }) : t("labLine", { date, results }));
+  const full = lab.results.filter((r) => r.check === "full").map((r) => name(r.board));
+  if (full.length) line.textContent += " " + t("labFull", { boards: joinNames(full) });
   const details = lab.results
     .filter((r) => r.output)
     .map((r) => {

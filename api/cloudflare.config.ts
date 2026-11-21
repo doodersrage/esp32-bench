@@ -2,7 +2,7 @@
 // from esp32bench.dev and emails them to the site owner through Cloudflare
 // Email Routing. The destination address is the REPORT_TO secret, never in code.
 // TURNSTILE_SECRET (the widget secret) is also a Worker secret.
-import { bindings, defineConfig } from "cf/config";
+import { bindings, defineConfig, triggers } from "cf/config";
 import * as entrypoint from "./src/index.ts" with { type: "cf-worker" };
 
 export default defineConfig({
@@ -13,6 +13,8 @@ export default defineConfig({
 		domains: ["api.esp32bench.dev"],
 		workersDev: false,
 		observability: { enabled: true },
+		// Daily at 15:00 UTC: email the owner if the hardware lab has gone quiet (src/lab.ts).
+		triggers: [triggers.scheduled({ schedule: "0 15 * * *" })],
 		env: {
 			// Unrestricted binding: Email Routing only delivers to verified addresses.
 			EMAIL: bindings.sendEmail(),

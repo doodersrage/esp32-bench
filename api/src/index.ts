@@ -4,7 +4,7 @@ import { checkReport, htmlFor, subjectFor, textFor } from "./report.ts";
 import { verifyTurnstile } from "./turnstile.ts";
 import { uploadFirmware } from "./firmware.ts";
 import { PRINT_PREFIX, moderationPage, newToken, printProject, publicBuild, resultPage, sameHash, sha256, summarise, type BuildRow } from "./builds.ts";
-import { checkLabRun, publicLab, tokenMatches, type LabResultRow, type LabRunRow } from "./lab.ts";
+import { checkLabRun, publicLab, quietLabNotice, tokenMatches, type LabResultRow, type LabRunRow } from "./lab.ts";
 import { checkSyncData, codeFrom, newSyncCode } from "./sync.ts";
 import {
 	accountKey,
@@ -113,7 +113,7 @@ async function latestLab(project: string) {
 		.first<LabRunRow>();
 	if (!run) return null;
 	const { results } = await config.DB.prepare(
-		"SELECT project, board, chip, status, seconds, matched, missing, output FROM lab_results WHERE run_id = ? AND project = ? ORDER BY board",
+		"SELECT project, board, chip, status, seconds, matched, missing, output, checked FROM lab_results WHERE run_id = ? AND project = ? ORDER BY board",
 	)
 		.bind(run.id, project)
 		.all<LabResultRow>();
@@ -128,14 +128,14 @@ async function labLatest(): Promise<Response> {
 	// The newest result for each project and board, from whichever run had it: a
 	// run limited to a few projects (--only, --board) updates those and leaves the rest.
 	const { results } = await config.DB.prepare(
-		`SELECT project, board, status, seconds FROM (
-			SELECT r.project, r.board, r.status, r.seconds,
+		`SELECT project, board, status, seconds, checked FROM (
+			SELECT r.project, r.board, r.status, r.seconds, r.checked,
 				ROW_NUMBER() OVER (PARTITION BY r.project, r.board ORDER BY u.finished_at DESC, u.id DESC) AS n
 			FROM lab_results r JOIN lab_runs u ON u.id = r.run_id
 		) WHERE n = 1 ORDER BY project, board`,
-	).all<{ project: string; board: string; status: string; seconds: number }>();
-	const projects: Record<string, { board: string; status: string; seconds: number }[]> = {};
-	for (const r of results) (projects[r.project] ??= []).push({ board: r.board, status: r.status, seconds: r.seconds });
+	).all<{ project: string; board: string; status: string; seconds: number; checked: string }>();
+	const projects: Record<string, { board: string; status: string; seconds: number; check: string }[]> = {};
+	for (const r of results) (projects[r.project] ??= []).push({ board: r.board, status: r.status, seconds: r.seconds, check: r.checked });
 	return json({ run: { finished_at: run.finished_at, core: run.core, firmware_built_at: run.firmware_built_at }, projects }, 200, headers);
 }
 
@@ -164,10 +164,10 @@ async function labRuns(request: Request): Promise<Response> {
 	const runId = inserted?.id;
 	if (!runId) return json({ ok: false, error: "Could not store the run." }, 500, none);
 	const stmt = config.DB.prepare(
-		"INSERT INTO lab_results (run_id, project, board, chip, status, seconds, matched, missing, output) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		"INSERT INTO lab_results (run_id, project, board, chip, status, seconds, matched, missing, output, checked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 	);
 	await config.DB.batch(
-		run.results.map((r) => stmt.bind(runId, r.project, r.board, r.chip, r.status, r.seconds, JSON.stringify(r.matched), JSON.stringify(r.missing), r.output)),
+		run.results.map((r) => stmt.bind(runId, r.project, r.board, r.chip, r.status, r.seconds, JSON.stringify(r.matched), JSON.stringify(r.missing), r.output, r.check)),
 	);
 	const passed = run.results.filter((r) => r.status === "passed").length;
 	return json({ ok: true, run: runId, results: run.results.length, passed }, 200, none);
@@ -354,7 +354,25 @@ async function decide(row: BuildRow, action: string): Promise<string> {
 		: resultPage("Rejected", "The build report will not be published. Its moderation link still works if you change your mind.");
 }
 
+/** Daily cron: email the owner when the hardware lab has stopped posting runs. */
+async function watchLab(now: number): Promise<void> {
+	if (!config.REPORT_TO) return;
+	const last = await config.DB.prepare("SELECT finished_at FROM lab_runs ORDER BY finished_at DESC LIMIT 1").first<{ finished_at: string }>();
+	const notice = quietLabNotice(last?.finished_at ?? null, now);
+	if (!notice) return;
+	await config.EMAIL.send({
+		to: config.REPORT_TO,
+		from: { email: config.SENDER, name: "ESP32 Bench lab" },
+		subject: notice.subject,
+		text: notice.text,
+	});
+}
+
 export default {
+	async scheduled(controller: ScheduledController): Promise<void> {
+		await watchLab(controller.scheduledTime);
+	},
+
 	async fetch(request: Request): Promise<Response> {
 		const url = new URL(request.url);
 		const origin = request.headers.get("Origin");

@@ -5,10 +5,14 @@
 // cannot match it would never pass in the lab either).
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { LAB_EXPECT } from "../src/data/lab-expect.ts";
+import { LAB_EXPECT, LAB_RIG } from "../src/data/lab-expect.ts";
 
 // Patterns allowed not to match the sample, with the reason.
-const EXCEPTIONS: Record<string, string> = {};
+const EXCEPTIONS: Record<string, string> = {
+  // The sample scans a different bench; the rig check names the rig's own three devices.
+  "i2c-scan:Device at 0x68": "the rig's MPU-6050, not on the sample's bus",
+  "i2c-scan:3 device\\(s\\) found": "the rig has three devices; the sample has its own count",
+};
 
 for (const [id, e] of Object.entries(LAB_EXPECT)) {
   assert.ok(e.patterns.length > 0, `${id}: at least one pattern`);
@@ -16,7 +20,18 @@ for (const [id, e] of Object.entries(LAB_EXPECT)) {
   assert.ok(["none", "wifi", "parts"].includes(e.needs), `${id}: needs`);
   for (const src of e.patterns) new RegExp(src, "m"); // throws if invalid
   if (e.settings) for (const k of e.settings) assert.match(k, /^[a-z][a-z0-9_]{1,30}$/, `${id}: setting key ${k}`);
+  if (e.rig) {
+    assert.ok(e.rig.patterns.length > 0, `${id}: rig patterns`);
+    assert.ok((e.rig.seconds ?? e.seconds) >= 3 && (e.rig.seconds ?? e.seconds) <= 120, `${id}: rig seconds in range`);
+    for (const src of e.rig.patterns) {
+      new RegExp(src, "m");
+      // A full check must need the part: no "not found" alternative.
+      assert.ok(!/not found|failed/i.test(src), `${id}: rig pattern /${src}/ accepts a missing part`);
+    }
+  }
 }
+// The rig's three addresses must differ, or two parts would answer as one.
+assert.equal(new Set(LAB_RIG.parts.map((x) => x.address)).size, LAB_RIG.parts.length, "rig addresses are distinct");
 
 const manifestPath = "dist/lab-manifest.json";
 if (!existsSync(manifestPath)) {
@@ -37,7 +52,7 @@ let unmatched = 0;
 for (const id of ids) {
   const p = manifest.projects[id];
   const text = p.sample.join("\n");
-  for (const src of LAB_EXPECT[id].patterns) {
+  for (const src of [...LAB_EXPECT[id].patterns, ...(LAB_EXPECT[id].rig?.patterns ?? [])]) {
     const ok = new RegExp(src, "m").test(text);
     const key = `${id}:${src}`;
     if (!ok && !EXCEPTIONS[key]) {
@@ -52,4 +67,5 @@ assert.equal(unmatched, 0, "every pattern matches its project's sample (or is li
 
 const needs = { none: 0, wifi: 0, parts: 0 };
 for (const id of ids) needs[LAB_EXPECT[id].needs]++;
-console.log(`lab expect: ${ids.length} projects, needs none ${needs.none}, wifi ${needs.wifi}, parts ${needs.parts}; all patterns match their samples`);
+const full = ids.filter((id) => LAB_EXPECT[id].rig).length;
+console.log(`lab expect: ${ids.length} projects, needs none ${needs.none}, wifi ${needs.wifi}, parts ${needs.parts}, ${full} with a full rig check; all patterns match their samples`);
