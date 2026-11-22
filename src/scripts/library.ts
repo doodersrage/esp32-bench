@@ -137,9 +137,6 @@ async function loadLab() {
       passed++;
       card.dataset.lab = "1";
       card.querySelector<HTMLElement>("[data-lab-tag]")?.removeAttribute("hidden");
-      // "Lab tested" says more than "Not hardware tested", so it replaces that tag.
-      const plain = card.querySelector<HTMLElement>(".tag.todo");
-      if (plain) plain.hidden = true;
     }
     if (passed === 0) return;
     labChip.hidden = false;

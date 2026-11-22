@@ -89,17 +89,19 @@ const kitSrc = link(`/og/kits/${p.id}.png`);
 const buildReportUrl = reportUrl("build", { project: p.id });
 // 3D-printable parts: the ones made for this project, then a case for each of its boards.
 const tp = translator(PRINTS_UI, Astro.currentLocale);
-const printLinks = [
-  ...PRINTS.filter((x) => x.projects?.includes(p.id) || (x.forParts && p.parts.some(([, text]) => x.forParts!.test(text)))).map((x) => ({
-    id: x.id,
-    text: printText(tp, "name", x.id),
-    tested: Boolean(x.tested),
-  })),
-  ...boards
-    .map((b) => ({ b, id: CASE_FOR_BOARD[b.id] }))
-    .filter(({ id }) => id)
-    .map(({ b, id }) => ({ id, text: tp("projCase", { board: b.short }), tested: Boolean(PRINTS.find((x) => x.id === id)?.tested) })),
-].filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i);
+const ownPrints = PRINTS.filter((x) => x.projects?.includes(p.id) || (x.forParts && p.parts.some(([, text]) => x.forParts!.test(text)))).map((x) => ({
+  id: x.id,
+  text: printText(tp, "name", x.id),
+  tested: Boolean(x.tested),
+}));
+// Board cases on one line ("Cases: ESP32 · DOIT 30 · S3"), not a link each with its own tag.
+const casePrints = boards
+  .map((b) => ({ board: b.short, id: CASE_FOR_BOARD[b.id] }))
+  .filter((x): x is { board: string; id: string } => Boolean(x.id) && !ownPrints.some((o) => o.id === x.id))
+  .filter((x, i, all) => all.findIndex((y) => y.id === x.id) === i)
+  .map((x) => ({ ...x, tested: Boolean(PRINTS.find((y) => y.id === x.id)?.tested) }));
+// While none has been test-printed, one "Draft" for the group says it.
+const allDraft = [...ownPrints, ...casePrints].every((x) => !x.tested);
 // A parts line a printable part can stand in for: "or print the chassis plate".
 const printFor = (text: string) => {
   const x = PRINTS.find((x) => x.replaces?.test(text) && x.projects?.includes(p.id));
@@ -165,13 +167,17 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
         <span class="tag">{t("mins", { n: p.mins })}</span>
         <span class="tag">{t("baud", { n: p.baud })}</span>
         <span class="tag ok" data-lab-tag hidden title={t("labTagTitle")}>{t("labTested")}</span>
-        <button class="btn sm printbtn" type="button" data-print>{t("print")}</button>
-        <a class="btn sm" href={DESKTOP.projectLink(p.id)} title={desktop("openLinkTitle")}>{desktop("openLink")}</a>
-        <a class="whatdesk" href={link("/desktop/")}>{desktop("whatIsThis")}</a>
+      </div>
+      <div class="pageactions">
+        <button class="linkbtn" type="button" data-print>{t("print")}</button>
+        <span class="desk">
+          <a class="linkbtn" href={DESKTOP.projectLink(p.id)} title={desktop("openLinkTitle")}>{desktop("openLink")}</a>
+          <a class="whatdesk" href={link("/desktop/")}>({desktop("whatIsThis")})</a>
+        </span>
         {
           p.code !== undefined && (
             <button
-              class="btn sm"
+              class="linkbtn"
               type="button"
               data-keep-offline
               data-project={p.id}
@@ -211,10 +217,7 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
           <a class="shoplink" href={link("/shop/")} id="shop-link" hidden>{t("shopList")}</a>
         </div>
       </div>
-      <div class="cols even">
-        <a class="kitcard" href={kitSrc} title={t("kitOpen")}>
-          <img src={kitSrc} width="1200" height="630" loading="lazy" decoding="async" alt={kitAlt} />
-        </a>
+      <div class="partsgrid">
         <div class="stack tight">
           <div class="tablebox">
             <table>
@@ -253,22 +256,43 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
               </p>
             )
           }
+          {hasBuyLinks && <p class="cap left">{t("affiliate")}</p>}
+        </div>
+        <aside class="stack tight partside">
           {
-            printLinks.length > 0 && (
+            ownPrints.length + casePrints.length > 0 && (
               <div class="prints">
-                <span class="swlabel">{tp("projH")}</span>
+                <span class="swlabel">
+                  {tp("projH")} {allDraft && <span class="tag todo" title={tp("draftTitle")}>{tp("draft")}</span>}
+                </span>
                 <ul>
-                  {printLinks.map((x) => (
+                  {ownPrints.map((x) => (
                     <li>
-                      <a href={link(`/prints/#${x.id}`)}>{x.text}</a> <span class={x.tested ? "tag ok" : "tag todo"}>{x.tested ? tp("tested") : tp("draft")}</span>
+                      <a href={link(`/prints/#${x.id}`)}>{x.text}</a>
+                      {!allDraft && <span class={x.tested ? "tag ok" : "tag todo"}>{x.tested ? tp("tested") : tp("draft")}</span>}
                     </li>
                   ))}
+                  {casePrints.length > 0 && (
+                    <li class="cases">
+                      <span>{tp("projCases")}</span>{" "}
+                      {casePrints.map((x, n) => (
+                        <>
+                          {n > 0 && " · "}
+                          <a href={link(`/prints/#${x.id}`)}>{x.board}</a>
+                          {!allDraft && x.tested && <span class="tag ok">{tp("tested")}</span>}
+                        </>
+                      ))}
+                    </li>
+                  )}
                 </ul>
               </div>
             )
           }
-          {hasBuyLinks && <p class="cap left">{t("affiliate")}</p>}
-        </div>
+          <a class="kitthumb" href={kitSrc} title={t("kitOpen")}>
+            <img src={kitSrc} width="1200" height="630" loading="lazy" decoding="async" alt={kitAlt} />
+            <span>{t("kitShare")}</span>
+          </a>
+        </aside>
       </div>
     </div>
 
@@ -346,7 +370,7 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
                 (anyVerified || !p.open) && (
                   <div>
                     <h2 class="h3 mb">{t("testedHere")}</h2>
-                    <p class="lede">{t("notRunHere")}</p>
+                    <p class="lede" data-lab-here={panel.board.id}>{t("notRunHere")}</p>
                   </div>
                 )
               )}
@@ -532,8 +556,6 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
   .printalt { display: block; margin: 2px 0 0 38px; font-size: 0.8rem; color: var(--accent); }
   .prints ul { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
   .prints .tag { font-size: 0.65rem; padding: 2px 4px; }
-  .kitcard { display: block; margin: 0 0 12px; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: #f2f5f1; }
-  .kitcard img { display: block; width: 100%; height: auto; }
   .partname { display: flex; gap: 10px; align-items: center; }
   .kicon { flex: none; display: inline-flex; width: 28px; height: 28px; color: var(--ink); }
   .kicon :global(svg) { width: 28px; height: 28px; }
@@ -547,9 +569,18 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
   .labrun :global(pre.code) { margin-top: 6px; max-height: 18em; }
   .labrun :global(.tag.pending) { border-style: dashed; }
   .libs { margin: 0; font-size: 0.92rem; }
-  .printbtn { margin-left: auto; }
-  .whatdesk { align-self: center; font-size: 0.85rem; color: var(--muted); }
-  @media print { .meta a[href^="esp32bench:"], .whatdesk { display: none; } }
+  .pageactions { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; font-size: 0.85rem; }
+  .pageactions .desk { display: inline-flex; gap: 6px; align-items: baseline; }
+  .linkbtn { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; cursor: pointer; }
+  .linkbtn:hover { text-decoration-color: currentColor; }
+  .whatdesk { color: var(--muted); }
+  @media print { .pageactions { display: none; } }
+  .partsgrid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  @media (max-width: 720px) { .partsgrid { grid-template-columns: minmax(0, 1fr); } }
+  .prints .cases { color: var(--muted); }
+  .kitthumb { display: flex; flex-direction: column; gap: 6px; max-width: 280px; font-size: 0.8rem; color: var(--muted); text-decoration: none; }
+  .kitthumb img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 4px; background: #f2f5f1; }
+  .kitthumb:hover span { text-decoration: underline; }
   .shoplink { font-size: 0.85rem; color: var(--accent); }
   .pathnote { margin: 0; font-size: 0.9rem; }
   .pathnote a { color: var(--accent); }
