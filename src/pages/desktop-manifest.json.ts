@@ -7,8 +7,9 @@ import type { APIRoute } from "astro";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { BOARDS } from "../data/boards";
-import { PROJECTS, boardsOf, forBoard } from "../data/projects";
+import { BOARDS, type Board } from "../data/boards";
+import { partById } from "../data/parts";
+import { DRAWER, PROJECTS, boardsOf, forBoard } from "../data/projects";
 import { LAB_EXPECT } from "../data/lab-expect";
 import COMPILE from "../data/compile-libs.json";
 import { ERRORS } from "../data/errors";
@@ -17,7 +18,31 @@ import { DESKTOP } from "../lib/site";
 
 const REGISTRY: Record<string, string> = COMPILE.libs;
 
-export const MANIFEST_VERSION = "1.2.0";
+export const MANIFEST_VERSION = "1.3.0";
+
+/** A pad label's GPIO number: the number itself, or the board's name for it (VP: 36). */
+function gpioOfLabel(b: Board, label: string): number | undefined {
+  return /^\d+$/.test(label) ? Number(label) : b.gpioOf?.[label];
+}
+
+/** A board's pins as the manifest carries them (1.3); numbers, not labels, where it can. */
+function boardPins(b: Board) {
+  const gpios = (labels: string[]) =>
+    labels.map((l) => gpioOfLabel(b, l)).filter((g): g is number => g !== undefined);
+  const [sda, scl] = gpios(b.i2cPins);
+  return {
+    left: b.left.length ? b.left : undefined,
+    right: b.right.length ? b.right : undefined,
+    pads: b.pads,
+    gpioOf: b.gpioOf,
+    silk: b.silk,
+    i2c: sda !== undefined && scl !== undefined ? { sda, scl } : undefined,
+    safe: gpios(b.safe),
+    special: b.special,
+    wired: b.wired,
+    source: b.source,
+  };
+}
 const SITE = "https://esp32bench.dev";
 
 // The esp-web-tools chip family of each chip, as the browser flasher's manifests name them.
@@ -103,6 +128,15 @@ export function desktopManifest(generated = new Date().toISOString()) {
       arduinoBoard: b.arduinoBoard,
       variantOf: b.variantOf,
       buildAs: b.buildAs,
+      // Its pins (1.3): the header, I2C pins, safe pins and those to be careful with.
+      pins: boardPins(b),
+    })),
+    // The part catalogue projects' `needs` name (1.3), with the site's wiring notes.
+    // Every drawer part, by the name projects list it under; pins where the site has them.
+    parts: Object.entries(DRAWER).map(([id, name]) => ({
+      id,
+      name,
+      pins: (partById(id)?.pins ?? []).map((pin) => ({ name: pin.name, kind: pin.kind, note: pin.note })),
     })),
     explain: explainRules(),
     // The app's latest release (1.2), so older apps can say a newer one is out.

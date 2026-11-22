@@ -1,0 +1,331 @@
+{
+ "checked": "2026-11-19",
+ "runs": {
+  "auto-fan": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "battery-sensor": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "blink": [
+   "esp32",
+   "esp32-doit"
+  ],
+  "bme280-serial": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "bme280-web": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "deep-sleep": [
+   "esp32",
+   "esp32-doit"
+  ],
+  "dht22": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "dice": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "epaper": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "esp-now": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "fire-lamp": [
+   "esp32",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "hcsr04": [
+   "esp32",
+   "esp32-doit"
+  ],
+  "i2c-scan": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "ir-remote": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "ir-sweep": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "joystick-turret": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "keypad-lock": [
+   "esp32",
+   "esp32-doit",
+   "esp32s3"
+  ],
+  "led-matrix": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "level-platform": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "morse-decoder": [
+   "esp32",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "mqtt-ha": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "neopixel": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "nrf24-link": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "ntp-clock": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "oled": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "oled-pong": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "ota": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "ph-display": [
+   "esp32",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "ph-door": [
+   "esp32",
+   "esp32-doit"
+  ],
+  "ph-ds18b20": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "ph-ds18b20-portal": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "ph-lcd": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32s3"
+  ],
+  "ph-leak": [
+   "esp32",
+   "esp32-doit"
+  ],
+  "ph-max31855": [
+   "esp32",
+   "esp32-doit"
+  ],
+  "ph-max6675": [
+   "esp32",
+   "esp32-doit"
+  ],
+  "ph-motion": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "ph-power": [
+   "esp32",
+   "esp32-doit"
+  ],
+  "reaction-timer": [
+   "esp32",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "relay-servo": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "rfid-reader": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "rtc-clock": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "sd-logger": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "simon": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "stepper-28byj": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "talking-plant": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "tft-display": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "theremin": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "touch-piano": [
+   "esp32",
+   "esp32-doit",
+   "esp32s3"
+  ],
+  "visitor-counter": [
+   "esp32",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "web-led": [
+   "esp32",
+   "esp32-doit"
+  ],
+  "wifi-portal": [
+   "esp32",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ],
+  "wifi-scan": [
+   "esp32",
+   "esp32-doit",
+   "esp32c3",
+   "esp32c3-supermini",
+   "esp32s3"
+  ]
+ }
+}
