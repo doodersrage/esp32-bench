@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://esp32bench.dev/schema/circuit/v1.schema.json",
+  "title": "esp32bench circuit",
+  "description": "Virtual parts placed on one project's board for the simulator. Version 1.x; 1.1 adds models beyond LED and button, several pins per part, I2C placement and properties, 1.2 adds `controls`, where a part's sliders were left, 1.3 adds `at`, where the app's canvas shows a part, and still reads 1.0 files (`pin`, `activeLow`). Saved by the desktop app per project and board; designed so the project manifest can carry the same data later. Pins are GPIO numbers. Firmware-level: an LED is lit when its pin drives it; no electrical behaviour is modelled.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "parts"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "parts": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,32}$",
+            "description": "Unique within the circuit."
+          },
+          "kind": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,32}$",
+            "description": "A part model's id: led, button, switch, rgb-led, ... (schema/part-model)."
+          },
+          "pin": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 48,
+            "description": "The GPIO, for a model with one pin."
+          },
+          "activeLow": {
+            "type": "boolean",
+            "default": false,
+            "description": "Circuit 1.0's shorthand for props.activeLow. Still read; not written by 1.1."
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "pins": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 48
+            },
+            "description": "GPIOs by the model's pin names."
+          },
+          "i2c": {
+            "type": "object",
+            "required": [
+              "bus",
+              "address"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "bus": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "address": {
+                "type": "integer",
+                "minimum": 8,
+                "maximum": 119
+              }
+            }
+          },
+          "props": {
+            "type": "object",
+            "description": "Values for the model's properties."
+          },
+          "controls": {
+            "type": "object",
+            "description": "Where the part's sliders were left (1.2), by control name; applied when a simulation starts. Each must be a slider of the part's model, within its range.",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "propertyNames": {
+              "pattern": "^[a-zA-Z0-9_-]{1,32}$"
+            }
+          },
+          "at": {
+            "type": "object",
+            "required": [
+              "x",
+              "y"
+            ],
+            "additionalProperties": false,
+            "description": "Where the app's canvas shows the part, once moved there (1.3). Only the drawing: the part works the same anywhere.",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

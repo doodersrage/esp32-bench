@@ -21,6 +21,7 @@ import { localLink } from "../../../lib/paths";
 import { MAX_DESCRIPTION, clipText } from "../../../lib/describe";
 import { DESKTOP, PROBEHARBOR, SITE, absolute, reportUrl } from "../../../lib/site";
 import { DESKTOP_STRINGS } from "../../../i18n/strings/desktop";
+import DESKTOP_SIM from "../../../data/desktop-sim.json";
 import { buyFor, shopVendor } from "../../../lib/shop";
 import { kitFor } from "../../../lib/kit";
 import { PATHS } from "../../../data/paths";
@@ -43,6 +44,9 @@ interface Props {
 }
 
 const { p } = Astro.props;
+// Boards the desktop app's library sweep saw this project print its expected output on,
+// in its simulator (src/data/desktop-sim.json, from esp32-desktop's tests/library/site_runs.py).
+const simBoards = ((DESKTOP_SIM.runs as Record<string, string[]>)[p.id] ?? []).map((b) => boardById(b as BoardId)?.short ?? b);
 const name = tc(p.name);
 const sum = tc(p.sum);
 // A board's %VAR% values, as forBoard() fills them (a variant board borrows its parent's).
@@ -167,6 +171,13 @@ const previewBoards = Object.fromEntries(BOARDS.filter((b) => b.id === "esp32" |
         <span class="tag">{t("mins", { n: p.mins })}</span>
         <span class="tag">{t("baud", { n: p.baud })}</span>
         <span class="tag ok" data-lab-tag hidden title={t("labTagTitle")}>{t("labTested")}</span>
+        {
+          simBoards.length > 0 && (
+            <a class="tag ok" href={link("/desktop/")} title={desktop("simTagTitle", { date: DESKTOP_SIM.checked, boards: simBoards.join(", ") })}>
+              {desktop("simTag")}
+            </a>
+          )
+        }
       </div>
       <div class="pageactions">
         <button class="linkbtn" type="button" data-print>{t("print")}</button>

@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://esp32bench.dev/schema/part-model/v1.schema.json",
+  "title": "esp32bench part model",
+  "description": "One kind of virtual part: a description plus a Rhai script (docs/parts.md). Version 1.x.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "look",
+    "script"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{1,32}$"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "look": {
+      "enum": [
+        "led",
+        "button",
+        "switch",
+        "rgb-led",
+        "display",
+        "box",
+        "strip"
+      ],
+      "description": "How the app draws it."
+    },
+    "pins": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]{0,15}$"
+      },
+      "maxItems": 16,
+      "uniqueItems": true,
+      "description": "Named connections to GPIOs."
+    },
+    "i2c": {
+      "type": "object",
+      "required": [
+        "addresses"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 8,
+            "maximum": 119
+          }
+        }
+      }
+    },
+    "display": {
+      "type": "object",
+      "required": [
+        "width",
+        "height"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 512
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 512
+        }
+      }
+    },
+    "props": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "type",
+          "default",
+          "label"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "enum": [
+              "bool",
+              "int",
+              "number"
+            ]
+          },
+          "default": {},
+          "label": {
+            "type": "string"
+          },
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "label"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "momentary",
+              "toggle",
+              "slider"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "default": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "state": {
+      "type": "object",
+      "description": "The state the app shows, with starting values."
+    },
+    "script": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+\\.rhai$"
+    },
+    "optionalPins": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true,
+      "description": "Pins from `pins` that may be left unconnected."
+    },
+    "drawing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "board",
+        "header"
+      ],
+      "description": "What the module looks like (since 1.1): its board colour, the name on its chip, and its header's pins in order as on the real module. Every model pin is on the header once, as pin:<name>; an I2C part has i2c-scl and i2c-sda once each.",
+      "properties": {
+        "board": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "The board's colour."
+        },
+        "chip": {
+          "type": "string",
+          "maxLength": 16,
+          "description": "The name printed on its chip."
+        },
+        "header": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "connect"
+            ],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 6,
+                "description": "As printed on the module."
+              },
+              "connect": {
+                "type": "string",
+                "pattern": "^(power|ground|none|i2c-scl|i2c-sda|pin:[a-z0-9-]{1,32})$",
+                "description": "power, ground, i2c-scl, i2c-sda, pin:<model pin> (wired to that pin's GPIO), or none (not simulated)."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

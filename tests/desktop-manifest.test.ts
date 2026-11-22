@@ -13,6 +13,27 @@ if (!existsSync(path)) {
 }
 const m = JSON.parse(readFileSync(path, "utf8"));
 
+// The format, as published at its $id (public/schema/, copied from esp32-desktop by
+// scripts/sync-schemas.mjs): what the site generates must match what it publishes.
+{
+  const { default: Ajv2020 } = await import("ajv/dist/2020.js");
+  const schema = JSON.parse(readFileSync("public/schema/project-manifest/v1.schema.json", "utf8"));
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  assert.ok(validate(m), `desktop manifest does not match its schema: ${JSON.stringify(validate.errors?.slice(0, 5))}`);
+}
+
+// 1.3: each board's pins and the part catalogue.
+const catalogue = new Set<string>();
+for (const part of m.parts ?? []) {
+  assert.ok(!catalogue.has(part.id), `part ${part.id} listed twice`);
+  catalogue.add(part.id);
+}
+for (const b of m.boards) {
+  assert.ok(b.pins, `board ${b.id}: pins`);
+  assert.ok(b.pins.i2c, `board ${b.id}: I2C pins`);
+  assert.equal(new Set(b.pins.safe).size, b.pins.safe.length, `board ${b.id}: a safe pin listed twice`);
+}
+
 assert.equal(m.format, "esp32bench-project-manifest");
 assert.match(m.version, /^\d+\.\d+\.\d+$/);
 assert.ok(!Number.isNaN(Date.parse(m.generated)), "generated is a date");
@@ -38,6 +59,8 @@ for (const p of m.projects) {
   assert.ok(["sketch", "prebuilt"].includes(p.firmware), `${p.id}: firmware`);
   assert.ok(p.builds.length > 0, `${p.id}: at least one board`);
   assert.ok(Number.isInteger(p.baud) && p.baud > 0, `${p.id}: baud`);
+  for (const set of p.needs ?? [])
+    for (const id of set) assert.ok(catalogue.has(id), `${p.id}: needs ${id}, which the part catalogue lacks`);
   for (const part of p.parts) assert.ok(part.quantity > 0 && part.name, `${p.id}: part ${JSON.stringify(part)}`);
   for (const e of p.expect?.patterns ?? []) new RegExp(e, "m");
   // Every library that is not part of the ESP32 core can be installed.

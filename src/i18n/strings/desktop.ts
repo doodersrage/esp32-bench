@@ -40,6 +40,8 @@ export const DESKTOP_STRINGS = defineStrings({
     openLink: "Open in the desktop app",
     openLinkTitle: "Opens this project in ESP32 Bench, if the app is installed",
     whatIsThis: "What is this?",
+    simTag: "Runs in the desktop simulator",
+    simTagTitle: "Checked {date} in the desktop app's simulator, on {boards}: it printed what the project prints on a real board.",
     footLink: "Desktop app",
   },
   es: {
@@ -79,6 +81,8 @@ export const DESKTOP_STRINGS = defineStrings({
     openLink: "Abrir en la app de escritorio",
     openLinkTitle: "Abre este proyecto en ESP32 Bench, si la app está instalada",
     whatIsThis: "¿Qué es esto?",
+    simTag: "Funciona en el simulador de escritorio",
+    simTagTitle: "Comprobado el {date} en el simulador de la app de escritorio, en {boards}: imprimió lo que el proyecto imprime en una placa real.",
     footLink: "App de escritorio",
   },
   de: {
@@ -118,6 +122,8 @@ export const DESKTOP_STRINGS = defineStrings({
     openLink: "In der Desktop-App öffnen",
     openLinkTitle: "Öffnet dieses Projekt in ESP32 Bench, falls die App installiert ist",
     whatIsThis: "Was ist das?",
+    simTag: "Läuft im Desktop-Simulator",
+    simTagTitle: "Am {date} im Simulator der Desktop-App geprüft, auf {boards}: Es gab aus, was das Projekt auf einem echten Board ausgibt.",
     footLink: "Desktop-App",
   },
   fr: {
@@ -157,6 +163,8 @@ export const DESKTOP_STRINGS = defineStrings({
     openLink: "Ouvrir dans l'application de bureau",
     openLinkTitle: "Ouvre ce projet dans ESP32 Bench, si l'application est installée",
     whatIsThis: "Qu'est-ce que c'est ?",
+    simTag: "Fonctionne dans le simulateur de bureau",
+    simTagTitle: "Vérifié le {date} dans le simulateur de l'application de bureau, sur {boards} : il a affiché ce que le projet affiche sur une vraie carte.",
     footLink: "Application de bureau",
   },
   "pt-br": {
@@ -196,6 +204,8 @@ export const DESKTOP_STRINGS = defineStrings({
     openLink: "Abrir no app de desktop",
     openLinkTitle: "Abre este projeto no ESP32 Bench, se o app estiver instalado",
     whatIsThis: "O que é isto?",
+    simTag: "Roda no simulador do desktop",
+    simTagTitle: "Verificado em {date} no simulador do app de desktop, em {boards}: imprimiu o que o projeto imprime em uma placa real.",
     footLink: "App de desktop",
   },
 });
