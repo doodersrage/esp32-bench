@@ -133,6 +133,12 @@ function showLab(lab: Lab): void {
   labBox.replaceChildren(head, line, ...details);
   labBox.hidden = false;
   if (labTag && passed.length) labTag.hidden = false;
+  // "Tested on this board" said "not run yet" while the header said "Lab tested": say what the lab did.
+  for (const r of lab.results) {
+    if (r.status !== "passed") continue;
+    const here = document.querySelector<HTMLElement>(`[data-lab-here="${CSS.escape(r.board)}"]`);
+    if (here) here.textContent = t(r.check === "full" ? "labRanHereFull" : "labRanHere", { date });
+  }
 }
 
 // Load when the section comes near the screen, so the page itself stays fast.
@@ -147,4 +153,6 @@ if (box) {
     { rootMargin: "400px" },
   );
   io.observe(box);
+  // The per-board "Tested on this board" boxes use the lab result too, and come well before this section.
+  for (const here of document.querySelectorAll("[data-lab-here]")) io.observe(here);
 }
