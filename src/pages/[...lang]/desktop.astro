@@ -25,6 +25,11 @@ export const getStaticPaths = localePaths;
     <h1 class="h2">{t("h1")}</h1>
     <p class="lede">{t("lede")}</p>
 
+    <figure class="shot">
+      <a href="/screenshots/desktop-library.webp"><img src="/screenshots/desktop-library.webp" width="2131" height="1080" loading="lazy" decoding="async" alt={t("shotLibrary")} /></a>
+      <figcaption>{t("shotLibrary")}</figcaption>
+    </figure>
+
     <h2>{t("doesH")}</h2>
     <ul>
       <li>{t("doesBuild")}</li>
@@ -34,6 +39,16 @@ export const getStaticPaths = localePaths;
       <li>{t("doesTrace")}</li>
       <li>{t("doesLanguages")}</li>
     </ul>
+
+    <figure class="shot">
+      <a href="/screenshots/desktop-simulator.webp"><img src="/screenshots/desktop-simulator.webp" width="2131" height="1080" loading="lazy" decoding="async" alt={t("shotSim")} /></a>
+      <figcaption>{t("shotSim")}</figcaption>
+    </figure>
+
+    <figure class="shot">
+      <a href="/screenshots/desktop-debugger.webp"><img src="/screenshots/desktop-debugger.webp" width="2131" height="1080" loading="lazy" decoding="async" alt={t("shotDebug")} /></a>
+      <figcaption>{t("shotDebug")}</figcaption>
+    </figure>
 
     <h2>{t("limitsH")}</h2>
     <ul>

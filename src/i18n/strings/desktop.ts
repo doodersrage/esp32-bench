@@ -9,6 +9,9 @@ export const DESKTOP_STRINGS = defineStrings({
     h1: "ESP32 Bench desktop app",
     lede: "The same project library as a desktop app: build, flash and simulate projects on your computer, without a browser. It is new, and runs on Windows, macOS and Linux.",
     doesH: "What it does",
+    shotLibrary: "The project library beside a project's parts, wiring and code, with its circuit.",
+    shotSim: "The OLED project in the simulator: the OLED part draws what the firmware draws, and the output check passes.",
+    shotDebug: "The debugger stopped at a breakpoint in Blink's loop, with the call stack, a watched expression and the registers.",
     doesBuild: "Builds library projects with arduino-cli, and asks before it builds or flashes anything it downloaded. It also builds your own ESP-IDF project folders with your installed ESP-IDF.",
     doesFlash: "Flashes, inspects and monitors boards over USB, without root.",
     doesSim:
@@ -45,6 +48,9 @@ export const DESKTOP_STRINGS = defineStrings({
     h1: "ESP32 Bench, la app de escritorio",
     lede: "La misma biblioteca de proyectos como app de escritorio: compila, graba y simula proyectos en tu ordenador, sin navegador. Es nueva y funciona en Windows, macOS y Linux.",
     doesH: "Qué hace",
+    shotLibrary: "La biblioteca de proyectos junto a las piezas, el cableado y el código de un proyecto, con su circuito.",
+    shotSim: "El proyecto OLED en el simulador: la pieza OLED dibuja lo que dibuja el firmware, y la comprobación de la salida se cumple.",
+    shotDebug: "El depurador detenido en un punto de interrupción en el loop de Blink, con la pila de llamadas, una expresión vigilada y los registros.",
     doesBuild: "Compila los proyectos de la biblioteca con arduino-cli y pregunta antes de compilar o grabar cualquier cosa descargada. También compila tus propias carpetas de proyectos ESP-IDF con el ESP-IDF que tengas instalado.",
     doesFlash: "Graba, inspecciona y monitoriza placas por USB, sin root.",
     doesSim:
@@ -81,6 +87,9 @@ export const DESKTOP_STRINGS = defineStrings({
     h1: "ESP32 Bench als Desktop-App",
     lede: "Dieselbe Projektbibliothek als Desktop-App: Projekte auf deinem Rechner kompilieren, flashen und simulieren, ohne Browser. Sie ist neu und läuft unter Windows, macOS und Linux.",
     doesH: "Was sie kann",
+    shotLibrary: "Die Projektbibliothek neben den Bauteilen, der Verdrahtung und dem Code eines Projekts, mit seiner Schaltung.",
+    shotSim: "Das OLED-Projekt im Simulator: Das OLED-Bauteil zeigt, was die Firmware zeichnet, und die Ausgabeprüfung ist bestanden.",
+    shotDebug: "Der Debugger an einem Haltepunkt in Blinks loop, mit Aufrufstapel, einem beobachteten Ausdruck und den Registern.",
     doesBuild: "Kompiliert Projekte der Bibliothek mit arduino-cli und fragt nach, bevor sie etwas Heruntergeladenes kompiliert oder flasht. Eigene ESP-IDF-Projektordner kompiliert sie mit deinem installierten ESP-IDF.",
     doesFlash: "Flasht, untersucht und überwacht Boards über USB, ohne root.",
     doesSim:
@@ -117,6 +126,9 @@ export const DESKTOP_STRINGS = defineStrings({
     h1: "ESP32 Bench, l'application de bureau",
     lede: "La même bibliothèque de projets en application de bureau : compilez, flashez et simulez des projets sur votre ordinateur, sans navigateur. Elle est nouvelle et fonctionne sous Windows, macOS et Linux.",
     doesH: "Ce qu'elle fait",
+    shotLibrary: "La bibliothèque de projets à côté des composants, du câblage et du code d'un projet, avec son circuit.",
+    shotSim: "Le projet OLED dans le simulateur : le composant OLED affiche ce que le firmware dessine, et la vérification de la sortie est réussie.",
+    shotDebug: "Le débogueur arrêté sur un point d'arrêt dans le loop de Blink, avec la pile d'appels, une expression surveillée et les registres.",
     doesBuild: "Compile les projets de la bibliothèque avec arduino-cli et demande avant de compiler ou de flasher tout ce qui a été téléchargé. Elle compile aussi vos propres dossiers de projets ESP-IDF avec l'ESP-IDF installé.",
     doesFlash: "Flashe, inspecte et surveille les cartes par USB, sans root.",
     doesSim:
@@ -153,6 +165,9 @@ export const DESKTOP_STRINGS = defineStrings({
     h1: "ESP32 Bench, o app de desktop",
     lede: "A mesma biblioteca de projetos como app de desktop: compile, grave e simule projetos no seu computador, sem navegador. Ele é novo e roda no Windows, no macOS e no Linux.",
     doesH: "O que ele faz",
+    shotLibrary: "A biblioteca de projetos ao lado das peças, da fiação e do código de um projeto, com seu circuito.",
+    shotSim: "O projeto OLED no simulador: a peça OLED desenha o que o firmware desenha, e a verificação da saída passa.",
+    shotDebug: "O depurador parado em um ponto de interrupção no loop do Blink, com a pilha de chamadas, uma expressão observada e os registradores.",
     doesBuild: "Compila os projetos da biblioteca com arduino-cli e pergunta antes de compilar ou gravar qualquer coisa baixada. Também compila suas próprias pastas de projetos ESP-IDF com o ESP-IDF instalado.",
     doesFlash: "Grava, inspeciona e monitora placas pela USB, sem root.",
     doesSim:
